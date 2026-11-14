@@ -1,103 +1,77 @@
-// 🌟 移除顶部强依赖的 import，改为用到时动态加载
+import { dbService } from '../services/db.js';
+
 let pdfjsLib = null;
 
 const readerCSS = `
-  :host {
-    display: flex; flex-direction: column; height: 100%; width: 100%;
-    background: #0e1014; color: #fff; overflow: hidden; position: relative;
-  }
+  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; position: relative; }
   button, label { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
-  .toolbar {
-    display: flex; gap: 10px; padding: 10px 16px; background: #191e27;
-    border-bottom: 1px solid #2a3140; align-items: center; z-index: 10;
-  }
-  .btn-upload {
-    background: #38bdf8; color: #000; border: none; padding: 8px 16px;
-    border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;
-  }
-  .btn-upload:hover { filter: brightness(1.1); }
 
-  .viewer {
-    flex: 1; overflow: auto; position: relative; background: #121212;
-    cursor: grab; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
-  }
+  .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #191e27; border-bottom: 1px solid #2a3140; align-items: center; z-index: 10; flex-wrap: wrap; }
+
+  .btn { background: #38bdf8; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+  .btn.outline { background: transparent; color: #38bdf8; border: 1px solid #38bdf8; }
+  .btn.outline:hover { background: rgba(56, 189, 248, 0.1); }
+  .btn-back { background: #2a3444; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: none; }
+
+  .pc-actions { display: none; gap: 10px; }
+
+  .shelf-view { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; align-content: start; }
+  .score-card { background: #1b2230; border: 1px solid #2a3140; border-radius: 12px; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; position: relative; }
+  .score-card:hover { background: #252e3c; border-color: #38bdf8; transform: translateY(-2px); }
+  .score-icon { font-size: 40px; margin-bottom: 10px; }
+  .score-name { font-size: 13px; text-align: center; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .btn-delete { position: absolute; top: 8px; right: 8px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; }
+  .score-card:hover .btn-delete { display: block; }
+
+  .viewer { flex: 1; overflow: auto; position: relative; background: #121212; cursor: grab; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; display: none; }
   .viewer:active { cursor: grabbing; }
+  .content-container { display: flex; flex-direction: column; align-items: center; min-width: 100%; width: 100%; padding: 20px 0; box-sizing: border-box; }
 
-  .content-container {
-    display: flex; flex-direction: column; align-items: center;
-    min-width: 100%; width: 100%; padding: 20px 0; box-sizing: border-box;
-  }
-
-  .page-box {
-    width: 100%; margin-bottom: 15px; background: #1a1a1a;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-    display: flex; justify-content: center; align-items: center;
-    overflow: hidden; position: relative;
-  }
+  .page-box { width: 100%; margin-bottom: 15px; background: #1a1a1a; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
   .page-box::after { content: '加载中...'; color: #555; font-size: 12px; position: absolute; }
   .page-box.loaded::after { display: none; }
+  .content-container img, .content-container canvas { display: block; width: 100%; height: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
 
-  .content-container img,
-  .content-container canvas {
-    display: block; width: 100%; height: auto; max-width: none;
-    user-select: none; -webkit-user-drag: none;
-  }
+  .empty-tip { text-align: center; color: #6a7890; margin-top: 50px; grid-column: 1 / -1; }
 
-  .empty-tip {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #6a7890; font-size: 15px; text-align: center; pointer-events: none;
-  }
-
-  .zoom-controls {
-    position: absolute; bottom: 30px; right: 20px;
-    display: flex; flex-direction: column; gap: 8px; z-index: 20;
-  }
-  .zoom-btn {
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff;
-    font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  }
+  .zoom-controls { position: absolute; bottom: 30px; right: 20px; display: none; flex-direction: column; gap: 8px; z-index: 20; }
+  .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
   .zoom-btn:active { background: rgba(56,189,248,0.3); transform: scale(0.95); }
 
-  .loading {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 16px; z-index: 30; display: none;
-  }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 16px; z-index: 30; display: none; }
   .loading.show { display: flex; }
 
-  .action-sheet-mask {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.5);
-    display: none; align-items: flex-end; z-index: 100;
-  }
+  .action-sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-end; z-index: 100; }
   .action-sheet-mask.show { display: flex; }
-  .action-sheet {
-    width: 100%; background: #1b2230; border-radius: 16px 16px 0 0;
-    padding: 20px; display: flex; flex-direction: column; gap: 12px;
-    transform: translateY(100%); transition: transform 0.2s; box-sizing: border-box;
-  }
+  .action-sheet { width: 100%; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px; display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; box-sizing: border-box; }
   .action-sheet-mask.show .action-sheet { transform: translateY(0); }
-
-  .action-btn {
-    display: flex; align-items: center; gap: 12px; justify-content: center;
-    background: #252e3c; color: #e2e9f5; border: none;
-    padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 500;
-    cursor: pointer; text-align: center;
-  }
-  .action-btn:active { background: #2f3d4f; }
+  .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 500; cursor: pointer; text-align: center; }
   .action-btn.cancel { background: transparent; color: #8a93a6; margin-top: 8px; }
 `;
 
 const readerHTML = `
   <div class="toolbar">
-    <button class="btn-upload" id="btnUpload">📂 导入本地乐谱</button>
-    <span style="font-size: 12px; color: #8a93a6; margin-left: auto;">滚轮翻页 · Ctrl+滚轮/按钮/双指缩放</span>
+    <button class="btn-back" id="btnBack">← 返回书架</button>
+    <div class="pc-actions" id="pcActions">
+      <button class="btn" id="btnSingleFile">📂 导入单文件</button>
+      <button class="btn outline" id="btnFolder">📁 导入整个文件夹</button>
+    </div>
+    <button class="btn" id="btnMobileUpload" style="display:none;">📂 导入乐谱</button>
+  </div>
+
+  <input type="file" id="inputSingleFile" accept="image/*,application/pdf" multiple style="display:none">
+  <input type="file" id="inputFolder" webkitdirectory multiple style="display:none">
+
+  <input type="file" id="inputCamera" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="inputGallery" accept="image/*" multiple style="display:none">
+  <input type="file" id="inputMobileFile" accept=".pdf,application/pdf,image/*" multiple style="display:none">
+
+  <div class="shelf-view" id="shelfView">
+    <div class="empty-tip" id="emptyTip">书架空空如也，点击上方导入书籍或乐谱</div>
   </div>
 
   <div class="viewer" id="viewer">
-    <div class="empty-tip" id="emptyTip">点击上方按钮，导入你的第一张乐谱</div>
     <div class="content-container" id="contentContainer"></div>
-    <div class="loading" id="loading">正在解析文件，请稍候...</div>
   </div>
 
   <div class="zoom-controls" id="zoomControls">
@@ -105,17 +79,13 @@ const readerHTML = `
     <button class="zoom-btn" id="zoomOut">−</button>
   </div>
 
+  <div class="loading" id="loading">正在解析文件，请稍候...</div>
+
   <div class="action-sheet-mask" id="actionSheetMask">
     <div class="action-sheet">
       <label class="action-btn" for="inputCamera">📷 拍照</label>
-      <input type="file" id="inputCamera" accept="image/*" capture="environment" style="display:none">
-
       <label class="action-btn" for="inputGallery">🖼️ 从相册选择</label>
-      <input type="file" id="inputGallery" accept="image/*" style="display:none">
-
-      <label class="action-btn" for="inputFile">📁 选择 PDF 或文件</label>
-      <input type="file" id="inputFile" accept=".pdf,application/pdf" style="display:none">
-
+      <label class="action-btn" for="inputMobileFile">📁 选择文件</label>
       <button class="action-btn cancel" id="btnCancel">取消</button>
     </div>
   </div>
@@ -131,11 +101,13 @@ class SheetReader extends HTMLElement {
     this.startX = 0; this.startY = 0;
     this.scrollLeftStart = 0; this.scrollTopStart = 0;
     this.observer = null;
+    this.isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
   }
 
   connectedCallback() {
     this.shadowRoot.innerHTML = `<style>${readerCSS}</style>${readerHTML}`;
     this.initLogic();
+    this.loadShelf();
   }
 
   disconnectedCallback() {
@@ -144,43 +116,68 @@ class SheetReader extends HTMLElement {
   }
 
   initLogic() {
-    // 🌟 极其精准的移动端判断
-    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-                     (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    const $ = (id) => this.shadowRoot.getElementById(id);
 
-    const btnUpload = this.shadowRoot.getElementById('btnUpload');
-    const viewer = this.shadowRoot.getElementById('viewer');
-    const container = this.shadowRoot.getElementById('contentContainer');
-    const emptyTip = this.shadowRoot.getElementById('emptyTip');
-    const loading = this.shadowRoot.getElementById('loading');
-    const actionSheetMask = this.shadowRoot.getElementById('actionSheetMask');
-    const btnCancel = this.shadowRoot.getElementById('btnCancel');
-    const zoomControls = this.shadowRoot.getElementById('zoomControls');
+    const btnBack = $('btnBack');
+    const pcActions = $('pcActions');
+    const btnMobileUpload = $('btnMobileUpload');
+    const shelfView = $('shelfView');
+    const viewer = $('viewer');
+    const container = $('contentContainer');
+    const zoomControls = $('zoomControls');
+    const loading = $('loading');
+    const actionSheetMask = $('actionSheetMask');
+
+    if (this.isMobile) {
+      btnMobileUpload.style.display = 'block';
+    } else {
+      pcActions.style.display = 'flex';
+    }
 
     const applyScale = () => { container.style.width = `${this.scale * 100}%`; };
 
-    // 动态加载解析库
     const loadPdfLib = async () => {
-      if (pdfjsLib) return pdfjsLib;
-      loading.textContent = '正在加载本地解析引擎...';
-      loading.classList.add('show');
-      try {
-        const module = await import('../lib/pdf.min.mjs');
-        pdfjsLib = module;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '../lib/pdf.worker.min.mjs';
+      if (window.pdfjsLib) {
+        pdfjsLib = window.pdfjsLib;
         return pdfjsLib;
-      } catch (err) {
-        alert('PDF解析引擎加载失败：' + err.message);
-        throw err;
-      } finally {
-        loading.classList.remove('show');
       }
+
+      loading.textContent = '正在加载解析引擎...';
+      loading.classList.add('show');
+
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+
+        // 🌟 智能解析绝对路径：确保无论是 root 还是子目录，都能找到 js/lib/pdf.js
+        // 假设 sheet-reader.js 在 js/components/ 下
+        const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        const pdfJsUrl = basePath + 'js/lib/pdf.js';
+        const workerUrl = basePath + 'js/lib/pdf.worker.js';
+
+        script.src = pdfJsUrl;
+
+        script.onload = () => {
+          if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+            pdfjsLib = window.pdfjsLib;
+            loading.classList.remove('show');
+            resolve(pdfjsLib);
+          } else {
+            loading.classList.remove('show');
+            reject(new Error('pdf.js 加载成功但未挂载到 window'));
+          }
+        };
+        script.onerror = () => {
+          loading.classList.remove('show');
+          reject(new Error('找不到本地文件，请检查 js/lib 目录下是否有 pdf.js'));
+        };
+        document.head.appendChild(script);
+      });
     };
 
-    // PDF 懒加载渲染 (仅移动端)
-    const renderPDFLazy = async (file) => {
+    const renderPDFLazy = async (fileBlob) => {
       const lib = await loadPdfLib();
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = await fileBlob.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
 
       const firstPage = await pdf.getPage(1);
@@ -223,101 +220,113 @@ class SheetReader extends HTMLElement {
       }
     };
 
-    // 核心文件处理
-    const handleFile = async (file) => {
-      if (!file) return;
-      actionSheetMask.classList.remove('show');
+    this.openScore = async (fileBlob, fileName) => {
+      shelfView.style.display = 'none';
+      if (this.isMobile) btnMobileUpload.style.display = 'none'; else pcActions.style.display = 'none';
+      btnBack.style.display = 'block';
+      viewer.style.display = 'block';
 
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
       if (this.observer) { this.observer.disconnect(); this.observer = null; }
-
       container.innerHTML = '';
-      emptyTip.style.display = 'none';
-      this.scale = 1;
-      applyScale();
+      this.scale = 1; applyScale();
 
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-
-        if (isMobile) {
-          // 📱 移动端：pdf.js 渲染
+      if (fileName.toLowerCase().endsWith('.pdf')) {
+        if (this.isMobile) {
           zoomControls.style.display = 'flex';
-          container.style.padding = '20px 0';
-          // 👇 加上这两行重置
-          container.style.height = '';
-          container.style.position = 'static';
-
-          try {
-            await renderPDFLazy(file);
-          } catch (err) {
-            console.error(err);
-          }
+          container.style.padding = '20px 0'; container.style.height = ''; container.style.position = 'static';
+          try { await renderPDFLazy(fileBlob); } catch (err) { console.error(err); alert(err.message); }
         } else {
-          // 💻 电脑端 PDF：直接交给浏览器自带的 iframe！
           zoomControls.style.display = 'none';
-
-          // 🌟 关键修复：让容器撑满高度，并使用相对定位
-          container.style.padding = '0';
-          container.style.height = '100%';
-          container.style.position = 'relative';
-
-          this.currentObjectUrl = URL.createObjectURL(file);
+          container.style.padding = '0'; container.style.height = '100%'; container.style.position = 'relative';
+          this.currentObjectUrl = URL.createObjectURL(fileBlob);
           const iframe = document.createElement('iframe');
           iframe.src = this.currentObjectUrl;
-
-          // 🌟 关键修复：使用绝对定位铺满整个阅读区
-          iframe.style.position = 'absolute';
-          iframe.style.inset = '0';
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          iframe.style.border = 'none';
+          iframe.style.position = 'absolute'; iframe.style.inset = '0';
+          iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = 'none';
           container.appendChild(iframe);
         }
       } else {
-        // 🖼️ 处理图片
         zoomControls.style.display = 'flex';
-        container.style.padding = '20px 0';
-        // 👇 加上这两行重置
-        container.style.height = '';
-        container.style.position = 'static';
-        
-        this.currentObjectUrl = URL.createObjectURL(file);
+        container.style.padding = '20px 0'; container.style.height = ''; container.style.position = 'static';
+        this.currentObjectUrl = URL.createObjectURL(fileBlob);
         const img = document.createElement('img');
-        img.src = this.currentObjectUrl;
-        img.draggable = false;
+        img.src = this.currentObjectUrl; img.draggable = false;
         container.appendChild(img);
       }
     };
 
-    // 智能呼出菜单
-    btnUpload.onclick = () => {
-      if (isMobile) {
-        // 📱 移动端：呼出底部菜单
-        actionSheetMask.classList.add('show');
-      } else {
-        // 💻 电脑端：直接呼出文件管理器，不弹菜单
-        const pcInput = document.createElement('input');
-        pcInput.type = 'file';
-        pcInput.accept = '.pdf,application/pdf,image/*';
-        pcInput.onchange = (e) => { handleFile(e.target.files[0]); e.target.value = ''; };
-        pcInput.click();
-      }
+    btnBack.onclick = () => {
+      viewer.style.display = 'none';
+      zoomControls.style.display = 'none';
+      btnBack.style.display = 'none';
+      shelfView.style.display = 'grid';
+      if (this.isMobile) btnMobileUpload.style.display = 'block'; else pcActions.style.display = 'flex';
+      if (this.observer) this.observer.disconnect();
     };
 
-    btnCancel.onclick = () => actionSheetMask.classList.remove('show');
+    this.loadShelf = async () => {
+      const scores = await dbService.getAllScores();
+      shelfView.innerHTML = '';
+
+      if (scores.length === 0) {
+        shelfView.innerHTML = `<div class="empty-tip">书架空空如也，点击上方导入书籍或乐谱</div>`;
+        return;
+      }
+
+      scores.forEach(score => {
+        const card = document.createElement('div');
+        card.className = 'score-card';
+        const isPdf = score.name.toLowerCase().endsWith('.pdf');
+        card.innerHTML = `
+          <div class="score-icon">${isPdf ? '📄' : '🖼️'}</div>
+          <div class="score-name">${score.name}</div>
+          <button class="btn-delete" data-id="${score.id}">×</button>
+        `;
+        card.onclick = () => this.openScore(score.fileBlob, score.name);
+        card.querySelector('.btn-delete').onclick = async (e) => {
+          e.stopPropagation();
+          if (confirm(`确定要从书架删除《${score.name}》吗？`)) {
+            await dbService.deleteScore(score.id);
+            this.loadShelf();
+          }
+        };
+        shelfView.appendChild(card);
+      });
+    };
+
+    const handleFiles = async (files) => {
+      if (!files || files.length === 0) return;
+      loading.textContent = `正在导入 ${files.length} 个文件...`;
+      loading.classList.add('show');
+
+      let count = 0;
+      for (const file of files) {
+        if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          await dbService.addScore(file.name, file);
+          count++;
+        }
+      }
+      loading.classList.remove('show');
+      if(count > 0) alert(`成功导入 ${count} 本乐谱！`);
+      this.loadShelf();
+    };
+
+    $('inputSingleFile').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+    $('inputFolder').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+    $('inputCamera').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+    $('inputGallery').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+    $('inputMobileFile').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+
+    $('btnSingleFile').onclick = () => $('inputSingleFile').click();
+    $('btnFolder').onclick = () => $('inputFolder').click();
+
+    btnMobileUpload.onclick = () => actionSheetMask.classList.add('show');
+    $('btnCancel').onclick = () => actionSheetMask.classList.remove('show');
     actionSheetMask.onclick = (e) => { if (e.target === actionSheetMask) actionSheetMask.classList.remove('show'); };
 
-    // 绑定移动端三个 input
-    const inputCamera = this.shadowRoot.getElementById('inputCamera');
-    const inputGallery = this.shadowRoot.getElementById('inputGallery');
-    const inputFile = this.shadowRoot.getElementById('inputFile');
-
-    inputCamera.onchange = (e) => { handleFile(e.target.files[0]); e.target.value = ''; };
-    inputGallery.onchange = (e) => { handleFile(e.target.files[0]); e.target.value = ''; };
-    inputFile.onchange = (e) => { handleFile(e.target.files[0]); e.target.value = ''; };
-
-    // 缩放控制
-    this.shadowRoot.getElementById('zoomIn').onclick = () => { this.scale = Math.min(6, this.scale * 1.25); applyScale(); };
-    this.shadowRoot.getElementById('zoomOut').onclick = () => { this.scale = Math.max(1, this.scale / 1.25); applyScale(); };
+    $('zoomIn').onclick = () => { this.scale = Math.min(6, this.scale * 1.25); applyScale(); };
+    $('zoomOut').onclick = () => { this.scale = Math.max(1, this.scale / 1.25); applyScale(); };
 
     viewer.addEventListener('wheel', (e) => {
       if (e.ctrlKey || e.metaKey) {
