@@ -1,3 +1,6 @@
+`````
+text
+
 Guitar Shell 项目
 ├── index.html                   ✅ 外壳与导航栏（完成）
 ├── css/layout.css               ✅ 外壳样式（完成）
@@ -37,6 +40,7 @@ Guitar Shell 项目
 └── lib/                         ✅ 外部库
     ├── pdf.min.mjs              ✅ 本地 PDF 解析库
     └── pdf.worker.min.mjs       ✅ PDF 线程库
+````
 
 📊 各模块真实进度盘点
 
