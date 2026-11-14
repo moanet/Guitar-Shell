@@ -1,5 +1,7 @@
 ### 🗺️ Guitar Shell 真实全景架构图
 
+
+
 text
 
 Guitar Shell 项目
@@ -23,6 +25,8 @@ Guitar Shell 项目
     └── pdf.worker.min.mjs       ✅ PDF 线程库
 
 ---
+
+
 
 ### 📊 各模块真实进度盘点
 
