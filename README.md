@@ -1,8 +1,6 @@
 ### 🗺️ Guitar Shell 真实全景架构图
 
-
-
-text
+```txt
 
 Guitar Shell 项目
 ├── index.html                   ✅ 外壳与导航栏（完成）
@@ -24,6 +22,7 @@ Guitar Shell 项目
     ├── pdf.min.mjs              ✅ 本地 PDF 解析库
     └── pdf.worker.min.mjs       ✅ PDF 线程库
 
+```
 ---
 
 
