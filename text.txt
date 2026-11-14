@@ -1,19 +1,19 @@
-guitar-shell/
-├── index.html              # 🌟 主界面（外壳）
-├── manifest.json           # PWA 配置
-├── sw.js                   # 离线缓存（稍后需要更新里面的文件列表）
-├── css/
-│   └── layout.css          # 外壳的布局样式（导航栏、侧边栏、分屏等）
-│
+Guitar Shell 项目
+├── index.html                   ✅ 外壳与导航栏（完成）
+├── css/layout.css               ✅ 外壳样式（完成）
 ├── js/
-│   ├── main.js             # 🌟 入口：注册组件、处理页面切换
+│   ├── main.js                  ✅ 路由与组件加载（完成）
 │   │
-│   ├── services/           # 📦 服务层 (处理数据、音频等底层逻辑)
-│   │   ├── db.js           # 本地/云端数据接口 (预留)
-│   │   └── audio.js        # 全局共用音频引擎 (预留)
+│   ├── services/                🚧 数据与底层服务（全部为空文件）
+│   │   ├── db.js                ❌ 尚未实现（目前用 localStorage 凑合）
+│   │   └── audio.js             ❌ 尚未实现（音频目前耦合在节拍器里）
 │   │
-│   └── components/         # 🧱 组件层 (功能积木)
-│       ├── metronome.js    # 🌟 节拍器组件 (现有的代码搬过来)
-│       ├── tuner.js        # 调音器组件 (占位，以后写)
-│       ├── sheet-reader.js # 读谱器组件 (占位，以后写)
-│       └── practice-log.js # 练琴记录组件 (占位，以后写)
+│   └── components/              🧱 功能积木
+│       ├── metronome.js         ✅ 节拍器组件（完成度 90%）
+│       ├── sheet-reader.js      ✅ 读谱器组件（完成度 80%）
+│       ├── tuner.js             ❌ 调音器组件（空文件）
+│       └── practice-log.js      ❌ 练琴记录组件（空文件）
+│
+└── lib/                         ✅ 外部库
+    ├── pdf.min.mjs              ✅ 本地 PDF 解析库
+    └── pdf.worker.min.mjs       ✅ PDF 线程库
