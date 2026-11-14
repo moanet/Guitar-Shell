@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Guitar Shell</title>
+
+  <!-- 指定图标，消除 favicon.ico 报错 -->
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192-v2.png">
+
+  <!-- PWA 配置 -->
+  <link rel="manifest" href="./manifest.json">
+  <!-- 你的布局样式 -->
+  <link rel="stylesheet" href="./css/layout.css">
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <header class="app-header">
+    <div class="brand">🎸 Guitar Shell</div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-target="view-metronome">节拍器</button>
+      <button class="tab-btn" data-target="view-reader">读谱</button>
+      <button class="tab-btn" data-target="view-log">记录</button>
+      <button class="tab-btn" data-target="view-tuner">调音</button>
+    </nav>
+  </header>
+
+  <!-- 核心工作区：放各个组件 -->
+  <main class="app-main">
+    <!-- 节拍器模块（默认显示） -->
+    <section id="view-metronome" class="view-section active">
+      <guitar-metronome></guitar-metronome>
+    </section>
+
+    <!-- 读谱模块 -->
+    <section id="view-reader" class="view-section">
+      <guitar-sheet-reader></guitar-sheet-reader>
+    </section>
+
+    <!-- 记录模块（占位） -->
+    <section id="view-log" class="view-section">
+      <div class="placeholder">📝 练琴记录功能开发中...</div>
+    </section>
+
+    <!-- 调音模块（占位） -->
+    <section id="view-tuner" class="view-section">
+      <div class="placeholder">🎵 调音器功能开发中...</div>
+    </section>
+  </main>
+
+  <!-- 引入主逻辑 -->
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
