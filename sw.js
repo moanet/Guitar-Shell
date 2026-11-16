@@ -1,50 +1,63 @@
-const CACHE = 'metronome-v1';
-const ASSETS = [
+const CACHE_NAME = 'guitar-shell-v';
+
+// 🌟 把所有核心文件、本地库都加进缓存列表
+const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  './css/layout.css',
+  './js/main.js',
+  './js/services/db.js',
+  './js/components/metronome.js',
+  './js/components/sheet-reader.js',
+  './js/components/practice-log.js',
+  './js/components/tuner.js',
+  './js/lib/pdf.js',
+  './js/lib/pdf.worker.js',
+  './manifest.json'
+  // 🌟 换成新图标
+  './icon-gShell-32.png',
+  './icon-gShell-192.png',
+  './icon-gShell-512.png'
 ];
 
-self.addEventListener('install', function (e) {
+// 1. 安装 Service Worker 并缓存文件
+self.addEventListener('install', (e) => {
+  self.skipWaiting(); // 强制新的 SW 立即接管
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); })
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('正在将 Guitar Shell 的核心文件写入离线缓存...');
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
   );
-  self.skipWaiting();
 });
 
-self.addEventListener('activate', function (e) {
+// 2. 激活 Service Worker 并清理旧缓存
+self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then(function (keys) {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.filter(function (k) { return k !== CACHE; })
-            .map(function (k) { return caches.delete(k); })
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('清理旧版本缓存:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
       );
     })
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', function (e) {
-  const req = e.request;
-  if (req.method !== 'GET') return;
-
-  const url = new URL(req.url);
-  if (url.origin !== location.origin) return;
+// 3. 拦截网络请求，优先使用缓存（离线可用）
+self.addEventListener('fetch', (e) => {
+  // 只拦截 HTTP/HTTPS 请求，且跳过 chrome 扩展的请求
+  if (!e.request.url.startsWith('http')) return;
 
   e.respondWith(
-    caches.match(req).then(function (hit) {
-      if (hit) return hit;
-      return fetch(req).then(function (res) {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, copy); });
-        }
-        return res;
-      }).catch(function () {
-        if (req.mode === 'navigate') return caches.match('./index.html');
-      });
+    caches.match(e.request).then((response) => {
+      // 如果缓存中有，直接返回缓存；如果没有，则去网络请求
+      if (response) return response;
+      return fetch(e.request);
     })
   );
 });
