@@ -1,4 +1,5 @@
-const CACHE_NAME = 'guitar-shell-v4'; // 🌟 版本号升级到 v4
+const APP_VERSION = '0.0.1';
+const CACHE_NAME = 'guitar-shell-v' + APP_VERSION;
 
 const ASSETS_TO_CACHE = [
   './',
