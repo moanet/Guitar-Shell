@@ -1,6 +1,5 @@
-const CACHE_NAME = 'guitar-shell-v';
+const CACHE_NAME = 'guitar-shell-v4'; // 🌟 版本号升级到 v4
 
-// 🌟 把所有核心文件、本地库都加进缓存列表
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -13,8 +12,7 @@ const ASSETS_TO_CACHE = [
   './js/components/tuner.js',
   './js/lib/pdf.js',
   './js/lib/pdf.worker.js',
-  './manifest.json'
-  // 🌟 换成新图标
+  './manifest.json',
   './icon-gShell-32.png',
   './icon-gShell-192.png',
   './icon-gShell-512.png'
@@ -22,11 +20,16 @@ const ASSETS_TO_CACHE = [
 
 // 1. 安装 Service Worker 并缓存文件
 self.addEventListener('install', (e) => {
-  self.skipWaiting(); // 强制新的 SW 立即接管
+  self.skipWaiting(); 
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('正在将 Guitar Shell 的核心文件写入离线缓存...');
-      return cache.addAll(ASSETS_TO_CACHE);
+      console.log('正在将核心文件写入离线缓存...');
+      // 🌟 核心修复：使用 Promise.all 和 catch，防止因为某一张图标没上传导致全盘崩溃
+      return Promise.all(
+        ASSETS_TO_CACHE.map(url => {
+          return cache.add(url).catch(err => console.warn('缓存失败（忽略该项）:', url));
+        })
+      );
     })
   );
 });
@@ -50,12 +53,10 @@ self.addEventListener('activate', (e) => {
 
 // 3. 拦截网络请求，优先使用缓存（离线可用）
 self.addEventListener('fetch', (e) => {
-  // 只拦截 HTTP/HTTPS 请求，且跳过 chrome 扩展的请求
   if (!e.request.url.startsWith('http')) return;
 
   e.respondWith(
     caches.match(e.request).then((response) => {
-      // 如果缓存中有，直接返回缓存；如果没有，则去网络请求
       if (response) return response;
       return fetch(e.request);
     })
