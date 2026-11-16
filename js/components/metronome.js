@@ -17,7 +17,7 @@ const metronomeCSS = `
     -webkit-tap-highlight-color: transparent !important;
   }
   button:focus { outline: none !important; }
-
+  
   .main-inner {
     position: relative;
     display: flex;
@@ -52,13 +52,13 @@ const metronomeCSS = `
   .knob-wrap canvas { display:block;touch-action:none;cursor:grab; }
   .knob-center { position:absolute;inset:0; display:flex;flex-direction:column; align-items:center;justify-content:center; pointer-events:none; gap:2px; }
   .knob-row { display:flex;align-items:center;gap:4px; pointer-events:auto; }
-
+  
   .knob-step { width:26px;height:26px;border-radius:50%; border:1px solid #2a3444;background:#1b222d;color:#9aa6ba; font-size:16px;cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; }
   .knob-step:active{transform:scale(.9);background:rgba(56,189,248,.15)}
-
+  
   .knob-num { width:64px;border:none;outline:none;background:transparent; text-align:center; font-size:34px;font-weight:700;color:#f4f8ff; font-variant-numeric:tabular-nums;padding:0; caret-color:var(--cyan); pointer-events:auto; touch-action: manipulation; }
   .knob-unit { font-size:9px;letter-spacing:4px;color:var(--muted); margin-top:2px; }
-
+  
   .play-in-knob { margin-top:10px; padding:0 28px; min-width:140px; height:44px; border-radius:12px; border:none; cursor:pointer; font-size:14px; font-weight:800; letter-spacing:5px; color:#06210f; background:linear-gradient(180deg,#5ee894,#22c55e); pointer-events:auto; }
   .play-in-knob.running { color:#2b0505; background:linear-gradient(180deg,#fb8b8b,#ef4444); }
 
@@ -80,7 +80,7 @@ const metronomeCSS = `
   .settings-panel h3 { margin: 0; font-size: 16px; color: #fff; text-align: center; }
   .settings-group { display: flex; flex-direction: column; gap: 8px; }
   .settings-label { font-size: 12px; color: var(--muted); }
-
+  
   .ts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .ts-btn { padding: 8px 0; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #7b8698; cursor: pointer; font-size: 13px; }
   .ts-btn.on { border-color: var(--cyan); color: var(--cyan); background: rgba(56,189,248,.1); }
@@ -92,7 +92,7 @@ const metronomeCSS = `
   .timbre-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .timbre-btn { padding: 8px 0; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #7b8698; cursor: pointer; font-size: 12px; }
   .timbre-btn.on { border-color: var(--cyan); color: var(--cyan); background: rgba(56,189,248,.1); }
-
+  
   .close-btn { padding: 10px; border-radius: 8px; border: none; background: #2a3444; color: #fff; cursor: pointer; margin-top: 8px; font-weight: bold; }
 `;
 
@@ -148,22 +148,18 @@ const metronomeHTML = `
 <div class="settings-mask" id="settingsMask">
   <div class="settings-panel">
     <h3>节拍器设置</h3>
-
     <div class="settings-group">
       <div class="settings-label">拍号</div>
       <div class="ts-grid" id="tsGrid"></div>
     </div>
-
     <div class="settings-group">
       <div class="settings-label">拍内细分</div>
       <div class="sub-grid" id="subGrid"></div>
     </div>
-
     <div class="settings-group">
       <div class="settings-label">音色</div>
       <div class="timbre-grid" id="timbreGrid"></div>
     </div>
-
     <button class="close-btn" id="btnCloseSettings">完成</button>
   </div>
 </div>
@@ -176,7 +172,7 @@ class GuitarMetronome extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-
+    
     this.bpm = 120;
     this.timeSigNum = 4;
     this.timeSigDen = 4;
@@ -184,29 +180,41 @@ class GuitarMetronome extends HTMLElement {
     this.currentSlots = [1];
     this.accents = ['accent', 'beat', 'beat', 'beat'];
     this.currentTimbre = 'sine';
-
+    
     this.isRunning = false;
     this.audioCtx = null;
     this.queue = [];
     this.dotEls = [];
-
+    
     this.currentBeatDur = 60 / this.bpm;
     this.currentSlotDurs = [this.currentBeatDur];
+
+    // 🌟 定义全局 BPM 监听的函数
+    this.handleGlobalBpmChange = (e) => {
+      if (e.detail.bpm !== this.bpm) {
+        this.setBpm(e.detail.bpm, true); // 传入 true 表示来自外部同步
+      }
+    };
   }
 
   connectedCallback() {
     this.shadowRoot.innerHTML = `<style>${metronomeCSS}</style>${metronomeHTML}`;
     this.initLogic();
+    
+    // 🌟 监听来自其他组件的 BPM 广播
+    window.addEventListener('bpm-changed', this.handleGlobalBpmChange);
   }
 
   disconnectedCallback() {
     this.stop();
     if (this.scheduleId) clearInterval(this.scheduleId);
+    // 🌟 移除监听
+    window.removeEventListener('bpm-changed', this.handleGlobalBpmChange);
   }
 
   initLogic() {
     const $ = (id) => this.shadowRoot.getElementById(id);
-
+    
     const bpmInput   = $('bpmInput');
     const knobMinus  = $('knobMinus');
     const knobPlus   = $('knobPlus');
@@ -218,7 +226,7 @@ class GuitarMetronome extends HTMLElement {
     const dotsWrap   = $('dots');
     const playBtn    = $('playBtn');
     const tapBtn     = $('tapBtn');
-
+    
     const settingsMask = $('settingsMask');
     const btnSettings = $('btnSettings');
     const btnCloseSettings = $('btnCloseSettings');
@@ -251,7 +259,7 @@ class GuitarMetronome extends HTMLElement {
       };
       localStorage.setItem('guitar_metronome_settings', JSON.stringify(data));
     };
-
+    
     const loadSettings = () => {
       try {
         const raw = localStorage.getItem('guitar_metronome_settings');
@@ -287,7 +295,7 @@ class GuitarMetronome extends HTMLElement {
     const playClick = (time, type) => {
       if (type === 'mute') return;
       let baseFreq = (type === 'accent') ? 1568 : 1046;
-
+      
       let oscType = 'sine';
       if (this.currentTimbre === 'square') oscType = 'square';
       if (this.currentTimbre === 'triangle') oscType = 'triangle';
@@ -296,11 +304,11 @@ class GuitarMetronome extends HTMLElement {
       const gain = this.audioCtx.createGain();
       osc.type = oscType;
       osc.frequency.setValueAtTime(baseFreq, time);
-
+      
       gain.gain.setValueAtTime(0.0001, time);
       gain.gain.exponentialRampToValueAtTime(type === 'accent' ? 0.8 : 0.5, time + 0.002);
       gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
-
+      
       osc.connect(gain);
       gain.connect(this.masterGain);
       osc.start(time);
@@ -344,26 +352,17 @@ class GuitarMetronome extends HTMLElement {
       this.rafId = requestAnimationFrame(this.drawLoop);
     };
 
-    // 🌟 修复：重新计算画布大小和半径，留足四周边缘空间，防止切边
     const resizeKnob = () => {
       const rect = knobWrap.getBoundingClientRect();
       if (rect.width < 10) return;
       const size = Math.floor(Math.min(rect.width, rect.height));
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-
       knobCanvas.width = size * dpr;
       knobCanvas.height = size * dpr;
       knobCanvas.style.width = size + 'px';
       knobCanvas.style.height = size + 'px';
-
       knob.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      knob.size = size;
-      knob.cx = size / 2;
-      knob.cy = size / 2;
-
-      // 🌟 以前是 size/2 - 16，导致靠边的手柄被切。现在给它四周留 20% 的边距。
-      knob.r = size / 2 - size * 0.12;
-
+      knob.size = size; knob.cx = size / 2; knob.cy = size / 2; knob.r = size / 2 - size * 0.12; 
       drawKnob();
     };
 
@@ -373,17 +372,13 @@ class GuitarMetronome extends HTMLElement {
       const { cx, cy, r } = knob;
       ctx.clearRect(0, 0, knob.size, knob.size);
 
-      // 线条宽度
       const lineW = Math.max(10, r * 0.13);
       const t = (this.bpm - MIN_BPM) / (MAX_BPM - MIN_BPM);
       const curA = START_ANG + t * SWEEP_ANG;
 
-      // 背景轨道
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, START_ANG, START_ANG + SWEEP_ANG);
+      ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, START_ANG + SWEEP_ANG);
       ctx.strokeStyle = '#232b38'; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
 
-      // 进度轨道
       if (t > 0.002) {
         const grad = ctx.createLinearGradient(0, 0, knob.size, knob.size);
         grad.addColorStop(0, '#38bdf8'); grad.addColorStop(1, '#4ade80');
@@ -391,27 +386,18 @@ class GuitarMetronome extends HTMLElement {
         ctx.strokeStyle = grad; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
       }
 
-      // 指示器手柄（带防切边判定）
       const hx = cx + Math.cos(curA) * r, hy = cy + Math.sin(curA) * r;
-      const hr = Math.max(6, lineW * 0.85); // 手柄半径
-
-      // 添加微弱的发光效果（让旋钮更有质感）
+      const hr = Math.max(6, lineW * 0.85);
+      
       ctx.save();
-      ctx.shadowColor = 'rgba(56, 189, 248, 0.4)';
+      ctx.shadowColor = 'rgba(56, 189, 248, 0.4)'; 
       ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.restore();
 
-      ctx.beginPath();
-      ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff'; // 纯白填充
-      ctx.fill();
-      ctx.restore(); // 恢复绘图状态，防止阴影影响后续的其他元素
-
-      // 重新绘制边界线（使用柔和的蓝灰色，不再用纯黑）
-      ctx.beginPath();
-      ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-      ctx.strokeStyle = '#4a5568';
-      ctx.lineWidth = Math.max(2, hr * 0.35);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+      ctx.strokeStyle = '#4a5568'; ctx.lineWidth = Math.max(2, hr * 0.35); ctx.stroke();
     };
 
     const buildDots = () => {
@@ -432,25 +418,30 @@ class GuitarMetronome extends HTMLElement {
       const sub = SUBDIVISIONS.find(s => s.id === this.currentSubId);
       infoSub.textContent = sub ? sub.short : '四分';
       this.currentSlots = sub ? sub.slots.slice() : [1];
-
+      
       updateDurations();
       drawKnob();
       buildDots();
       saveSettings();
     };
 
-    const setBpm = (v) => {
+    this.setBpm = (v, isSync) => {
       v = Math.round(v);
       if (!isFinite(v)) return;
       v = Math.min(MAX_BPM, Math.max(MIN_BPM, v));
       if (v === this.bpm) return;
-
+      
       this.bpm = v;
       bpmInput.value = this.bpm;
       infoBpm.textContent = this.bpm;
       updateDurations();
       drawKnob();
       saveSettings();
+
+      // 🌟 如果不是同步过来的（是用户手动改的），就向全局发广播
+      if (!isSync) {
+        window.dispatchEvent(new CustomEvent('bpm-changed', { detail: { bpm: this.bpm } }));
+      }
     };
 
     this.start = () => {
@@ -522,15 +513,15 @@ class GuitarMetronome extends HTMLElement {
     btnCloseSettings.onclick = () => settingsMask.classList.remove('show');
 
     playBtn.onclick = () => this.isRunning ? this.stop() : this.start();
-
+    
     bpmInput.addEventListener('input', () => {
       const v = parseInt(bpmInput.value.replace(/[^\d]/g, ''), 10);
-      if (isFinite(v)) setBpm(v);
+      if (isFinite(v)) this.setBpm(v, false); // 来自用户输入
     });
     bpmInput.addEventListener('blur', () => bpmInput.value = this.bpm);
 
-    knobMinus.onclick = () => setBpm(this.bpm - 1);
-    knobPlus.onclick = () => setBpm(this.bpm + 1);
+    knobMinus.onclick = () => this.setBpm(this.bpm - 1, false);
+    knobPlus.onclick = () => this.setBpm(this.bpm + 1, false);
 
     let isDragging = false;
     const pointerToBpm = (e) => {
@@ -548,27 +539,27 @@ class GuitarMetronome extends HTMLElement {
     knobWrap.addEventListener('pointerdown', (e) => {
       if (e.target.closest('.knob-center')) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-
+      
       const rect = knobCanvas.getBoundingClientRect();
       const x = e.clientX - rect.left - knob.cx;
       const y = e.clientY - rect.top - knob.cy;
       const dist = Math.sqrt(x * x + y * y);
       const lineW = Math.max(10, knob.r * 0.13);
-
+      
       if (dist < knob.r - lineW * 2.2 || dist > knob.r + lineW * 1.6) return;
 
       e.preventDefault();
       isDragging = true;
       try { knobWrap.setPointerCapture(e.pointerId); } catch (err) {}
       knobCanvas.style.cursor = 'grabbing';
-
-      setBpm(pointerToBpm(e));
+      
+      this.setBpm(pointerToBpm(e), false); // 来自拖拽
     });
 
     knobWrap.addEventListener('pointermove', (e) => {
       if (!isDragging) return;
       e.preventDefault();
-      setBpm(pointerToBpm(e));
+      this.setBpm(pointerToBpm(e), false);
     });
 
     const onPointerUp = (e) => {
@@ -590,7 +581,7 @@ class GuitarMetronome extends HTMLElement {
       if (tapTimes.length >= 2) {
         let sum = 0;
         for (let i = 1; i < tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]);
-        setBpm(Math.round(60000 / (sum / (tapTimes.length - 1))));
+        this.setBpm(Math.round(60000 / (sum / (tapTimes.length - 1))), false);
       }
     };
 
