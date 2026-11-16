@@ -1,3 +1,4 @@
+// 绑定顶部导航切换逻辑
 const tabBtns = document.querySelectorAll('.tab-btn');
 const sections = document.querySelectorAll('.view-section');
 
@@ -11,19 +12,24 @@ tabBtns.forEach(btn => {
   });
 });
 
+// 独立加载组件，防止某一个组件报错导致全盘崩溃
 async function loadComponents() {
-  // 强制使用相对于根目录的绝对路径，防止因为目录嵌套导致的多层路径
-  try { await import('/js/components/metronome.js'); } catch (e) { console.error('节拍器加载失败', e); }
-  try { await import('/js/components/sheet-reader.js'); } catch (e) { console.error('读谱器加载失败', e); }
-  try { await import('/js/components/practice-log.js'); } catch (e) { console.error('记录组件加载失败', e); }
-    // 🌟 新增调音器
-  try { await import('/js/components/tuner.js'); } catch (e) { console.error('调音器加载失败', e); }
+  // 🌟 修复：全部改回相对于当前目录的 ./ 路径
+  try { await import('./components/metronome.js'); } catch (e) { console.error('节拍器加载失败', e); }
+  try { await import('./components/sheet-reader.js'); } catch (e) { console.error('读谱器加载失败', e); }
+  try { await import('./components/practice-log.js'); } catch (e) { console.error('记录组件加载失败', e); }
+  try { await import('./components/tuner.js'); } catch (e) { console.error('调音器加载失败', e); }
 }
+
+loadComponents();
 
 // 🌟 注册 PWA 离线缓存 (Service Worker)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
+    // 动态计算绝对路径（根据当前 main.js 的位置往上一级找 sw.js）
+    const swUrl = new URL('../sw.js', import.meta.url).href;
+    
+    navigator.serviceWorker.register(swUrl)
       .then(reg => {
         console.log('Guitar Shell 离线引擎已就绪！', reg.scope);
       })
@@ -32,5 +38,3 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-
-loadComponents();
