@@ -1,6 +1,6 @@
-# 🎸 Guitar Shell · 吉他手的一站式练琴工作站
+# 🎸 Guitar Shell · 吉他手的一站式练琴工作站（构建中）
 
-> **在线使用地址**：[https://moanet.github.io/GuitarShell/](https://moanet.github.io/GuitarShell/)
+> **在线试用地址**：[https://moanet.github.io/GuitarShell/](https://moanet.github.io/GuitarShell/)
 > *(建议使用手机或电脑 Chrome/Edge 浏览器打开，并在菜单中「添加到主屏幕」以获取最佳体验)*
 
 ---
