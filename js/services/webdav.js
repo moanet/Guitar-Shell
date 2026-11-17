@@ -2,7 +2,7 @@
 // js/services/webdav.js
 // 作用：封装 WebDAV 协议，实现与坚果云的数据收发
 // ==========================================
-const DAV_BASE_URL = 'https://webdav.taoproxy.dpdns.org/v2/dav/';
+const DAV_BASE_URL = 'https://guitar-webdav-proxy.cuimao513.workers.dev/dav/';
 
 /**
  * 分段编码WebDAV路径，处理中文、空格等特殊文件名
