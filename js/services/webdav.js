@@ -3,7 +3,7 @@
 // 作用：封装 WebDAV 协议，实现与坚果云的数据收发
 // ==========================================
 
-const DAV_BASE_URL = 'guitar-webdav-proxy.cuimao513.workers.dev/dav/';
+const DAV_BASE_URL = 'https://guitar-webdav-proxy.cuimao513.workers.dev/dav/';
 
 export const webdavService = {
   // 生成请求头（包含坚果云要求的 Basic Auth）
