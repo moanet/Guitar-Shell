@@ -93,7 +93,7 @@ Guitar Shell 项目
 
 ### 🟢 阶段一：数据大统一（当前目标）
 - [√] **统一备份**：升级 `db.js` 导出逻辑，将乐谱(Scores)和打卡记录(Logs)打包进同一个 JSON。
-- [ ] **预留字段**：在 IndexedDB 中提前建好 `tags`（标签）、`lastReadPage`（进度）、`fileHash`（文件指纹）字段。
+- [√] **预留字段**：在 IndexedDB 中提前建好 `tags`（标签）、`lastReadPage`（进度）、`fileHash`（文件指纹）字段。
 - [√] **验证**：清空浏览器数据，仅靠导出的 JSON 文件，能 100% 恢复所有数据。
 
 ### 🟡 阶段二：跨设备同步与原生初体验
