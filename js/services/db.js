@@ -1,7 +1,7 @@
 const DB_NAME = 'GuitarShellDB';
 const STORE_NAME = 'scores';
 const LOG_STORE_NAME = 'logs';
-const DB_VERSION = 3; // 🌟 版本号升级到 3
+const DB_VERSION = 3;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -21,20 +21,18 @@ function openDB() {
 }
 
 export const dbService = {
-  // ===== 乐谱相关 =====
   async addScore(name, fileBlob, extraData = {}) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      // 🌟 预留字段：tags, lastReadPage, lastReadScrollY, fileHash
       const record = { 
-        name, 
-        fileBlob, 
-        createdAt: Date.now(),
+        name, fileBlob, createdAt: Date.now(),
         tags: extraData.tags || [],
         lastReadPage: extraData.lastReadPage || 0,
+        lastReadPageRatio: extraData.lastReadPageRatio || 0,
         lastReadScrollY: extraData.lastReadScrollY || 0,
+        lastReadAt: extraData.lastReadAt || 0,
         fileHash: extraData.fileHash || ''
       };
       const request = store.add(record);
@@ -49,11 +47,40 @@ export const dbService = {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const request = store.getAll();
-      request.onsuccess = () => {
-        const scores = request.result.sort((a, b) => b.createdAt - a.createdAt);
-        resolve(scores);
-      };
+      request.onsuccess = () => resolve(request.result.sort((a, b) => b.createdAt - a.createdAt));
       request.onerror = () => reject(request.error);
+    });
+  },
+
+  // 🌟 新增：按 id 读取单条乐谱（避免 getAllScores 把所有 Blob 都读进内存）
+  async getScore(id) {
+    if (id === null || id === undefined) return null;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  // 🌟 新增：更新单个乐谱的信息（重命名、改标签等）
+  async updateScore(id, updateData) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const data = getReq.result;
+        if (!data) return reject(new Error('找不到该乐谱'));
+        Object.assign(data, updateData);
+        const putReq = store.put(data);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
     });
   },
 
@@ -68,18 +95,12 @@ export const dbService = {
     });
   },
 
-  // ===== 练琴记录相关 =====
   async addLog(logData) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(LOG_STORE_NAME, 'readwrite');
       const store = tx.objectStore(LOG_STORE_NAME);
-      // 🌟 预留字段：scoreId (关联曲目)
-      const record = { 
-        ...logData, 
-        createdAt: Date.now(),
-        scoreId: logData.scoreId || ''
-      };
+      const record = { ...logData, createdAt: Date.now(), scoreId: logData.scoreId || '' };
       const request = store.add(record);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -92,10 +113,7 @@ export const dbService = {
       const tx = db.transaction(LOG_STORE_NAME, 'readonly');
       const store = tx.objectStore(LOG_STORE_NAME);
       const request = store.getAll();
-      request.onsuccess = () => {
-        const logs = request.result.sort((a, b) => b.createdAt - a.createdAt);
-        resolve(logs);
-      };
+      request.onsuccess = () => resolve(request.result.sort((a, b) => b.createdAt - a.createdAt));
       request.onerror = () => reject(request.error);
     });
   },
@@ -116,7 +134,6 @@ export const dbService = {
     return logs.find(log => log.name === name) || null;
   },
 
-  // ===== 全局数据管理 (备份/恢复用) =====
   async clearAllData() {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -134,17 +151,8 @@ export const dbService = {
       const tx = db.transaction([STORE_NAME, LOG_STORE_NAME], 'readwrite');
       const scoreStore = tx.objectStore(STORE_NAME);
       const logStore = tx.objectStore(LOG_STORE_NAME);
-
-      // 剔除 id 让系统重新分配，防止冲突
-      scores.forEach(item => {
-        delete item.id; 
-        scoreStore.add(item);
-      });
-      logs.forEach(item => {
-        delete item.id;
-        logStore.add(item);
-      });
-
+      scores.forEach(item => { delete item.id; scoreStore.add(item); });
+      logs.forEach(item => { delete item.id; logStore.add(item); });
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
