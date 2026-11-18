@@ -2,7 +2,7 @@
 
 > **项目愿景**：打破练琴时碎片化的工具割裂感，将所有乐谱管理、节拍、调音、打卡记录整合在一个高度沉浸、本地优先、跨端可用的外壳中。从零开始，逐渐长成一个懂吉他手的专属数字工作台。
 
-**当前状态**：`v0.0.5.11` 本地优先 PWA · 四大模块（节拍器 / 读谱 / 记录 / 调音）已上线 · 已具备「阅读进度双轨制（手动 + 弱自动）+ 本地备份/恢复 + 坚果云 WebDAV 同步（多通道 + 冲突检测 + 密码本机加密）」；2026-11-18 完成批次 A（A1～A6），并按「先离线、后壳」重排后续顺序（见第五节），B3 入口清理 + B2 音频引擎已收口。
+**当前状态**：`v0.0.5.12` 本地优先 PWA · 四大模块（节拍器 / 读谱 / 记录 / 调音）已上线 · 已具备「阅读进度双轨制（手动 + 弱自动）+ 本地备份/恢复 + 坚果云 WebDAV 同步（多通道 + 冲突检测 + 密码本机加密）」；2026-11-18 完成批次 A（A1～A6），并按「先离线、后壳」重排后续顺序（见第五节），B3 入口清理 + B2 音频引擎已收口。
 
 ---
 
@@ -12,7 +12,7 @@
 Guitar Shell 项目
 ├── index.html                   ✅ 外壳与 4 大导航（完成，入口已收敛）
 ├── manifest.json                ✅ PWA 基础配置（完成）
-├── sw.js                        ✅ PWA 离线缓存（当前 APP_VERSION = 0.0.5.11，改代码必升版本，且与 js/services/version.js 同步）
+├── sw.js                        ✅ PWA 离线缓存（当前 APP_VERSION = 0.0.5.12，改代码必升版本，且与 js/services/version.js 同步）
 ├── start-dev.bat                ✅ 一键启动：Python 静态网页(:8000) + Node WebDAV 代理(:8081)
 ├── .gitignore                   ✅ 忽略 proxy 依赖、本地脚本、IDE 与临时文件
 ├── icon-gShell-32/192/512.png   ✅ PWA 图标三件套
@@ -173,7 +173,7 @@ start-dev.bat
 
 ## 📋 五、下一步任务看板（按"切香肠"策略推进）
 
-> **核查基线（2026-11-18）**：`v0.0.5.6` 起盘，现已推进到 `v0.0.5.11`，本地 = 线上 Pages = 仓库。四大模块均已可用，瓶颈不再是「功能不够」，而是「生产环境失效 + 数据安全 + 技术债」。
+> **核查基线（2026-11-18）**：`v0.0.5.6` 起盘，现已推进到 `v0.0.5.12`，本地 = 线上 Pages = 仓库。四大模块均已可用，瓶颈不再是「功能不够」，而是「生产环境失效 + 数据安全 + 技术债」。
 > **推进原则不变**：切香肠、跑通闭环、拒绝烂尾。每批收尾固定动作：升 `APP_VERSION` → 语义化 commit（`feat:` / `fix:` / `chore:`）→ 打 tag `v0.0.x` → 跑一遍冒烟清单。
 
 ### 🧪 冒烟清单（每批收尾必跑）
@@ -193,7 +193,7 @@ start-dev.bat
 - [x] **A3 空备份保护（已完成）**：`restoreFromPayload` 遇到「0 份乐谱 + 0 条记录」的载荷时单独强提示，列出将被清空的本地乐谱 / 打卡数量，取消即不写库 —— 防止失联时拿到空载荷把本地抹掉。
 - [x] **A4 载荷规范化（已完成）**：`version` 从写死的 `'0.0.3'` 改为 `js/services/version.js` 导出的 `APP_VERSION`，并新增 `schema: BACKUP_SCHEMA`；恢复前校验 `scores` / `logs` 结构、每条乐谱的 `name` 与 `data:` 前缀；书架卡片、标签、记录页名称统一走 `escapeHtml()`。
 - [x] **A5 应用密码本机保存（已完成）**：`js/services/vault.js` 用 AES-GCM 256 加密，密钥以**不可导出** `CryptoKey` 存进独立库 `GuitarShellVault`（不碰 `GuitarShellDB`）；云同步弹窗新增「记住应用密码（仅本机）」与「清除已保存」；明文不进 localStorage、不进备份文件、不进日志。**边界**：同源脚本仍可调用解密，挡的是随手翻 localStorage / 复制浏览器数据 / 把备份发给别人。局域网 `http://` 页没有 `crypto.subtle`，该行自动隐藏。
-- [x] **A6 版本可见（已完成）**：品牌旁 `v0.0.5.11` 徽标；点按拉线上 `sw.js` 对比运行版本 —— 一致提示「已是最新」，不一致变紫色并可一键重载，同时报出本机离线缓存版本；页面加载 1.5s 后静默查一次。
+- [x] **A6 版本可见（已完成）**：品牌旁 `v0.0.5.12` 徽标；点按拉线上 `sw.js` 对比运行版本 —— 一致提示「已是最新」，不一致变紫色并可一键重载，同时报出本机离线缓存版本；页面加载 1.5s 后静默查一次。
 
 ---
 
@@ -205,7 +205,7 @@ start-dev.bat
 |---|---|---|---|
 | 1 | **B3 入口清理** | ✅ 已完成 | 无，先清噪声 |
 | 2 | **B2 抽 `audio.js` 单例** | ✅ 已完成（本批与 B3 同批提交） | 是 7、8 的地基 |
-| 3 | **B4 PDF 内存治理** | 待做 | 独立，可与 B2 并行验 |
+| 3 | **B4 PDF 内存治理** | ✅ 已完成 | 独立，可与 B2 并行验 |
 | 4 | **C2 拼音首字母搜索** | 待做 | 纯前端字典 |
 | 5 | **C3 练习统计** | 待做 | IndexedDB 聚合 |
 | 6 | **C1a 页级书签** | 待做 | 本地存储，不碰平台 API |
@@ -216,9 +216,9 @@ start-dev.bat
 
 ### 🟠 阶段 1～4：纯前端、离线可完成
 
-- [x] **B3 入口清理（已完成，v0.0.5.11）**：`index.html` 的 `main.js` 只引一次、`<meta>` 全部回到 `<head>`、图标 / manifest / 样式各留一份；`main.js` 里重复的 `loadComponents()` 已删。
-- [x] **B2 抽全局音频引擎（已完成，v0.0.5.11 同批）**：新增 `js/services/audio.js` 单例 —— 全应用共用一个 `AudioContext` + `masterGain`，节拍调度只保留一份 lookahead 实现（`startMetronome({bpm, slots, accents, timbre, onBeat, onStop})` 返回 `{stop, setBpm}`），互斥由引擎仲裁（新调度抢占旧的，被抢占方 `onStop('preempted')` 复位按钮）；每路节拍挂独立总线，停止时总线静音，掐掉已排进队列的 100ms 尾音；`setBpm` 会把未排音的下一个拍点提前，变速立刻生效。调音器改用 `openAnalyser(stream)` 复用同一上下文，`stopTuner()` 只断流 + `disconnect()`，不再 `close()`（这是「关一次调音器后续音频异常」的根因）。**验收**：Node 假上下文 10 条调度用例全绿；无头 Edge 真实 Web Audio 6 条互斥/单例用例全绿；真机待验「主节拍器 ↔ 迷你节拍器交替 5 次不叠加」。补丁（0.0.5.11）：读谱 mini 从 `guitar_metronome_settings` 读取主节拍器的音色与拍号，按每小节首拍给 `accent`（不再一律平拍），并在运行中通过 `metronome-settings` 事件实时换音色 / 重音；主节拍器监听 `app-tab-changed`，切走「节拍器」页立即停止。
-- [ ] **B4 PDF 内存治理**：全页统一 2 倍渲染且 canvas 只增不减，大谱在手机上会持续吃内存。改为 DPR 上限 2 + 离屏页释放 + 只保最近 ±3 页。**验收**：50 页谱滚到底内存不线性增长。
+- [x] **B3 入口清理（已完成，v0.0.5.12）**：`index.html` 的 `main.js` 只引一次、`<meta>` 全部回到 `<head>`、图标 / manifest / 样式各留一份；`main.js` 里重复的 `loadComponents()` 已删。
+- [x] **B2 抽全局音频引擎（已完成，v0.0.5.12 同批）**：新增 `js/services/audio.js` 单例 —— 全应用共用一个 `AudioContext` + `masterGain`，节拍调度只保留一份 lookahead 实现（`startMetronome({bpm, slots, accents, timbre, onBeat, onStop})` 返回 `{stop, setBpm}`），互斥由引擎仲裁（新调度抢占旧的，被抢占方 `onStop('preempted')` 复位按钮）；每路节拍挂独立总线，停止时总线静音，掐掉已排进队列的 100ms 尾音；`setBpm` 会把未排音的下一个拍点提前，变速立刻生效。调音器改用 `openAnalyser(stream)` 复用同一上下文，`stopTuner()` 只断流 + `disconnect()`，不再 `close()`（这是「关一次调音器后续音频异常」的根因）。**验收**：Node 假上下文 10 条调度用例全绿；无头 Edge 真实 Web Audio 6 条互斥/单例用例全绿；真机待验「主节拍器 ↔ 迷你节拍器交替 5 次不叠加」。补丁（0.0.5.12）：读谱 mini 从 `guitar_metronome_settings` 读取主节拍器的音色与拍号，按每小节首拍给 `accent`（不再一律平拍），并在运行中通过 `metronome-settings` 事件实时换音色 / 重音；主节拍器监听 `app-tab-changed`，切走「节拍器」页立即停止。
+- [x] **B4 PDF 内存治理（已完成，v0.0.5.12）**：渲染改成「虚拟化 + 分辨率自适应」——所有页只建 `aspect-ratio` 占位（滚动条长度稳定），滚到才渲染；同屏只保留「当前可见页 ±3 页」的位图，滚出窗口立即 `canvas.width=0` + `page.cleanup()` + 释放页对象；位图密度 = 实际显示宽度 × min(DPR, 2)，不再无脑 2 倍，缩放后 250ms 防抖按新宽度重渲可见页；渲染任务串行排队且可 `cancel()`，关谱 / 换谱调用 `pdf.destroy()` 彻底释放。**实测**（40 页 A4，Edge 无头 + CDP）：首页只活 4 页、11.8MB；滚到第 30 页窗口为 27～33 共 7 页、首页已释放；回首页第 30 页释放；缩放后重渲为 926×1310 且仍只保 4 页；关闭后 pdfDoc 与全部 canvas 归零。
 - [ ] **C2 找谱加速**：拼音首字母搜索 + 多标签组合过滤（本地字典，无需联网）。
 - [ ] **C3 练习统计**：按曲目聚合、周 / 月时长曲线（手写 SVG，不引库）。
 - [ ] **C1a 页级书签**：在指定页插书签并跳回（存 IndexedDB，壳内同样可用）。
@@ -274,4 +274,5 @@ start-dev.bat
 16. **密码只进 vault，不进任何其它地方**：应用密码用 `vault.js` 加密后存在独立库 `GuitarShellVault`，密钥 `extractable=false`。别图省事写进 localStorage、别拼进备份 JSON、别 `console.log`。局域网 `http://192.168.x.x` 不是安全上下文，`crypto.subtle` 为 undefined，此时保存功能自动隐藏——要持久化就开 `localhost` 或 HTTPS。
 17. **音频只走 `audio.js`，别再 `new AudioContext()`**：全应用共用一个上下文，组件里任何地方 `close()` 都会让后续节拍器 / 调音器一起变哑（旧调音器 `stopTuner` 就栽在这）。新功能要发声，用 `audioEngine.click()` 或 `startMetronome()`；麦克风用 `openAnalyser(stream)`，停的时候只 `dispose()` + 停轨。
 18. **节拍互斥在引擎里，不靠事件**：`startMetronome()` 会自动停掉上一路并给它 `onStop('preempted')`；组件收到这个理由时才复位自己的按钮，用户自己点停会先把本地 `isPlaying` 置 false，`onStop` 里再判断一次，避免递归停。
+
 

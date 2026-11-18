@@ -1,10 +1,10 @@
-Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.11）
+Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.12）
 图例：✅ 完成  🟡 基础版可用待扩展  🚧 待重构/空占位  ⏳ 待创建  📦 本地文件不上传
 
 guitar-shell/
 ├── index.html                   ✅ 外壳 + 4 大导航（入口已收敛：脚本/图标/manifest 各一份，meta 全在 head）
 ├── manifest.json                ✅ PWA 清单
-├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.11，改代码必升版本，且与 version.js 同步）
+├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.12，改代码必升版本，且与 version.js 同步）
 ├── start-dev.bat                ✅ 一键启动：Python 静态页 :8000 + Node WebDAV 代理 :8081
 ├── .gitignore                   ✅ 忽略 proxy 依赖、*.bat、IDE、*.log
 ├── README.md                    ✅ 项目文档（进度/架构/迭代记录/任务看板/避坑指南）
@@ -29,7 +29,7 @@ guitar-shell/
 │   ├── components/
 │   │   ├── metronome.js         🟡 调度/旋钮/TAP/拍号细分/首拍重音/BPM 广播
 │   │   │                           ⏳ Swing、重音模式、变速练习、倒计时、音频跟练
-│   │   ├── sheet-reader.js      ✅ 书架/标签/搜索/排序、PDF 全平台 Canvas 懒加载（iframe 已废弃）
+│   │   ├── sheet-reader.js      ✅ 书架/标签/搜索/排序、PDF 全平台虚拟化渲染（只保可见页 ±3 页 + DPR≤2 自适应 + 离屏释放）
 │   │   │                           ✅ 缩放拖拽；阅读进度双轨制（📍存进度 / 打卡 / 5 分钟兜底）
 │   │   │                           ✅ 进度药丸；左右热区（脱离滚动容器 + 内缩 20/26px）
 │   │   │                           ✅ 切歌保位（切换前存位 + autoRestore 回位）
@@ -53,5 +53,7 @@ guitar-shell/
 │   ├── package-lock.json        📦
 │   └── node_modules/            📦 已 git 忽略
 └── android/                     ⏳ 待生成：Capacitor 安卓工程
+
+
 
 

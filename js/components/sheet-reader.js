@@ -296,6 +296,13 @@ class SheetReader extends HTMLElement {
     this.startX = 0; this.startY = 0;
     this.scrollLeftStart = 0; this.scrollTopStart = 0;
     this.observer = null;
+    // PDF 虚拟化渲染状态：只保当前页附近的位图，滚走就释放
+    this.pdfDoc = null;
+    this.pdfPages = null;        // Map<页码, {status, canvas, page, task, box}>
+    this.pdfWindowRange = null;  // 当前保留窗口 {from, to}
+    this.pdfJobChain = Promise.resolve();
+    this.pdfRaf = null;
+    this.pdfRefreshTimer = null;
     this.isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
     
     this.allScores = [];
@@ -328,6 +335,9 @@ class SheetReader extends HTMLElement {
     this.handleTabChange = (e) => {
       if (!e.detail || e.detail.target !== 'view-reader') {
         if (this.stopMiniMetronome) this.stopMiniMetronome();
+      } else if (this.updatePdfWindow) {
+        // 回到读谱页：隐藏期间容器尺寸为 0，窗口可能被算歪，按当前尺寸重建一次
+        requestAnimationFrame(() => this.updatePdfWindow());
       }
     };
     window.addEventListener('app-tab-changed', this.handleTabChange);
@@ -344,10 +354,12 @@ class SheetReader extends HTMLElement {
   disconnectedCallback() {
     if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
     if (this.observer) this.observer.disconnect();
+    if (this.destroyPdf) this.destroyPdf();
     if (this.stopMiniMetronome) this.stopMiniMetronome();
     if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
     if (this.handleTabChange) window.removeEventListener('app-tab-changed', this.handleTabChange);
     if (this.handleMetronomeSettings) window.removeEventListener('metronome-settings', this.handleMetronomeSettings);
+    if (this.handlePdfResize) window.removeEventListener('resize', this.handlePdfResize);
     if (this.positionNavZones) window.removeEventListener('resize', this.positionNavZones);
     clearTimeout(this.mmAutoCollapseTimer);
   }
@@ -497,7 +509,11 @@ class SheetReader extends HTMLElement {
     searchInp.oninput = (e) => { this.searchKeyword = e.target.value; this.renderList(); };
     sortSel.onchange = (e) => { this.sortMode = e.target.value; this.renderList(); };
 
-    const applyScale = () => { container.style.width = `${this.scale * 100}%`; };
+    const applyScale = () => {
+      container.style.width = `${this.scale * 100}%`;
+      // 缩放改变的是 CSS 宽度，位图要按新宽度重渲才不糊（防抖，滚轮连续缩放不卡）
+      if (this.refreshPdfResolution) this.refreshPdfResolution();
+    };
     const loadPdfLib = async () => {
       if (window.pdfjsLib) { pdfjsLib = window.pdfjsLib; return pdfjsLib; }
       loading.textContent = '正在加载解析引擎...'; loading.classList.add('show');
@@ -515,36 +531,206 @@ class SheetReader extends HTMLElement {
       });
     };
 
+    // ==================== PDF 渲染：虚拟化 + 分辨率自适应 ====================
+    // 口径：同时只保留「当前可见页 ±3 页」的位图，滚走即释放；
+    //      位图密度 = 实际显示宽度 × min(DPR, 2)，缩放后按新宽度重渲。
+    const PDF_MAX_DPR = 2;
+    const PDF_KEEP_RADIUS = 3;
+    const PDF_PRELOAD_RADIUS = 1;
+
+    const currentDensity = () => Math.min(window.devicePixelRatio || 1, PDF_MAX_DPR);
+
+    const pageBoxOf = (n) => container.querySelector(`.page-box[data-page="${n}"]`);
+
+    const pdfRecord = (n) => {
+      if (!this.pdfPages) this.pdfPages = new Map();
+      let rec = this.pdfPages.get(n);
+      if (!rec) {
+        rec = { status: 'empty', canvas: null, page: null, task: null, box: null };
+        this.pdfPages.set(n, rec);
+      }
+      if (!rec.box) rec.box = pageBoxOf(n);
+      return rec;
+    };
+
+    // 当前可视页范围（跨页时两页都算可见）
+    const visiblePageRange = () => {
+      const boxes = container.querySelectorAll('.page-box');
+      if (!boxes.length) return null;
+      const viewTop = viewer.getBoundingClientRect().top;
+      const scrollTop = viewer.scrollTop;
+      const viewBottom = scrollTop + (viewer.clientHeight || 1);
+      let first = 0, last = 0;
+      for (const box of boxes) {
+        const top = box.getBoundingClientRect().top - viewTop + scrollTop;
+        const bottom = top + box.offsetHeight;
+        if (bottom < scrollTop || top > viewBottom) continue;
+        const n = parseInt(box.dataset.page, 10);
+        if (!first) first = n;
+        last = Math.max(last, n);
+      }
+      if (!first) {
+        // 完全落在页间留白：取离视口最近的一页，避免不渲染
+        let nearest = 1, min = Infinity;
+        for (const box of boxes) {
+          const top = box.getBoundingClientRect().top - viewTop + scrollTop;
+          const d = Math.abs(top - scrollTop);
+          if (d < min) { min = d; nearest = parseInt(box.dataset.page, 10); }
+        }
+        first = last = nearest;
+      }
+      return { first, last };
+    };
+
+    const isRetained = (n) => {
+      const range = this.pdfWindowRange;
+      if (!range) return true;
+      return n >= range.from && n <= range.to;
+    };
+
+    const evictPage = (n) => {
+      const rec = this.pdfPages && this.pdfPages.get(n);
+      if (!rec) return;
+      if (rec.task) { try { rec.task.cancel(); } catch (err) {} rec.task = null; }
+      if (rec.canvas) { rec.canvas.width = 0; rec.canvas.height = 0; rec.canvas = null; }
+      if (rec.page && rec.page.cleanup) { try { rec.page.cleanup(); } catch (err) {} }
+      rec.page = null;
+      if (rec.box) { rec.box.innerHTML = ''; rec.box.classList.remove('loaded'); }
+      rec.status = 'empty';
+    };
+
+    const renderPdfPage = async (n) => {
+      const rec = pdfRecord(n);
+      if (!rec.box || !this.pdfDoc) return;
+      const page = rec.page || (rec.page = await this.pdfDoc.getPage(n));
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const cssWidth = container.clientWidth || viewer.clientWidth || baseViewport.width;
+      const scale = Math.max(0.6, Math.min(3.2, (cssWidth / baseViewport.width) * currentDensity()));
+      const vp = page.getViewport({ scale });
+
+      if (!rec.canvas) rec.canvas = document.createElement('canvas');
+      rec.canvas.width = Math.floor(vp.width);
+      rec.canvas.height = Math.floor(vp.height);
+      rec.status = 'rendering';
+      rec.task = page.render({ canvasContext: rec.canvas.getContext('2d'), viewport: vp });
+      try {
+        await rec.task.promise;
+      } catch (err) {
+        rec.status = 'empty';
+        throw err;
+      }
+      rec.task = null;
+
+      // 渲染期间可能已经滚出保留窗口：别把图塞回去，直接释放
+      if (!isRetained(n) || !rec.box) { evictPage(n); return; }
+      rec.box.innerHTML = '';
+      rec.box.appendChild(rec.canvas);
+      rec.box.classList.add('loaded');
+      rec.status = 'ready';
+    };
+
+    // 串行排队：一次只渲染一页，滚动时先渲染可见页，再补窗口内其余页
+    const ensurePageRendered = (n) => {
+      const rec = pdfRecord(n);
+      if (rec.status === 'rendering' || rec.status === 'queued' || rec.status === 'ready') return;
+      rec.status = 'queued';
+      this.pdfJobChain = (this.pdfJobChain || Promise.resolve()).then(async () => {
+        const cur = pdfRecord(n);
+        if (cur.status !== 'queued') return; // 排队期间被释放
+        try { await renderPdfPage(n); }
+        catch (err) { console.warn('PDF 页渲染失败', n, err); cur.status = 'empty'; }
+      });
+    };
+
+    const updatePdfWindow = () => {
+      if (!this.pdfDoc || !this.pdfPages) return;
+      const range = visiblePageRange();
+      if (!range) return;
+
+      const keepFrom = Math.max(1, range.first - PDF_KEEP_RADIUS);
+      const keepTo = Math.min(this.totalPages, range.last + PDF_KEEP_RADIUS);
+      this.pdfWindowRange = { from: keepFrom, to: keepTo };
+
+      // 1) 释放窗口外的位图
+      for (const n of Array.from(this.pdfPages.keys())) {
+        if (n < keepFrom || n > keepTo) evictPage(n);
+      }
+
+      // 2) 可见页 ±1 先渲染，其余窗口内页排队补齐
+      const visFrom = Math.max(1, range.first - PDF_PRELOAD_RADIUS);
+      const visTo = Math.min(this.totalPages, range.last + PDF_PRELOAD_RADIUS);
+      const queue = [];
+      for (let n = visFrom; n <= visTo; n++) queue.push(n);
+      for (let n = keepFrom; n <= keepTo; n++) if (n < visFrom || n > visTo) queue.push(n);
+      queue.forEach(ensurePageRendered);
+    };
+    this.updatePdfWindow = updatePdfWindow;
+
+    const requestPdfWindowUpdate = () => {
+      if (this.pdfRaf) return;
+      this.pdfRaf = requestAnimationFrame(() => { this.pdfRaf = null; updatePdfWindow(); });
+    };
+    viewer.addEventListener('scroll', requestPdfWindowUpdate, { passive: true });
+
+    // 窗口尺寸 / 横竖屏变化：容器宽度变了，位图按新宽度重渲
+    this.handlePdfResize = () => { if (this.refreshPdfResolution) this.refreshPdfResolution(); };
+    window.addEventListener('resize', this.handlePdfResize);
+
+    // 缩放后重渲：先把已就绪的页标 stale，再让窗口逻辑补渲
+    this.refreshPdfResolution = () => {
+      if (!this.pdfDoc) return;
+      clearTimeout(this.pdfRefreshTimer);
+      this.pdfRefreshTimer = setTimeout(() => {
+        if (!this.pdfDoc || !this.pdfPages) return;
+        for (const rec of this.pdfPages.values()) {
+          if (rec.status === 'ready') rec.status = 'stale';
+        }
+        updatePdfWindow();
+      }, 250);
+    };
+
+    // 关谱 / 换谱时彻底释放：取消渲染、清位图、销毁 pdf 文档
+    const destroyPdf = () => {
+      clearTimeout(this.pdfRefreshTimer);
+      if (this.pdfRaf) { cancelAnimationFrame(this.pdfRaf); this.pdfRaf = null; }
+      if (this.pdfPages) {
+        for (const n of Array.from(this.pdfPages.keys())) evictPage(n);
+        this.pdfPages.clear();
+      }
+      this.pdfWindowRange = null;
+      this.pdfJobChain = Promise.resolve();
+      if (this.pdfDoc) {
+        try { this.pdfDoc.destroy(); } catch (err) {}
+        this.pdfDoc = null;
+      }
+    };
+    this.destroyPdf = destroyPdf;
+
     const renderPDFLazy = async (fileBlob) => {
       const lib = await loadPdfLib();
       const arrayBuffer = await fileBlob.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+      this.pdfDoc = pdf;
+      this.pdfPages = new Map();
       this.totalPages = pdf.numPages;
+
+      // 只取首页量一下宽高比，量完立刻释放，别占着页对象
       const firstPage = await pdf.getPage(1);
-      const viewport = firstPage.getViewport({ scale: 1.0 }); 
+      const viewport = firstPage.getViewport({ scale: 1.0 });
       const ratio = viewport.height / viewport.width;
-      if (this.observer) this.observer.disconnect();
-      this.observer = new IntersectionObserver((entries, obs) => {
-        entries.forEach(async (entry) => {
-          if (entry.isIntersecting) {
-            const pageBox = entry.target;
-            const pageNum = parseInt(pageBox.dataset.page, 10);
-            obs.unobserve(pageBox);
-            const page = await pdf.getPage(pageNum);
-            const renderViewport = page.getViewport({ scale: 2.0 }); 
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = renderViewport.height; canvas.width = renderViewport.width;
-            await page.render({ canvasContext: context, viewport: renderViewport }).promise;
-            pageBox.innerHTML = ''; pageBox.appendChild(canvas); pageBox.classList.add('loaded');
-          }
-        });
-      }, { root: viewer, rootMargin: '100% 0px' });
+      if (firstPage.cleanup) { try { firstPage.cleanup(); } catch (err) {} }
+
+      container.innerHTML = '';
       for (let i = 1; i <= pdf.numPages; i++) {
         const pageBox = document.createElement('div');
-        pageBox.className = 'page-box'; pageBox.dataset.page = i; pageBox.style.aspectRatio = `1 / ${ratio}`; 
-        container.appendChild(pageBox); this.observer.observe(pageBox);
+        pageBox.className = 'page-box';
+        pageBox.dataset.page = i;
+        pageBox.style.aspectRatio = `1 / ${ratio}`; // 先占位，滚到才渲染，滚动条长度稳定
+        container.appendChild(pageBox);
       }
+
+      updatePdfWindow();
+      requestAnimationFrame(() => updatePdfWindow());
     };
 
     // ==================== 🌟 阅读进度：计算 / 恢复 / 提示 ====================
@@ -703,6 +889,7 @@ class SheetReader extends HTMLElement {
       clearTimeout(this.mmAutoCollapseTimer);
 
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
+      if (this.destroyPdf) this.destroyPdf();
       if (this.observer) { this.observer.disconnect(); this.observer = null; }
       container.innerHTML = ''; this.scale = 1; applyScale();
       
@@ -790,6 +977,7 @@ class SheetReader extends HTMLElement {
       if (this.isMobile) { btnMobileUpload.style.display = 'block'; $('btnMobileExport').style.display = 'block'; $('btnMobileImport').style.display = 'block'; $('btnMobileCloud').style.display = 'block'; } 
       else pcActions.style.display = 'flex';
       if (this.observer) this.observer.disconnect();
+      if (this.destroyPdf) this.destroyPdf();
     };
 
     $('logCancel').onclick = () => logModalMask.classList.remove('show');
