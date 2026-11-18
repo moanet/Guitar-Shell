@@ -1,0 +1,52 @@
+Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.6）
+图例：✅ 完成  🟡 基础版可用待扩展  🚧 待重构/空占位  ⏳ 待创建  📦 本地文件不上传
+
+guitar-shell/
+├── index.html                   ✅ 外壳 + 4 大导航（节拍器/读谱/记录/调音）
+├── manifest.json                ✅ PWA 清单
+├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.6，改代码必升版本）
+├── start-dev.bat                ✅ 一键启动：Python 静态页 :8000 + Node WebDAV 代理 :8081
+├── .gitignore                   ✅ 忽略 proxy 依赖、*.bat、IDE、*.log
+├── README.md                    ✅ 项目文档（进度/架构/迭代记录/任务看板/避坑指南）
+├── icon-gShell-32/192/512.png   ✅ PWA 图标
+├── css/
+│   └── layout.css               ✅ 全局布局与主题色
+├── js/
+│   ├── main.js                  ✅ 入口：tab 切换（广播 app-tab-changed）+ 组件动态加载 + SW 注册
+│   ├── services/
+│   │   ├── db.js                ✅ IndexedDB v3：scores/logs 双表；已含 tags、
+│   │   │                           lastReadPage/Ratio/ScrollY/At、fileHash 字段；
+│   │   │                           方法：addScore/getScore/getAllScores/updateScore/
+│   │   │                           deleteScore/addLog/getAllLogs/getLatestLogByName/
+│   │   │                           clearAllData/bulkImport
+│   │   ├── webdav.js            ✅ upload/download 已实现（Basic Auth→坚果云）
+│   │   │                           ✅ 云同步 UI 已接入（上传备份 / 覆盖本地 / 二次确认）
+│   │   │                           ⏳ 仅剩 etag 冲突提示（云端较新时询问）
+│   │   └── audio.js             🚧 空占位(0B)：全局音频引擎待从各组件抽离
+│   ├── components/
+│   │   ├── metronome.js         🟡 调度/旋钮/TAP/拍号细分/首拍重音/BPM 广播
+│   │   │                           ⏳ Swing、重音模式、变速练习、倒计时、音频跟练
+│   │   ├── sheet-reader.js      ✅ 书架/标签/搜索/排序、PDF 全平台 Canvas 懒加载（iframe 已废弃）
+│   │   │                           ✅ 缩放拖拽；阅读进度双轨制（📍存进度 / 打卡 / 5 分钟兜底）
+│   │   │                           ✅ 进度药丸；左右热区（脱离滚动容器 + 内缩 20/26px）
+│   │   │                           ✅ 切歌保位（切换前存位 + autoRestore 回位）
+│   │   │                           ✅ 阅读态仅留三按钮（修掉 .pc-actions 的 !important 覆盖）
+│   │   │                           ✅ 迷你节拍器：启停可用、悬停实体化虚化、与主节拍器互斥
+│   │   │                           ✅ 备份/恢复（restoreFromPayload 原子恢复 + importBackup）
+│   │   │                           ⏳ 多标签页、拼音搜索、单曲抽取、书签、Wake Lock 常亮
+│   │   ├── practice-log.js      ✅ 打卡(时长/BPM/页码)、累计统计、广播刷新
+│   │   │                           ⏳ 按曲目统计、时长图表
+│   │   └── tuner.js             🟡 麦克风 + 自相关基频 + 指针盘
+│   │                               ⏳ YIN 算法、A4 校准、参考音试听
+│   └── lib/
+│       ├── pdf.js               ✅ PDF.js v3.11 本地化
+│       ├── pdf.worker.js        ✅ 解析线程
+│       ├── pdf.min.mjs          ✅ 备用压缩版
+│       ├── pdf.worker.min.mjs   ✅ 备用压缩线程版
+│       └── spark-md5.js         ⏳ 待引入（文件哈希去重）
+├── proxy/                       ✅ 本地调试后端（不加载进浏览器、不上传 Pages）
+│   ├── proxy.js                 ✅ Node WebDAV 代理（CORS → 坚果云转发）
+│   ├── package.json             ✅ 依赖 undici
+│   ├── package-lock.json        📦
+│   └── node_modules/            📦 已 git 忽略
+└── android/                     ⏳ 待生成：Capacitor 安卓工程

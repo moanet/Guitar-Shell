@@ -1,0 +1,15 @@
+# Node代理本地开发工具
+proxy/node_modules/
+proxy/package-lock.json
+proxy/npm-debug.log
+
+# 本地启动脚本
+*.bat
+
+# IDE、系统文件
+.DS_Store
+Thumbs.db
+.vscode/
+
+# 临时文件
+*.log
