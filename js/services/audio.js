@@ -18,6 +18,14 @@ const LOOKAHEAD = 0.1;   // 提前排 100ms 的音，抵消 setInterval 抖动
 const TICK_MS = 25;
 const MASTER_LEVEL = 0.9;
 
+// 拍点类型 → 发声参数。mute 表示这一拍不出声（仍占拍位，用来做「空拍」练习）
+const ACCENT_STYLES = {
+  accent: { freq: 1568, level: 0.8 },
+  sub:    { freq: 1318, level: 0.66 },
+  beat:   { freq: 1046, level: 0.55 },
+  mute:   null
+};
+
 const getAcCtor = () => {
   if (typeof AudioContext !== 'undefined') return AudioContext;
   if (typeof webkitAudioContext !== 'undefined') return webkitAudioContext;
@@ -81,7 +89,7 @@ class AudioEngine {
    * 启动节拍调度（同一时刻只允许一路，新的自动抢占旧的）
    * @returns {{ stop(reason?: string): void, setBpm(v: number): void, get bpm(): number }}
    */
-  startMetronome({ bpm = 120, slots = [1], accents = [], timbre = 'sine', level, onBeat = null, onStop = null } = {}) {
+  startMetronome({ bpm = 120, slots = [1], accents = [], timbre = 'sine', level, swing = 0, onBeat = null, onStop = null } = {}) {
     this.ensure();
 
     // 互斥：先停掉上一路（它自己的 onStop 会把按钮复位）
@@ -93,6 +101,7 @@ class AudioEngine {
       accents: (accents || []).slice(),
       timbre,
       level,
+      swing: Math.min(100, Math.max(0, Number(swing) || 0)),
       absoluteSlot: 0,
       nextTime: this.ctx.currentTime + 0.08,
       timer: null,
@@ -100,7 +109,15 @@ class AudioEngine {
     };
 
     const beatDur = () => 60 / state.bpm;
-    const slotDur = () => beatDur() / state.slots.length;
+
+    // 一拍内各 slot 的「拍内位置」（0~1）。Swing 只改二连音的后半拍：
+    // 0% 是平均的 0.5，100% 推到 0.75，即经典的「前长后短」摇摆
+    const slotOffsets = () => {
+      const n = state.slots.length;
+      if (n === 1) return [0];
+      if (n === 2) return [0, 0.5 + 0.25 * (state.swing / 100)];
+      return Array.from({ length: n }, (_, i) => i / n);
+    };
 
     // 每路节拍一条独立总线：停止时把它的增益拉到 0，
     // 已经排进 Web Audio 的 100ms 尾音会立刻静音，不会“停了还响一下”
@@ -115,20 +132,27 @@ class AudioEngine {
         const slotCount = state.slots.length;
         const beatIdx = Math.floor(state.absoluteSlot / slotCount) % (state.accents.length || 1);
         const slotIdx = state.absoluteSlot % slotCount;
+        const offsets = slotOffsets();
 
         if (state.slots[slotIdx]) {
-          const isAccent = slotIdx === 0 && state.accents[beatIdx] === 'accent';
-          this.click(state.nextTime, {
-            freq: isAccent ? 1568 : 1046,
-            type: state.timbre,
-            level: state.level != null ? state.level : (isAccent ? 0.8 : 0.55),
-            bus
-          });
+          // 首拍按用户设定的「重音 / 次重音 / 普通 / 静音」，其余 slot 用普通拍
+          const styleName = slotIdx === 0 ? (state.accents[beatIdx] || 'beat') : 'beat';
+          const style = ACCENT_STYLES[styleName];
+          if (style) {
+            this.click(state.nextTime, {
+              freq: style.freq,
+              type: state.timbre,
+              level: state.level != null ? state.level : style.level,
+              bus
+            });
+          }
         }
 
         if (slotIdx === 0 && onBeat) onBeat({ time: state.nextTime, beat: beatIdx });
 
-        state.nextTime += slotDur();
+        // 按「当前 slot → 下一个 slot」的拍内距离推进，Swing 的时值差自然生效
+        const nextOffset = slotIdx + 1 < slotCount ? offsets[slotIdx + 1] : 1;
+        state.nextTime += (nextOffset - offsets[slotIdx]) * beatDur();
         state.absoluteSlot += 1;
       }
     };
@@ -150,17 +174,23 @@ class AudioEngine {
         state.bpm = Math.min(250, Math.max(30, v));
         // 变速要立刻生效：把还没排进 Web Audio 的下一个拍点往回收，
         // 否则从 60 拉到 240 会先空等一整拍（排进队列的音不可撤销，故只提前不延后）
-        const next = engine.ctx.currentTime + slotDur() + 0.01;
+        const next = engine.ctx.currentTime + beatDur() / state.slots.length + 0.01;
         if (state.nextTime > next) state.nextTime = next;
       },
-      // 运行中改音色 / 重音：对下一次调度就生效（已排进队列的 100ms 尾音不受影响）
+      // 运行中改音色 / 重音 / Swing：对下一次调度就生效（已排进队列的 100ms 不受影响）
       setTimbre(value) {
         if (value === 'sine' || value === 'square' || value === 'triangle') state.timbre = value;
       },
       setAccents(list) {
         if (Array.isArray(list) && list.length) state.accents = list.slice();
       },
-      get bpm() { return state.bpm; }
+      setSwing(value) {
+        const v = Number(value);
+        if (isFinite(v)) state.swing = Math.min(100, Math.max(0, v));
+      },
+      get bpm() { return state.bpm; },
+      get swing() { return state.swing; },
+      get accents() { return state.accents.slice(); }
     };
 
     this.active = handle;

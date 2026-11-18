@@ -140,6 +140,39 @@ const readerCSS = `
   .modal-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a93a6; cursor: pointer; }
   .modal-check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer; }
   .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* 🔖 页级书签面板 */
+  #bookmarkMask {
+    position: absolute; inset: 0; background: rgba(0,0,0,.55);
+    display: none; z-index: 80;
+  }
+  #bookmarkMask.show { display: block; }
+  .bm-panel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 72%;
+    background: #121821; border-top: 1px solid #2a3444; border-radius: 16px 16px 0 0;
+    display: flex; flex-direction: column; padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -10px 30px rgba(0,0,0,.5);
+  }
+  .bm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .bm-title { font-size: 14px; font-weight: bold; color: #e2e9f5; }
+  .bm-close { background: transparent; border: none; color: #8a93a6; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .bm-add {
+    width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; cursor: pointer;
+    border: 1px solid #2f6f9e; background: rgba(56,189,248,.1); color: #7fd4ff; font-size: 13px; font-weight: bold;
+  }
+  .bm-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+  .bm-empty { color: #6a7890; font-size: 13px; text-align: center; padding: 18px 0; }
+  .bm-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    background: #1b2230; border: 1px solid #2a3140; border-radius: 10px; cursor: pointer;
+  }
+  .bm-row:active { background: #223049; }
+  .bm-page { font-size: 14px; font-weight: bold; color: #38bdf8; flex-shrink: 0; min-width: 58px; }
+  .bm-time { flex: 1; min-width: 0; font-size: 11px; color: #8a93a6; }
+  .bm-del {
+    background: rgba(239,68,68,.1); color: #ef4444; border: none; border-radius: 6px;
+    padding: 5px 9px; font-size: 12px; cursor: pointer; flex-shrink: 0;
+  }
 `;
 
   
@@ -150,6 +183,7 @@ const readerHTML = `
     <button class="btn btn-back" id="btnBack">← 返回书架</button>
     <button class="btn btn-log" id="btnLog">📝 打卡</button>
     <button class="btn btn-save-pos" id="btnSavePos" style="display:none;">📍 存进度</button>
+    <button class="btn btn-bookmark" id="btnBookmarks" style="display:none;">🔖 书签</button>
     <div class="pc-actions" id="pcActions">
       <button class="btn" id="btnSingleFile">📂 导入单文件</button>
       <button class="btn outline" id="btnFolder">📁 导入整个文件夹</button>
@@ -221,6 +255,17 @@ const readerHTML = `
 
   <div class="loading" id="loading">处理中...</div>
   <div class="toast" id="toast"></div>
+
+  <div id="bookmarkMask">
+    <div class="bm-panel">
+      <div class="bm-head">
+        <span class="bm-title">🔖 本书书签</span>
+        <button class="bm-close" id="bmClose">×</button>
+      </div>
+      <button class="bm-add" id="bmAdd">＋ 收藏当前页</button>
+      <div class="bm-list" id="bmList"></div>
+    </div>
+  </div>
 
   <div class="action-sheet-mask" id="actionSheetMask">
     <div class="action-sheet">
@@ -325,6 +370,7 @@ class SheetReader extends HTMLElement {
     this.totalPages = 0;
     this.lastKnownPosition = null;   // 缓存的 { page, ratio, scrollY, total }
     this.bannerTimer = null;
+    this.bookmarks = [];             // 🔖 当前谱的页级书签 [{ page, at }]
   }
 
   connectedCallback() {
@@ -348,6 +394,7 @@ class SheetReader extends HTMLElement {
       if (!e.detail || !this.mmHandle) return;
       if (e.detail.timbre) this.mmHandle.setTimbre(e.detail.timbre);
       if (e.detail.accents) this.mmHandle.setAccents(e.detail.accents);
+      if (e.detail.swing != null) this.mmHandle.setSwing(e.detail.swing);
     };
     window.addEventListener('metronome-settings', this.handleMetronomeSettings);
   }
@@ -817,6 +864,79 @@ class SheetReader extends HTMLElement {
       this.lastKnownPosition = { page, ratio, scrollY: target, total: boxes.length || this.totalPages || 1 };
     };
 
+    // ==================== 🔖 页级书签（存进乐谱记录的 bookmarks 字段，随备份 / 云同步一起走） ====================
+    const btnBookmarks = $('btnBookmarks');
+    const bookmarkMask = $('bookmarkMask');
+    const bmList = $('bmList');
+
+    const updateBookmarkBadge = () => {
+      btnBookmarks.textContent = this.bookmarks.length ? `🔖 书签 ${this.bookmarks.length}` : '🔖 书签';
+    };
+
+    const persistBookmarks = async () => {
+      if (!this.currentScoreId) return;
+      await dbService.updateScore(this.currentScoreId, { bookmarks: this.bookmarks.slice() });
+      const cached = this.allScores.find(s => s.id === this.currentScoreId);
+      if (cached) cached.bookmarks = this.bookmarks.slice();
+    };
+
+    const renderBookmarkList = () => {
+      if (!this.bookmarks.length) {
+        bmList.innerHTML = `<div class="bm-empty">还没有书签：翻到想记住的一页，点上面的「收藏当前页」</div>`;
+        return;
+      }
+      bmList.innerHTML = '';
+      this.bookmarks.slice().sort((a, b) => a.page - b.page).forEach(bm => {
+        const d = new Date(bm.at || Date.now());
+        const timeStr = `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const row = document.createElement('div');
+        row.className = 'bm-row';
+        row.innerHTML = `
+          <div class="bm-page">第 ${bm.page} 页</div>
+          <div class="bm-time">${timeStr}</div>
+          <button class="bm-del">删除</button>
+        `;
+        row.onclick = (e) => {
+          if (e.target.closest('.bm-del')) return;
+          bookmarkMask.classList.remove('show');
+          scrollToPage(bm.page, 0);
+        };
+        row.querySelector('.bm-del').onclick = async (e) => {
+          e.stopPropagation();
+          this.bookmarks = this.bookmarks.filter(b => b.page !== bm.page);
+          await persistBookmarks();
+          updateBookmarkBadge();
+          renderBookmarkList();
+        };
+        bmList.appendChild(row);
+      });
+    };
+
+    const addBookmark = async () => {
+      if (!this.currentScoreId) return showToast('还没有打开的谱子');
+      const page = Math.max(1, getReadingPosition().page || 1);
+      const now = Date.now();
+      const existing = this.bookmarks.find(b => b.page === page);
+      if (existing) existing.at = now;
+      else this.bookmarks.push({ page, at: now });
+
+      // 最多留 30 个，超出按收藏时间丢最旧的
+      if (this.bookmarks.length > 30) {
+        this.bookmarks.sort((a, b) => a.at - b.at).splice(0, this.bookmarks.length - 30);
+      }
+      this.bookmarks.sort((a, b) => a.page - b.page);
+
+      await persistBookmarks();
+      updateBookmarkBadge();
+      renderBookmarkList();
+      showToast(`已收藏第 ${page} 页`);
+    };
+
+    btnBookmarks.onclick = () => { renderBookmarkList(); bookmarkMask.classList.add('show'); };
+    $('bmClose').onclick = () => bookmarkMask.classList.remove('show');
+    $('bmAdd').onclick = addBookmark;
+    bookmarkMask.onclick = (e) => { if (e.target === bookmarkMask) bookmarkMask.classList.remove('show'); };
+
     // 🌟 统一的进度写库入口（手动按钮 / 打卡 / 定时兜底 / 返回书架 共用）
     const saveReadingProgress = async (withToast) => {
       if (!this.currentScoreId) return false;
@@ -896,6 +1016,15 @@ class SheetReader extends HTMLElement {
     this.openScore = async (fileBlob, fileName, fileId, tags, scoreData, opts = {}) => {
       this.currentFileName = fileName.replace(/\.[^/.]+$/, ""); 
       this.currentScoreId = fileId;
+
+      // 🔖 载入这份谱已有的书签（存于乐谱记录里，随备份 / 云同步一起走）
+      this.bookmarks = (scoreData && Array.isArray(scoreData.bookmarks))
+        ? scoreData.bookmarks
+            .filter(b => b && Number(b.page) > 0)
+            .map(b => ({ page: Number(b.page), at: Number(b.at) || 0 }))
+        : [];
+      if (typeof updateBookmarkBadge === 'function') updateBookmarkBadge();
+      $('bookmarkMask').classList.remove('show');
       
       shelfView.style.display = 'none';
       filterBar.style.display = 'none';
@@ -905,6 +1034,7 @@ class SheetReader extends HTMLElement {
       
       btnBack.style.display = 'block'; btnLog.style.display = 'block'; viewer.style.display = 'block'; miniMetronome.style.display = 'flex'; 
       $('btnSavePos').style.display = 'block';
+      $('btnBookmarks').style.display = 'block';
       $('navPrev').classList.add('show'); $('navNext').classList.add('show');
       
       if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
@@ -988,6 +1118,8 @@ class SheetReader extends HTMLElement {
       this.lastKnownPosition = null;
 
       $('btnSavePos').style.display = 'none';
+      $('btnBookmarks').style.display = 'none';
+      $('bookmarkMask').classList.remove('show');
       $('navPrev').classList.remove('show'); $('navNext').classList.remove('show');
 
       viewer.style.display = 'none'; zoomControls.style.display = 'none'; btnLog.style.display = 'none'; miniMetronome.style.display = 'none'; 
@@ -1171,6 +1303,7 @@ class SheetReader extends HTMLElement {
             lastReadPageRatio: item.lastReadPageRatio || 0,
             lastReadScrollY: item.lastReadScrollY || 0,
             lastReadAt: item.lastReadAt || 0,
+            bookmarks: Array.isArray(item.bookmarks) ? item.bookmarks : [],
             fileHash: item.fileHash || ''
           });
         }
@@ -1209,7 +1342,8 @@ class SheetReader extends HTMLElement {
             lastReadPage: item.lastReadPage || 0,
             lastReadPageRatio: item.lastReadPageRatio || 0,
             lastReadScrollY: item.lastReadScrollY || 0,
-            lastReadAt: item.lastReadAt || 0
+            lastReadAt: item.lastReadAt || 0,
+            bookmarks: Array.isArray(item.bookmarks) ? item.bookmarks : []
           });
         }
         await dbService.clearAllData();
@@ -1544,22 +1678,27 @@ class SheetReader extends HTMLElement {
         const s = JSON.parse(localStorage.getItem('guitar_metronome_settings') || '{}');
         const tsNum = Math.max(1, Math.min(12, parseInt(s.tsNum, 10) || 4));
         const accents = new Array(tsNum).fill('beat');
-        accents[0] = 'accent';
-        return { timbre: s.timbre || 'sine', accents };
+        if (Array.isArray(s.accents) && s.accents.length === tsNum) {
+          s.accents.forEach((a, i) => { if (['accent', 'sub', 'beat', 'mute'].includes(a)) accents[i] = a; });
+        } else {
+          accents[0] = 'accent';
+        }
+        return { timbre: s.timbre || 'sine', accents, swing: Number(s.swing) || 0 };
       } catch (err) {
         return { timbre: 'sine', accents: ['accent', 'beat', 'beat', 'beat'] };
       }
     };
 
     const startMiniMetronome = () => {
-      const { timbre, accents } = readMetronomeSettings();
+      const { timbre, accents, swing } = readMetronomeSettings();
       // 引擎内互斥会让主节拍器自动停下（无需再广播事件）
       this.mmHandle = audioEngine.startMetronome({
         bpm: this.mmBpm,
         slots: [1],
-        // 与主节拍器同一套重音：每小节首拍重音，其余普通拍
+        // 与主节拍器同一套重音：逐拍与主节拍器设置一致（含次重音 / 静音 / Swing）
         accents,
         timbre,
+        swing,
         // 被主节拍器抢占时把按钮复位，避免显示「■」但其实已经停了
         onStop: () => {
           if (!this.mmPlaying) return;

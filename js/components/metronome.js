@@ -47,8 +47,11 @@ const metronomeCSS = `
   .dot { width:var(--dot-size,22px);height:var(--dot-size,22px); border-radius:7px;background:#1a202a;border:1px solid #232b38; transition:background .06s, box-shadow .06s, border-color .06s, transform .1s; }
   .dot.m-accent{background:#1f3a28;border-color:#3a8a5a}
   .dot.m-beat{background:#1d3048;border-color:#2f6f9e}
+  .dot.m-sub{background:#3a2f16;border-color:#8a6a2a}
+  .dot.m-mute{background:#141922;border-color:#20262f;opacity:.55}
   .dot.on.m-accent{background:#4ade80;border-color:#4ade80;box-shadow:0 0 20px #4ade80}
   .dot.on.m-beat{background:#38bdf8;border-color:#38bdf8;box-shadow:0 0 20px #38bdf8}
+  .dot.on.m-sub{background:#fbbf24;border-color:#fbbf24;box-shadow:0 0 20px #fbbf24}
 
   .knob-wrap { flex:1 1 auto;min-height:200px;margin:4px 0 2px; display:flex;align-items:center;justify-content:center; position:relative; touch-action: none; }
   .knob-wrap canvas { display:block;touch-action:none;cursor:grab; }
@@ -94,6 +97,39 @@ const metronomeCSS = `
   .timbre-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .timbre-btn { padding: 8px 0; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #7b8698; cursor: pointer; font-size: 12px; }
   .timbre-btn.on { border-color: var(--cyan); color: var(--cyan); background: rgba(56,189,248,.1); }
+
+  /* C4 练习工具 */
+  .practice-hud {
+    display: none; margin-top: 8px; padding: 6px 10px; border-radius: 9px;
+    background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25);
+    color: #7fd4ff; font-size: 11px; line-height: 1.5; text-align: center;
+  }
+  .practice-hud.show { display: block; }
+  .accent-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .accent-btn {
+    padding: 7px 2px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d;
+    color: #9aa6ba; font-size: 11px; cursor: pointer; white-space: nowrap;
+  }
+  .accent-btn.t-accent { border-color: #4ade80; color: #4ade80; background: rgba(74,222,128,.12); }
+  .accent-btn.t-sub { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,.12); }
+  .accent-btn.t-mute { border-color: #3a4353; color: #5d6678; background: #141922; }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9aa6ba; cursor: pointer; }
+  .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--cyan); cursor: pointer; }
+  .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .num-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: var(--muted); }
+  .num-grid input {
+    width: 100%; padding: 6px; border-radius: 6px; border: 1px solid #2a3444;
+    background: #1b222d; color: #fff; font-size: 12px; outline: none;
+  }
+  .num-grid input:focus { border-color: var(--cyan); }
+  .range { width: 100%; accent-color: var(--cyan); }
+  .m-toast {
+    position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%);
+    background: #1b222d; border: 1px solid #2a3444; border-radius: 20px;
+    color: #dbeafe; font-size: 12px; padding: 8px 14px; z-index: 30;
+    opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
+  }
+  .m-toast.show { opacity: 1; }
   
   .close-btn { padding: 10px; border-radius: 8px; border: none; background: #2a3444; color: #fff; cursor: pointer; margin-top: 8px; font-weight: bold; }
 `;
@@ -123,6 +159,8 @@ const metronomeHTML = `
   </div>
 
   <div class="dots" id="dots"></div>
+
+  <div class="practice-hud" id="practiceHud"></div>
 
   <div class="knob-wrap" id="knobWrap">
     <canvas id="knobCanvas"></canvas>
@@ -162,6 +200,29 @@ const metronomeHTML = `
       <div class="settings-label">音色</div>
       <div class="timbre-grid" id="timbreGrid"></div>
     </div>
+    <div class="settings-group">
+      <div class="settings-label">重音模式 · 点按循环：重音 → 次重音 → 普通 → 静音</div>
+      <div class="accent-grid" id="accentGrid"></div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Swing 摇摆 <span id="swingVal">0%</span></div>
+      <input type="range" id="swingRange" class="range" min="0" max="100" step="5" value="0">
+    </div>
+    <div class="settings-group">
+      <label class="check-row"><input type="checkbox" id="rampOn"> 变速练习（到目标后保持 N 小节再停）</label>
+      <div class="num-grid">
+        <label>起始 BPM<input type="number" id="rampStart" min="30" max="250" step="1"></label>
+        <label>目标 BPM<input type="number" id="rampTarget" min="30" max="250" step="1"></label>
+        <label>每次±<input type="number" id="rampStep" min="1" max="20" step="1"></label>
+        <label>每几小节<input type="number" id="rampEvery" min="1" max="16" step="1"></label>
+      </div>
+    </div>
+    <div class="settings-group">
+      <label class="check-row"><input type="checkbox" id="timerOn"> 倒计时自动停</label>
+      <div class="num-grid">
+        <label>分钟<input type="number" id="timerMin" min="1" max="180" step="1"></label>
+      </div>
+    </div>
     <button class="close-btn" id="btnCloseSettings">完成</button>
   </div>
 </div>
@@ -187,6 +248,16 @@ class GuitarMetronome extends HTMLElement {
     this.metronomeHandle = null;
     this.queue = [];
     this.dotEls = [];
+
+    // C4 练习工具状态
+    this.swing = 0;
+    this.ramp = { enabled: false, start: 120, target: 160, step: 5, every: 2 };
+    this.timer = { enabled: false, minutes: 15 };
+    this.rampBars = 0;
+    this.rampHolding = false;
+    this.rampHoldBars = 0;
+    this.countdownEndAt = 0;
+    this.countdownTimer = null;
     
     this.currentBeatDur = 60 / this.bpm;
     this.currentSlotDurs = [this.currentBeatDur];
@@ -241,6 +312,25 @@ class GuitarMetronome extends HTMLElement {
     const tsGrid = $('tsGrid');
     const subGrid = $('subGrid');
     const timbreGrid = $('timbreGrid');
+    const accentGrid = $('accentGrid');
+    const swingRange = $('swingRange');
+    const swingVal = $('swingVal');
+    const practiceHud = $('practiceHud');
+    const rampOn = $('rampOn'), rampStart = $('rampStart'), rampTarget = $('rampTarget');
+    const rampStep = $('rampStep'), rampEvery = $('rampEvery');
+    const timerOn = $('timerOn'), timerMin = $('timerMin');
+
+    const showToast = (msg) => {
+      const el = document.createElement('div');
+      el.className = 'm-toast';
+      el.textContent = msg;
+      this.shadowRoot.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('show'));
+      setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 250);
+      }, 1600);
+    };
 
     const MIN_BPM = 30, MAX_BPM = 250;
     const START_ANG = 0.75 * Math.PI, SWEEP_ANG = 1.5 * Math.PI;
@@ -263,15 +353,21 @@ class GuitarMetronome extends HTMLElement {
     const saveSettings = () => {
       const data = {
         bpm: this.bpm, tsNum: this.timeSigNum, tsDen: this.timeSigDen,
-        subId: this.currentSubId, timbre: this.currentTimbre
+        subId: this.currentSubId, timbre: this.currentTimbre,
+        accents: this.accents.slice(), swing: this.swing,
+        ramp: { ...this.ramp }, timer: { ...this.timer }
       };
       localStorage.setItem('guitar_metronome_settings', JSON.stringify(data));
     };
 
-    // 把音色 / 重音广播出去：读谱页的 mini 节拍器据此保持同一音色与「首拍重音」
+    // 把音色 / 重音 / Swing 广播出去：读谱页的 mini 节拍器据此保持同一套风格
     const broadcastSettings = () => {
       window.dispatchEvent(new CustomEvent('metronome-settings', {
-        detail: { timbre: this.currentTimbre, accents: this.accents.slice() }
+        detail: {
+          timbre: this.currentTimbre,
+          accents: this.accents.slice(),
+          swing: this.swing
+        }
       }));
     };
     
@@ -285,6 +381,13 @@ class GuitarMetronome extends HTMLElement {
           if (d.tsDen) this.timeSigDen = d.tsDen;
           if (d.subId) this.currentSubId = d.subId;
           if (d.timbre) this.currentTimbre = d.timbre;
+          if (Number.isFinite(d.swing)) this.swing = Math.min(100, Math.max(0, d.swing));
+          if (Array.isArray(d.accents) && d.accents.length === this.timeSigNum) {
+            this.accents = d.accents.map(a => ['accent', 'sub', 'beat', 'mute'].includes(a) ? a : 'beat');
+            if (!this.accents.includes('accent')) this.accents[0] = 'accent';
+          }
+          if (d.ramp && typeof d.ramp === 'object') this.ramp = { ...this.ramp, ...d.ramp };
+          if (d.timer && typeof d.timer === 'object') this.timer = { ...this.timer, ...d.timer };
         }
       } catch (e) {}
     };
@@ -366,12 +469,103 @@ class GuitarMetronome extends HTMLElement {
     const buildDots = () => {
       dotsWrap.innerHTML = '';
       this.dotEls = [];
+      const classOf = { accent: 'm-accent', sub: 'm-sub', beat: 'm-beat', mute: 'm-mute' };
       for (let i = 0; i < this.timeSigNum; i++) {
         const d = document.createElement('div');
-        d.className = 'dot ' + (i === 0 ? 'm-accent' : 'm-beat');
+        const type = this.accents[i] || (i === 0 ? 'accent' : 'beat');
+        d.className = 'dot ' + (classOf[type] || 'm-beat');
         dotsWrap.appendChild(d);
         this.dotEls.push(d);
       }
+    };
+
+    // ==================== C4 练习工具：HUD / Swing / 变速 / 倒计时 ====================
+    const fmtClock = (ms) => {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    };
+
+    const updateHud = () => {
+      const parts = [];
+      if (this.swing > 0) parts.push(`Swing ${this.swing}%`);
+      if (this.ramp.enabled) {
+        let txt = `变速 ${this.ramp.start} → ${this.ramp.target} BPM · 每 ${this.ramp.every} 小节 ${this.ramp.target >= this.ramp.start ? '+' : '-'}${this.ramp.step}`;
+        if (this.rampHolding && this.bpm === this.ramp.target) {
+          txt += ` · 目标保持 ${this.rampHoldBars}/${Math.max(1, this.ramp.every)} 小节`;
+        }
+        parts.push(txt);
+      }
+      if (this.timer.enabled) {
+        parts.push(this.countdownEndAt ? `⏳ ${fmtClock(this.countdownEndAt - Date.now())}` : `⏳ ${this.timer.minutes} 分钟`);
+      }
+      if (parts.length) {
+        practiceHud.textContent = parts.join('  ·  ');
+        practiceHud.classList.add('show');
+      } else {
+        practiceHud.classList.remove('show');
+      }
+    };
+
+    const stopCountdown = () => {
+      if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null; }
+      this.countdownEndAt = 0;
+    };
+
+    const startCountdown = () => {
+      stopCountdown();
+      if (!this.timer.enabled) { updateHud(); return; }
+      this.countdownEndAt = Date.now() + Math.max(1, this.timer.minutes) * 60000;
+      this.countdownTimer = setInterval(() => {
+        if (!this.isRunning) { stopCountdown(); updateHud(); return; }
+        if (Date.now() >= this.countdownEndAt) {
+          stopCountdown();
+          updateHud();
+          this.stop();
+          showToast('倒计时结束，节拍器已停');
+          return;
+        }
+        updateHud();
+      }, 500);
+      updateHud();
+    };
+
+    // 变速练习：每 N 个小节向目标 BPM 靠近一次；抵达目标后再保持 N 小节才停
+    // （N 就是用户填的「每几小节」，让目标速度听满一段再收工）
+    const rampAdvance = () => {
+      if (!this.ramp.enabled || !this.isRunning) return;
+      this.rampBars += 1;
+      // 第一拍只是「开跑」，要等一整小节走完才第一次加档
+      if (this.rampBars <= 0) return;
+      const target = this.ramp.target;
+      const every = Math.max(1, this.ramp.every);
+
+      // 已在目标：累计保持的小节，满 N 小节才停
+      if (this.bpm === target) {
+        this.rampHolding = true;
+        this.rampHoldBars += 1;
+        updateHud();
+        if (this.rampHoldBars >= every) {
+          setTimeout(() => {
+            if (!this.isRunning) return;
+            this.stop();
+            showToast(`已在目标 ${target} BPM 保持 ${every} 小节，练习结束`);
+          }, 0);
+        }
+        return;
+      }
+
+      this.rampHolding = false;
+      this.rampHoldBars = 0;
+      if (this.rampBars % every !== 0) return;
+      const step = Math.max(1, this.ramp.step);
+      const dir = Math.sign(target - this.bpm);
+      if (!dir) return;
+      let next = this.bpm + dir * step;
+      if (dir > 0 ? next >= target : next <= target) next = target;
+      this.setBpm(next, true);
+      this.rampHolding = next === target;
+      this.rampHoldBars = 0;
+      updateHud();
     };
 
     const updateUI = () => {
@@ -385,6 +579,9 @@ class GuitarMetronome extends HTMLElement {
       updateDurations();
       drawKnob();
       buildDots();
+      updateHud();
+      swingRange.value = this.swing;
+      swingVal.textContent = this.swing + '%';
       saveSettings();
     };
 
@@ -413,23 +610,37 @@ class GuitarMetronome extends HTMLElement {
     this.start = () => {
       this.isRunning = true;
       this.queue = [];
+      // 变速练习从设定的起始 BPM 开跑（不要把上一轮爬到的 BPM 当成起点）
+      if (this.ramp.enabled) {
+        this.setBpm(this.ramp.start, true);
+        this.rampBars = -1;
+        this.rampHolding = false;
+        this.rampHoldBars = 0;
+      }
       this.metronomeHandle = audioEngine.startMetronome({
         bpm: this.bpm,
         // 细分是「每拍切成几个 slot」，拍号是「每小节几拍」，二者在引擎里按 slot 推进
         slots: this.currentSlots,
         accents: this.accents,
         timbre: this.currentTimbre,
-        onBeat: (ev) => { this.queue.push(ev); },
+        swing: this.swing,
+        onBeat: (ev) => {
+          this.queue.push(ev);
+          if (ev.beat === 0) rampAdvance();
+        },
         // 只有被迷你节拍器抢占时才会走到这里；用户自己点停会先把 isRunning 置 false
         onStop: () => {
           if (!this.isRunning) return;
           this.isRunning = false;
+          stopCountdown();
           cancelAnimationFrame(this.rafId);
           this.queue = [];
           resetPlayUI();
+          updateHud();
         }
       });
       this.rafId = requestAnimationFrame(this.drawLoop);
+      startCountdown();
       playBtn.textContent = '停 止';
       playBtn.classList.add('running');
     };
@@ -441,9 +652,11 @@ class GuitarMetronome extends HTMLElement {
         this.metronomeHandle = null;
         handle.stop('user');
       }
+      stopCountdown();
       cancelAnimationFrame(this.rafId);
       this.queue = [];
       resetPlayUI();
+      updateHud();
     };
 
     const renderSettings = () => {
@@ -490,6 +703,89 @@ class GuitarMetronome extends HTMLElement {
         };
         timbreGrid.appendChild(b);
       });
+
+      // 逐拍重音：点一下在 重音→次重音→普通→静音 之间循环
+      const ACCENT_ORDER = ['accent', 'sub', 'beat', 'mute'];
+      const ACCENT_LABEL = { accent: '重', sub: '次', beat: '常', mute: '静' };
+      accentGrid.innerHTML = '';
+      for (let i = 0; i < this.timeSigNum; i++) {
+        const type = this.accents[i] || 'beat';
+        const b = document.createElement('button');
+        b.className = 'accent-btn t-' + type;
+        b.textContent = `${i + 1}·${ACCENT_LABEL[type]}`;
+        b.onclick = () => {
+          const idx = ACCENT_ORDER.indexOf(this.accents[i] || 'beat');
+          this.accents[i] = ACCENT_ORDER[(idx + 1) % ACCENT_ORDER.length];
+          buildDots();
+          if (this.metronomeHandle) this.metronomeHandle.setAccents(this.accents);
+          broadcastSettings();
+          saveSettings();
+          renderSettings();
+        };
+        accentGrid.appendChild(b);
+      }
+
+      // 把 C4 控件回填成当前状态（打开设置面板时总是显示真实值）
+      swingRange.value = this.swing;
+      swingVal.textContent = this.swing + '%';
+      rampOn.checked = this.ramp.enabled;
+      rampStart.value = this.ramp.start;
+      rampTarget.value = this.ramp.target;
+      rampStep.value = this.ramp.step;
+      rampEvery.value = this.ramp.every;
+      timerOn.checked = this.timer.enabled;
+      timerMin.value = this.timer.minutes;
+    };
+
+    // Swing：拖动即生效（二连音后半拍位置 0.5 → 0.75）
+    swingRange.oninput = () => {
+      this.swing = Math.min(100, Math.max(0, parseInt(swingRange.value, 10) || 0));
+      swingVal.textContent = this.swing + '%';
+      if (this.metronomeHandle) this.metronomeHandle.setSwing(this.swing);
+      updateHud();
+      saveSettings();
+      broadcastSettings();
+    };
+
+    // 变速练习参数
+    const readRampFields = () => {
+      const clamp = (v, min, max, dflt) => Math.min(max, Math.max(min, parseInt(v, 10) || dflt));
+      this.ramp.start = clamp(rampStart.value, MIN_BPM, MAX_BPM, this.ramp.start);
+      this.ramp.target = clamp(rampTarget.value, MIN_BPM, MAX_BPM, this.ramp.target);
+      this.ramp.step = clamp(rampStep.value, 1, 30, this.ramp.step);
+      this.ramp.every = clamp(rampEvery.value, 1, 32, this.ramp.every);
+      saveSettings();
+      updateHud();
+    };
+    [rampStart, rampTarget, rampStep, rampEvery].forEach(el => { el.oninput = readRampFields; });
+    rampOn.onchange = () => {
+      this.ramp.enabled = rampOn.checked;
+      saveSettings();
+      if (this.isRunning && this.ramp.enabled) {
+        this.rampBars = -1;
+        this.rampHolding = false;
+        this.rampHoldBars = 0;
+        this.setBpm(this.ramp.start, true);
+      }
+      updateHud();
+    };
+
+    // 倒计时
+    timerMin.oninput = () => {
+      this.timer.minutes = Math.min(180, Math.max(1, parseInt(timerMin.value, 10) || 15));
+      saveSettings();
+      if (this.isRunning && this.timer.enabled) startCountdown();
+      else updateHud();
+    };
+    timerOn.onchange = () => {
+      this.timer.enabled = timerOn.checked;
+      saveSettings();
+      if (this.isRunning) {
+        if (this.timer.enabled) startCountdown();
+        else { stopCountdown(); updateHud(); }
+      } else {
+        updateHud();
+      }
     };
 
     btnSettings.onclick = () => { renderSettings(); settingsMask.classList.add('show'); };
