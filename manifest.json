@@ -3,7 +3,7 @@
   "short_name": "GShell",
   "description": "For All-in-one Guitar Workstation",
   "start_url": "/GuitarShell/",
-  "scope": "/GuitarShell/"
+  "scope": "/GuitarShell/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0e1014",
