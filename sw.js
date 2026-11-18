@@ -1,5 +1,5 @@
 // 改版本时两处同步：这里 + js/services/version.js（SW 是 classic script，无法 import）
-const APP_VERSION = '0.0.5.12';
+const APP_VERSION = '0.0.5.13';
 const CACHE_NAME = 'guitar-shell-v' + APP_VERSION;
 
 const base = location.pathname.startsWith('/GuitarShell/') ? '/GuitarShell/' : '/';
@@ -20,6 +20,7 @@ const ASSETS_TO_CACHE = [
   './js/components/tuner.js',
   './js/lib/pdf.js',
   './js/lib/pdf.worker.js',
+  './js/lib/pinyin.js',
   './manifest.json',
   './icon-gShell-32.png',
   './icon-gShell-192.png',
@@ -70,5 +71,6 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
 
 

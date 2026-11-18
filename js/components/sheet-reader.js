@@ -3,6 +3,7 @@ import { webdavService } from '../services/webdav.js';
 import { vaultService } from '../services/vault.js';
 import { APP_VERSION, BACKUP_SCHEMA } from '../services/version.js';
 import { audioEngine } from '../services/audio.js';
+import { matchPinyin } from '../lib/pinyin.js';
 
 let pdfjsLib = null;
 
@@ -171,7 +172,7 @@ const readerHTML = `
 
   <div class="filter-bar" id="filterBar">
     <div class="search-row">
-      <input type="text" id="searchInp" class="search-inp" placeholder="搜索谱名或标签...">
+      <input type="text" id="searchInp" class="search-inp" placeholder="搜索谱名、标签或拼音首字母（如 gbq）">
       <select id="sortSel" class="sort-sel">
         <option value="newest">最新添加</option>
         <option value="oldest">最旧添加</option>
@@ -308,7 +309,7 @@ class SheetReader extends HTMLElement {
     this.allScores = [];
     this.filteredScores = [];
     this.searchKeyword = '';
-    this.activeTag = '全部';
+    this.activeTags = [];
     this.sortMode = 'newest';
     
     this.mmBpm = 120;
@@ -405,13 +406,29 @@ class SheetReader extends HTMLElement {
       pcActions.style.display = 'flex';
     }
 
+    // ==================== 搜索：曲名 / 标签 / 拼音首字母 ====================
+    const matchScoreByKeyword = (score, keyword) => {
+      if (!keyword) return true;
+      const q = keyword.toLowerCase();
+      const name = String(score.name || '').toLowerCase();
+      const tags = (score.tags || []).map(t => String(t).toLowerCase());
+
+      // 1) 原文包含（中文、英文、数字都能直接搜）
+      if (name.includes(q) || tags.some(t => t.includes(q))) return true;
+
+      // 2) 纯字母 / 数字的查询才走拼音首字母（"gb" → 告白气球）
+      if (!/^[a-z0-9]+$/.test(q)) return false;
+      if (matchPinyin(score.name, q)) return true;
+      return tags.some(t => matchPinyin(t, q));
+    };
+
     this.renderList = () => {
+      const keyword = (this.searchKeyword || '').trim();
       this.filteredScores = this.allScores.filter(score => {
-        const tagMatch = this.activeTag === '全部' || (score.tags && score.tags.includes(this.activeTag));
-        const keywordMatch = !this.searchKeyword || 
-                             score.name.toLowerCase().includes(this.searchKeyword.toLowerCase()) ||
-                             (score.tags && score.tags.some(t => t.includes(this.searchKeyword)));
-        return tagMatch && keywordMatch;
+        // 多标签是「同时满足」（AND）：选了「流行 + 待练」只留下两个标签都有的
+        const tags = score.tags || [];
+        const tagMatch = this.activeTags.length === 0 || this.activeTags.every(t => tags.includes(t));
+        return tagMatch && matchScoreByKeyword(score, keyword);
       });
 
       this.filteredScores.sort((a, b) => {
@@ -489,17 +506,23 @@ class SheetReader extends HTMLElement {
       const allTags = new Set();
       this.allScores.forEach(s => { (s.tags || []).forEach(t => allTags.add(t)); });
       
-      tagBar.innerHTML = `<div class="tag-chip ${this.activeTag === '全部' ? 'active' : ''}" data-tag="全部">全部</div>`;
+      tagBar.innerHTML = `<div class="tag-chip ${this.activeTags.length === 0 ? 'active' : ''}" data-tag="全部">全部</div>`;
       allTags.forEach(tag => {
-        tagBar.innerHTML += `<div class="tag-chip ${this.activeTag === tag ? 'active' : ''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</div>`;
+        tagBar.innerHTML += `<div class="tag-chip ${this.activeTags.includes(tag) ? 'active' : ''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</div>`;
       });
       
       tagBar.querySelectorAll('.tag-chip').forEach(chip => {
         chip.onclick = () => {
-          this.activeTag = chip.dataset.tag;
+          const tag = chip.dataset.tag;
+          if (tag === '全部') this.activeTags = [];
+          else if (this.activeTags.includes(tag)) this.activeTags = this.activeTags.filter(t => t !== tag);
+          else this.activeTags = this.activeTags.concat(tag); // 多选，按顺序叠加
+
+          tagBar.querySelectorAll('.tag-chip').forEach(c => {
+            const name = c.dataset.tag;
+            c.classList.toggle('active', name === '全部' ? this.activeTags.length === 0 : this.activeTags.includes(name));
+          });
           this.renderList();
-          tagBar.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
         };
       });
 
