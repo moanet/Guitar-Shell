@@ -134,6 +134,38 @@ export const dbService = {
     return logs.find(log => log.name === name) || null;
   },
 
+  // 🌟 A2 冲突检测用：只算「最后一次改动时间」与条数，用游标逐条读，不把整库 Blob 攒进内存
+  async getLocalChangeStamp() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME, LOG_STORE_NAME], 'readonly');
+      let at = 0, scoreCount = 0, logCount = 0, pending = 2;
+      const finish = () => { if (--pending === 0) resolve({ at, scoreCount, logCount }); };
+
+      const scoreReq = tx.objectStore(STORE_NAME).openCursor();
+      scoreReq.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) return finish();
+        const v = cursor.value || {};
+        scoreCount += 1;
+        at = Math.max(at, v.createdAt || 0, v.lastReadAt || 0);
+        cursor.continue();
+      };
+      scoreReq.onerror = () => reject(scoreReq.error);
+
+      const logReq = tx.objectStore(LOG_STORE_NAME).openCursor();
+      logReq.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (!cursor) return finish();
+        const v = cursor.value || {};
+        logCount += 1;
+        at = Math.max(at, v.createdAt || 0);
+        cursor.continue();
+      };
+      logReq.onerror = () => reject(logReq.error);
+    });
+  },
+
   async clearAllData() {
     const db = await openDB();
     return new Promise((resolve, reject) => {

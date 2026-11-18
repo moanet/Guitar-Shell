@@ -1,7 +1,14 @@
 import { dbService } from '../services/db.js';
 import { webdavService } from '../services/webdav.js';
+import { vaultService } from '../services/vault.js';
+import { APP_VERSION, BACKUP_SCHEMA } from '../services/version.js';
 
 let pdfjsLib = null;
+
+// 名称 / 标签直接进了 innerHTML，恢复或云下载的备份可能来自他人，必须转义
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[ch]));
 
 const readerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; position: relative; }
@@ -258,6 +265,14 @@ const readerHTML = `
       <h3>☁️ 云同步</h3>
       <div class="modal-field"><label>账号</label><input type="text" class="modal-inp" id="cloudUser" placeholder="坚果云邮箱"></div>
       <div class="modal-field"><label>应用密码</label><input type="password" class="modal-inp" id="cloudPass" placeholder="在坚果云安全选项申请"></div>
+      <div class="modal-field" id="cloudRememberRow" style="flex-direction:row;align-items:center;gap:8px;">
+        <input type="checkbox" id="cloudRemember" style="width:16px;height:16px;flex:none;margin:0;">
+        <label for="cloudRemember" style="flex:none;margin:0;font-size:13px;color:#9fb2c8;cursor:pointer;">记住应用密码（仅本机）</label>
+        <button type="button" id="cloudForget" style="margin-left:auto;background:none;border:none;color:#5d6678;font-size:12px;cursor:pointer;padding:0;">清除已保存</button>
+      </div>
+      <div class="modal-field" id="cloudRememberHint" style="font-size:12px;color:#5d6678;line-height:1.6;margin-top:-4px;">
+        密码以 AES-GCM 加密存进本机 IndexedDB，密钥不可导出，也不会写进备份文件；换设备需重新填。
+      </div>
       <div class="modal-field"><label>路径</label><input type="text" class="modal-inp" id="cloudPath" value="GuitarShell/backup.json"></div>
       <div class="modal-field"><label>同步通道（留空自动选）</label><input type="text" class="modal-inp" id="cloudBase" placeholder="https://你的域名/dav/"></div>
       <button class="modal-btn cancel" id="cloudTest" style="background:#232b38;color:#9fb2c8;font-size:13px;font-weight:normal;">测试连接</button>
@@ -395,11 +410,11 @@ class SheetReader extends HTMLElement {
         const card = document.createElement('div');
         card.className = 'score-card';
         const isPdf = score.name.toLowerCase().endsWith('.pdf');
-        const tagsHtml = (score.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('');
+        const tagsHtml = (score.tags || []).map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join('');
 
         card.innerHTML = `
           <div class="score-icon">${isPdf ? '📄' : '🖼️'}</div>
-          <div class="score-name" title="${score.name}">${score.name}</div>
+          <div class="score-name" title="${escapeHtml(score.name)}">${escapeHtml(score.name)}</div>
           <div class="card-tags">${tagsHtml}</div>
           <div class="card-actions">
             <button class="action-btn btn-edit" title="编辑">✎</button>
@@ -455,7 +470,7 @@ class SheetReader extends HTMLElement {
       
       tagBar.innerHTML = `<div class="tag-chip ${this.activeTag === '全部' ? 'active' : ''}" data-tag="全部">全部</div>`;
       allTags.forEach(tag => {
-        tagBar.innerHTML += `<div class="tag-chip ${this.activeTag === tag ? 'active' : ''}" data-tag="${tag}">${tag}</div>`;
+        tagBar.innerHTML += `<div class="tag-chip ${this.activeTag === tag ? 'active' : ''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</div>`;
       });
       
       tagBar.querySelectorAll('.tag-chip').forEach(chip => {
@@ -939,13 +954,16 @@ class SheetReader extends HTMLElement {
             fileHash: item.fileHash || ''
           });
         }
-        return { version: '0.0.3', exportedAt: Date.now(), scores: exportScores, logs: logs };
+        return { version: APP_VERSION, schema: BACKUP_SCHEMA, exportedAt: Date.now(), scores: exportScores, logs: logs };
       } finally { loading.classList.remove('show'); }
     };
 
     // 🌟 恢复：先完整校验并转好 Blob，再清空写入，保证「要么全成功，要么不动本地」
     const restoreFromPayload = async (payload, confirmOverwrite = true) => {
       if (!payload || !Array.isArray(payload.scores)) throw new Error('备份文件格式不正确');
+      if (payload.logs && !Array.isArray(payload.logs)) throw new Error('备份文件的打卡记录格式不正确');
+      const badScore = payload.scores.find((item) => !item || typeof item.name !== 'string' || typeof item.data !== 'string' || !item.data.startsWith('data:'));
+      if (badScore) throw new Error('备份中存在无效的乐谱数据');
 
       // 🌟 空备份保护：云端失联时可能拿到空载荷，绝不能用一句普通 confirm 就把本地清空
       const scoreCount = payload.scores.length;
@@ -1016,6 +1034,9 @@ class SheetReader extends HTMLElement {
     $('btnMobileExport').onclick = exportBackup;
 
     // ==================== ☁️ 云同步（坚果云 WebDAV） ====================
+    const REMEMBER_KEY = 'gs_cloud_remember';
+    const PASS_SECRET = 'webdav-pass';
+
     const readCloudForm = () => {
       const user = $('cloudUser').value.trim();
       const pass = $('cloudPass').value;
@@ -1027,6 +1048,13 @@ class SheetReader extends HTMLElement {
       // 自定义通道：留空即清掉，回到自动选择
       if (base) localStorage.setItem('gs_dav_base', base);
       else localStorage.removeItem('gs_dav_base');
+
+      // 记住密码：只存密文，明文不进 localStorage；取消勾选即删除
+      const remember = !!$('cloudRemember').checked;
+      localStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
+      if (remember) vaultService.save(PASS_SECRET, pass).catch(err => console.warn('[云同步] 保存密码失败:', err.message));
+      else vaultService.clear(PASS_SECRET).catch(() => {});
+
       return { user, pass, path };
     };
 
@@ -1034,20 +1062,101 @@ class SheetReader extends HTMLElement {
       $('cloudUser').value = localStorage.getItem('gs_cloud_user') || '';
       $('cloudPath').value = localStorage.getItem('gs_cloud_path') || 'GuitarShell/backup.json';
       $('cloudBase').value = localStorage.getItem('gs_dav_base') || '';
-      $('cloudPass').value = ''; // 密码不落盘，每次手动填
+      $('cloudPass').value = '';
+
+      const supported = vaultService.isSupported();
+      $('cloudRemember').checked = supported && localStorage.getItem(REMEMBER_KEY) === '1';
+      $('cloudRememberRow').style.display = supported ? '' : 'none';
+      $('cloudRememberHint').textContent = supported
+        ? '密码以 AES-GCM 加密存进本机 IndexedDB，密钥不可导出，也不会写进备份文件；换设备需重新填。'
+        : '当前页面不是 HTTPS / localhost，浏览器不提供加密能力，只能每次手填。';
+
+      if (supported && $('cloudRemember').checked) {
+        // 异步回填：用户已经动手打字就别覆盖他输的内容
+        vaultService.load(PASS_SECRET).then((saved) => {
+          if (saved && !$('cloudPass').value) $('cloudPass').value = saved;
+        }).catch(() => {});
+      }
       cloudModalMask.classList.add('show');
     };
     $('btnCloudSync').onclick = openCloudModal;
     $('btnMobileCloud').onclick = openCloudModal;
 
+    $('cloudForget').onclick = async () => {
+      await vaultService.clear(PASS_SECRET);
+      localStorage.setItem(REMEMBER_KEY, '0');
+      $('cloudRemember').checked = false;
+      $('cloudPass').value = '';
+      showToast('已清除本机保存的应用密码');
+    };
+
+    // ==================== 🌟 A2 冲突检测 ====================
+    // 记录「上次成功同步的时点 + 云端 etag」，用来判断云端/本地在上次同步后有没有被动过
+    // 同步点按「云端路径」分开存：换账号 / 换备份路径时不会拿旧的同步点误判
+    const SYNC_STATE_PREFIX = 'gs_cloud_sync:';
+    const readSyncState = (path) => {
+      try { return JSON.parse(localStorage.getItem(SYNC_STATE_PREFIX + path) || '{}') || {}; }
+      catch (err) { return {}; }
+    };
+    const writeSyncState = (path, patch) => {
+      const prev = readSyncState(path);
+      localStorage.setItem(SYNC_STATE_PREFIX + path, JSON.stringify({ ...prev, ...patch }));
+    };
+    const fmtTime = (ms) => {
+      const d = new Date(ms);
+      return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+
+    // 云端在本机上次同步后是否被改过：优先比 etag（不受两机时钟差影响），缺失再退化到时间戳
+    const cloudChangeState = (remote, path) => {
+      const state = readSyncState(path);
+      if (!state.at && !state.etag) return 'first';
+      if (state.etag && remote.etag) return remote.etag !== state.etag ? 'changed' : 'same';
+      if (state.at && remote.lastModified) return remote.lastModified > state.at ? 'changed' : 'same';
+      return 'unknown';
+    };
+
+    // 同步成功后更新同步点；etag 必须重新读一次（PUT 之后云端 etag 已变）
+    const markSynced = async (form) => {
+      writeSyncState(form.path, { at: Date.now() });
+      try {
+        const remote = await webdavService.stat(form.user, form.pass, form.path);
+        if (remote && remote.etag) writeSyncState(form.path, { etag: remote.etag });
+      } catch (err) {
+        console.warn('[云同步] 同步后读取云端状态失败:', err.message);
+      }
+    };
+
     $('cloudUpload').onclick = async () => {
       const form = readCloudForm(); if (!form) return;
       const btn = $('cloudUpload'); btn.disabled = true;
       try {
+        loading.textContent = '正在检查云端状态...'; loading.classList.add('show');
+        // 老代理可能不放开 PROPFIND，读不到就当「未知」继续，不因检查失败挡住同步
+        const remote = await webdavService.stat(form.user, form.pass, form.path).catch((err) => {
+          console.warn('[云同步] 读取云端状态失败:', err.message);
+          return null;
+        });
+
+        if (remote && remote.exists === true) {
+          const state = cloudChangeState(remote, form.path);
+          const when = remote.lastModified ? fmtTime(remote.lastModified) : '时间未知';
+          if (state === 'changed') {
+            if (!confirm(`云端自本机上次同步后又被改过（${when}，可能来自另一台设备）。\n继续上传会用本机数据覆盖它，确定吗？`)) {
+              showToast('已取消上传'); return;
+            }
+          } else if (state === 'first') {
+            if (!confirm(`云端已有一份备份（${when}）。\n本机从未同步过，继续上传会覆盖云端数据，确定吗？`)) {
+              showToast('已取消上传'); return;
+            }
+          }
+        }
+
         const payload = await buildBackupPayload();
         if (!payload) return;
         loading.textContent = '正在上传到云端...'; loading.classList.add('show');
         await webdavService.upload(form.user, form.pass, form.path, JSON.stringify(payload));
+        await markSynced(form);
         showToast(`已上传到云端 · ${webdavService.getEndpointLabel()}`);
       } catch (err) {
         console.error(err);
@@ -1059,11 +1168,34 @@ class SheetReader extends HTMLElement {
       const form = readCloudForm(); if (!form) return;
       const btn = $('cloudDownload'); btn.disabled = true;
       try {
-        loading.textContent = '正在下载云端备份...'; loading.classList.add('show');
+        loading.textContent = '正在检查云端状态...'; loading.classList.add('show');
+        const remote = await webdavService.stat(form.user, form.pass, form.path).catch((err) => {
+          console.warn('[云同步] 读取云端状态失败:', err.message);
+          return null;
+        });
+        if (remote && remote.exists === false) throw new Error('云端没有找到备份文件');
+
+        // 本地在上次同步后有改动（含阅读进度）时，覆盖等于丢数据
+        const local = await dbService.getLocalChangeStamp();
+        const syncedAt = Number(readSyncState(form.path).at) || 0;
+        if (syncedAt && local.at > syncedAt) {
+          if (!confirm(`本机自上次同步后又有改动（${fmtTime(local.at)}，含阅读进度）。\n用云端备份覆盖会丢失这些改动，确定吗？`)) {
+            showToast('已取消覆盖本地'); return;
+          }
+        } else if (!syncedAt && (local.scoreCount || local.logCount)) {
+          if (!confirm(`本机有 ${local.scoreCount} 份乐谱 / ${local.logCount} 条打卡记录，还没有同步记录。\n用云端备份覆盖会清空它们，确定吗？`)) {
+            showToast('已取消覆盖本地'); return;
+          }
+        }
+
+        loading.textContent = '正在下载云端备份...';
         const text = await webdavService.download(form.user, form.pass, form.path);
         const payload = JSON.parse(text);
-        loading.classList.remove('show');
-        await restoreFromPayload(payload);
+        // 覆盖确认已在上方按「云端/本地谁更新」做过，这里不再重复弹窗；空载荷保护仍在 restoreFromPayload 内部
+        const restored = await restoreFromPayload(payload, false);
+        if (restored === false) return;
+        await markSynced(form);
+        showToast(`已用云端备份覆盖本地 · ${webdavService.getEndpointLabel()}`);
       } catch (err) {
         console.error(err);
         showToast(`下载失败：${err.message}`);

@@ -1,5 +1,10 @@
 import { dbService } from '../services/db.js';
 
+// 练习内容名称可能来自备份恢复（他人数据），进 innerHTML 前必须转义
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[ch]));
+
 const logCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; }
   .stats-bar { display: flex; justify-content: space-around; padding: 20px; background: #191e27; border-bottom: 1px solid #2a3140; }
@@ -96,7 +101,7 @@ class GuitarPracticeLog extends HTMLElement {
         const timeStr = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         card.innerHTML = `
           <div class="log-info">
-            <div class="log-title">${log.name}</div>
+            <div class="log-title">${escapeHtml(log.name)}</div>
             <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:#5d6678">${timeStr}</span></div>
           </div>
           <button class="btn-del" data-id="${log.id}">删除</button>

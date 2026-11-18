@@ -2,7 +2,7 @@
 
 > **项目愿景**：打破练琴时碎片化的工具割裂感，将所有乐谱管理、节拍、调音、打卡记录整合在一个高度沉浸、本地优先、跨端可用的外壳中。从零开始，逐渐长成一个懂吉他手的专属数字工作台。
 
-**当前状态**：`v0.0.5.8` 本地优先 PWA · 四大模块（节拍器 / 读谱 / 记录 / 调音）已上线 · 已具备「阅读进度双轨制（手动 + 弱自动）+ 本地备份/恢复 + 坚果云 WebDAV 同步」，并完成阅读体验三修：热区安全边距 / 切歌保位 / 阅读态工具栏精简。2026-11-18 完成一次代码级核查：本地 = 线上 = 仓库，任务看板已重整为 A / B / C 三批（见第五节）；同日完成 A1 云同步通道自愈 + A3 空备份保护，并接入自建域名通道 `dav.noamet.ccwu.cc`。
+**当前状态**：`v0.0.5.9` 本地优先 PWA · 四大模块（节拍器 / 读谱 / 记录 / 调音）已上线 · 已具备「阅读进度双轨制（手动 + 弱自动）+ 本地备份/恢复 + 坚果云 WebDAV 同步」，并完成阅读体验三修：热区安全边距 / 切歌保位 / 阅读态工具栏精简。2026-11-18 完成一次代码级核查：本地 = 线上 = 仓库，任务看板已重整为 A / B / C 三批（见第五节）；同日完成 A1 云同步通道自愈、A3 空备份保护，并把 A2 冲突检测、A4 载荷规范化、A5 密码本机加密保存、A6 版本徽标落到代码（待真机验收），接入自建域名通道 `dav.noamet.ccwu.cc`——手机 4G 上传与电脑「覆盖本地」均已实测通过。
 
 ---
 
@@ -12,7 +12,7 @@
 Guitar Shell 项目
 ├── index.html                   ✅ 外壳与 4 大导航（完成）
 ├── manifest.json                ✅ PWA 基础配置（完成）
-├── sw.js                        ✅ PWA 离线缓存（当前 APP_VERSION = 0.0.5.8，改代码必升版本）
+├── sw.js                        ✅ PWA 离线缓存（当前 APP_VERSION = 0.0.5.9，改代码必升版本，且与 js/services/version.js 同步）
 ├── start-dev.bat                ✅ 一键启动：Python 静态网页(:8000) + Node WebDAV 代理(:8081)
 ├── .gitignore                   ✅ 忽略 proxy 依赖、本地脚本、IDE 与临时文件
 ├── icon-gShell-32/192/512.png   ✅ PWA 图标三件套
@@ -20,7 +20,7 @@ Guitar Shell 项目
 ├── css/
 │   └── layout.css               ✅ 全局布局与主题色（完成）
 ├── js/
-│   ├── main.js                  ✅ 路由与组件加载（完成，防崩溃机制 + SW 注册）
+│   ├── main.js                  ✅ 路由与组件加载（防崩溃机制 + SW 注册 + 版本徽标）
 │   │
 │   ├── services/                🚧 底层核心服务层
 │   │   ├── db.js                ✅ IndexedDB v3（scores/logs 双表，字段已齐）
@@ -28,10 +28,12 @@ Guitar Shell 项目
 │   │   │                              lastReadScrollY / lastReadAt / fileHash（预留）
 │   │   │                           └─ 方法：addScore / getScore / getAllScores / updateScore
 │   │   │                              deleteScore / addLog / getAllLogs / getLatestLogByName
-│   │   │                              clearAllData / bulkImport
-│   │   ├── webdav.js            ✅ 坚果云 WebDAV 收发（upload/download/probe）+ 云同步 UI 已接入
+│   │   │                              clearAllData / bulkImport / getLocalChangeStamp
+│   │   ├── webdav.js            ✅ 坚果云 WebDAV 收发（upload/download/probe/stat）+ 云同步 UI 已接入
 │   │   │                           └─ ✅ 多通道回落（本地代理 → 自建域名 → Worker），超时自动换线
-│   │   │                           └─ ⏳ 仅剩：etag 冲突提示（云端较新时二次确认）
+│   │   │                           └─ ✅ stat()：PROPFIND 取 getlastmodified / getetag / 大小，供冲突检测
+│   │   ├── version.js           ✅ APP_VERSION 与 BACKUP_SCHEMA 单一来源（sw.js 无法 import，两处同步）
+│   │   ├── vault.js             ✅ AES-GCM 加密存应用密码：密钥不可导出，独立库 GuitarShellVault
 │   │   ├── ai-parser.js         ⏳ 待创建：接入大模型，转化复杂曲谱为文本和弦谱
 │   │   └── audio.js             🚧 空占位（0 字节）：全局音频引擎待抽离
 │   │                               └─ 现状：音频逻辑分别耦合在节拍器、调音器与迷你节拍器中
@@ -185,16 +187,18 @@ start-dev.bat
 - [ ] 打包后锁屏 / 切后台，节拍与调音不中断
 
 ### 🔴 批次 A：云同步真正可用 + 数据不丢（本周，P0）
-- [x] **A1 端点环境自适应（代码完成，待真机验收）**：`webdav.js` 由写死本地代理改为多通道候选 —— **本地代理（仅 http 调试页）→ 自建域名 `dav.noamet.ccwu.cc` → workers.dev**，用户手填的「同步通道」永远排最前；单通道超时（本地 10s / 上传 90s）或 5xx 自动换通道，全部失败才报错并列出尝试过的通道；云同步弹窗新增「同步通道」输入 + 「测试连接」按钮。**实测**：`dav.noamet.ccwu.cc` 浏览器访问 `/dav/` 已弹 Basic 认证框（401 来自坚果云），说明子域→Worker→坚果云整条链路通，但依赖特定网络；本机网络到 `*.workers.dev` 是连接超时（`UND_ERR_CONNECT_TIMEOUT`）。
-- [ ] **A1 验收**：手机 4G 打开 Pages 上传一次，另一台设备云下载还原；断开通道时应看到「已尝试：xxx」的明确提示。
-- [ ] **A2 冲突检测**：下载前用 `PROPFIND` 取 `getlastmodified` / `etag` 与本地比对，仅云端较新时提示覆盖；上传前反向提示。**验收**：旧数据覆盖被拦下。
+- [x] **A1 端点环境自适应（已完成）**：`webdav.js` 由写死本地代理改为多通道候选 —— **本地代理（仅 http 调试页）→ 自建域名 `dav.noamet.ccwu.cc` → workers.dev**，用户手填的「同步通道」永远排最前；单通道超时（本地 10s / 上传 90s）或 5xx 自动换通道，全部失败才报错并列出尝试过的通道；云同步弹窗新增「同步通道」输入 + 「测试连接」按钮。
+- [x] **A1 验收（2026-11-18 全链路通过）**：手机 4G 打开 Pages，`测试连接 / 上传备份`成功（走自建域名通道）；电脑端点「覆盖本地」成功还原。
+- [x] **A2 冲突检测（上传分支已验）**：同步成功后把「时点 + 云端 etag」按备份路径存进 `gs_cloud_sync:<path>`；上传前 `stat()` 比对 —— 云端 etag 变了就提示「云端自上次同步后被改过」，从未同步过且云端已有文件也提示；下载前比 `getLocalChangeStamp()`（游标扫 `createdAt` / `lastReadAt`，不把整库 Blob 读进内存），本地在上次同步后动过就提示；etag 缺失时退化到 `getlastmodified` 比时间。**验收**：2026-11-18 A 机上传 → B 机再上传已弹出「云端被改过」；下载侧的「本地有改动」提示待补测。
 - [x] **A3 空备份保护（已完成）**：`restoreFromPayload` 遇到「0 份乐谱 + 0 条记录」的载荷时单独强提示，列出将被清空的本地乐谱 / 打卡数量，取消即不写库 —— 防止失联时拿到空载荷把本地抹掉。
-- [ ] **A4 载荷规范化**：备份 `version` 从写死的 `'0.0.3'` 改为与 `APP_VERSION` 同源；恢复前校验结构；名称 / 标签输出转义（书架卡片与记录页目前直接拼 `innerHTML`）。
+- [x] **A4 载荷规范化（代码完成，待真机验收）**：`version` 从写死的 `'0.0.3'` 改为 `js/services/version.js` 导出的 `APP_VERSION`，并新增 `schema: BACKUP_SCHEMA`；恢复前校验 `scores` / `logs` 结构、每条乐谱的 `name` 与 `data:` 前缀；书架卡片、标签、记录页名称统一走 `escapeHtml()`，不再直接拼 `innerHTML`。
+- [x] **A5 应用密码本机保存（代码完成，待真机验收）**：`js/services/vault.js` 用 AES-GCM 256 加密，密钥以**不可导出** `CryptoKey` 存进独立库 `GuitarShellVault`（不碰 `GuitarShellDB`）；云同步弹窗新增「记住应用密码（仅本机）」与「清除已保存」；明文不进 localStorage、不进备份文件、不进日志。**边界要说清**：同源脚本仍可调用解密，挡的是随手翻 localStorage / 复制浏览器数据 / 把备份发给别人，不是防本机攻击者。局域网 `http://` 页没有 `crypto.subtle`，该行会自动隐藏并提示只能手填。
 
 ### 🟠 批次 B：移动端可用 + 技术债收口（两周，P1）
 - [ ] **B1 Capacitor 打包**：生成 `android/`，声明 `RECORD_AUDIO` / `FOREGROUND_SERVICE` / `WAKE_LOCK`。**验收**：锁屏 10 分钟节拍不断、调音器可用。
 - [ ] **B2 抽全局音频引擎**：`audio.js` 目前 0 字节，主节拍器 / 迷你节拍器 / 调音器各持 AudioContext，靠 `mini-metronome-start` 事件人工互斥。抽为单例 `AudioEngine`（合成 + lookahead 调度），互斥改引用计数。**验收**：两处同开只响一路，退出无残留 timer。
-- [ ] **B3 入口清理**：`main.js` 第 34 / 50 行重复调用 `loadComponents()`；`index.html` 的 `main.js` 引入两次、`<meta>` 写在 `<head>` 外、图标与 manifest 重复三遍。收敛为一处。
+- [x] **A6 版本可见（代码完成）**：品牌旁加 `v0.0.5.9` 小徽标；点按会拉线上 `sw.js`（带时间戳绕缓存）对比运行版本 —— 一致提示「已是最新」，不一致变紫色并可直接重载，同时报出本机离线缓存版本。页面加载后也会静默查一次，线上有新版就把徽标染成紫色，不打断操作。
+- [ ] **B3 入口清理**：`index.html` 的 `main.js` 引入两次、`<meta>` 写在 `<head>` 外、图标与 manifest 重复三遍；`main.js` 里重复调用 `loadComponents()` 已顺手修掉。收敛为一处。
 - [ ] **B4 PDF 内存治理**：全页统一 2 倍渲染且 canvas 只增不减，大谱在手机上会持续吃内存。改为 DPR 上限 2 + 离屏页释放 + 只保最近 ±3 页。**验收**：50 页谱滚到底内存不线性增长。
 
 ### 🟡 批次 C：体验升级（一个月+，P2）
@@ -240,3 +244,6 @@ start-dev.bat
 11. **样式里的 `!important` 会打败内联样式**：`.pc-actions` 曾用 `display:flex !important`，导致 `element.style.display='none'` 完全失效（阅读态按钮藏不掉、移动端两组按钮同时出现）。需要 JS 控制显隐的元素，样式表里不要加 `!important`。
 12. **切歌前先存位**：任何"离开当前谱"的入口（返回书架、左右翻页）都必须先 `saveReadingProgress()`；只在 `btnBack` 里保存，翻页换谱就会丢位置。
 13. **云同步通道必须能换**：`*.workers.dev` 在部分网络是整段连接超时（`UND_ERR_CONNECT_TIMEOUT`），端点绝不写死。`webdav.js` 现在按「本地代理（仅 http 调试页）→ 自建域名 `dav.noamet.ccwu.cc` → Worker」回落，用户手填的「同步通道」永远最高优先；排查时先点「测试连接」看哪条路活着。另外，被静态 `import` 的服务文件必须进 `sw.js` 的 `ASSETS_TO_CACHE`——`webdav.js` 曾漏掉，离线打开读谱器会整个加载失败。
+14. **版本号有两处**：`sw.js` 是 classic script，不能 `import`，所以 `APP_VERSION` 同时写在 `sw.js` 与 `js/services/version.js`。改版本时两处一起改，并确认新文件已进 `ASSETS_TO_CACHE`（`version.js` 漏掉会让读谱器整个 import 失败）。
+15. **同步点的 key 要带路径**：`gs_cloud_sync:<path>` 而不是全局一个时间戳——换账号、换备份路径时，旧的同步点会把「同一份文件」误判成别人改过。
+16. **密码只进 vault，不进任何其它地方**：应用密码用 `vault.js` 加密后存在独立库 `GuitarShellVault`，密钥 `extractable=false`。别图省事写进 localStorage、别拼进备份 JSON、别 `console.log`。局域网 `http://192.168.x.x` 不是安全上下文，`crypto.subtle` 为 undefined，此时保存功能自动隐藏——要持久化就开 `localhost` 或 HTTPS。

@@ -179,5 +179,36 @@ export const webdavService = {
     if (res.status === 405 || res.status === 501) return { endpoint: lastEndpoint.label, exists: null };
 
     return { endpoint: lastEndpoint.label, exists: res.ok || res.status === 207 };
+  },
+
+  // 读云端元信息（A2 冲突检测用）：存在与否、最后修改时间、etag、大小
+  async stat(username, password, remotePath) {
+    const res = await request(remotePath, {
+      method: 'PROPFIND',
+      headers: { ...basicAuth(username, password), 'Depth': '0' }
+    }, { timeoutMs: TIMEOUT.meta });
+
+    if (res.status === 401) throw new Error('账号或应用密码错误');
+    if (res.status === 404) return { exists: false, lastModified: 0, etag: '', size: 0 };
+    // 端点不放开 PROPFIND 时无法判断新旧，交给上层按「未知」处理
+    if (res.status === 405 || res.status === 501) return { exists: null, lastModified: 0, etag: '', size: 0 };
+    if (!res.ok && res.status !== 207) throw new Error(`读取云端状态失败: HTTP ${res.status}`);
+
+    const text = await res.text();
+    // 坚果云返回的 XML 前缀大小写不定（D: / d: / 无前缀），用标签名抓取最稳
+    const grab = (tag) => {
+      const m = text.match(new RegExp(`<[^>]*${tag}[^>]*>([^<]*)<`, 'i'));
+      return m ? m[1].trim() : '';
+    };
+
+    const lastModifiedStr = grab('getlastmodified');
+    const parsedDate = lastModifiedStr ? Date.parse(lastModifiedStr) : 0;
+
+    return {
+      exists: true,
+      lastModified: Number.isFinite(parsedDate) ? parsedDate : 0,
+      etag: grab('getetag').replace(/^W\//, '').replace(/"/g, ''),
+      size: parseInt(grab('getcontentlength'), 10) || 0
+    };
   }
 };
