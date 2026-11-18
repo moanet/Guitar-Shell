@@ -5,104 +5,153 @@ let pdfjsLib = null;
 
 const readerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; position: relative; }
-  button, label { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
+  button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   
   .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #191e27; border-bottom: 1px solid #2a3140; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
   .btn { background: #38bdf8; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
   .btn.outline { background: transparent; color: #38bdf8; border: 1px solid #38bdf8; }
   .btn.outline:hover { background: rgba(56, 189, 248, 0.1); }
-  .btn-back { background: #2a3444; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: none; }
-  .btn-backup { background: #2a3444; color: #cfd8e6; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
-  .btn-log { background: #4ade80; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; display: none; }
-  .btn-cloud { background: #c9a8f5; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
+  .btn-back { background: #2a3444; color: #fff; display: none; }
+  .btn-backup { background: #2a3444; color: #cfd8e6; font-size: 13px; padding: 8px 12px; }
+  .btn-log { background: #4ade80; color: #000; display: none; }
+  .btn-cloud { background: #c9a8f5; color: #000; padding: 8px 12px; }
   
-  .pc-actions { display: flex !important; gap: 10px; flex-wrap: wrap; }
+  .pc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   
-  .shelf-view { flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; align-content: start; }
-  .score-card { background: #1b2230; border: 1px solid #2a3140; border-radius: 12px; padding: 16px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; position: relative; }
+  .filter-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #151a22; border-bottom: 1px solid #232b38; }
+  .search-row { display: flex; gap: 8px; }
+  .search-inp { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 14px; }
+  .search-inp:focus { border-color: #38bdf8; }
+  .sort-sel { padding: 8px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 13px; }
+  .tag-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .tag-bar::-webkit-scrollbar { display: none; }
+  .tag-chip { padding: 4px 10px; border-radius: 12px; border: 1px solid #2a3444; background: #1b222d; font-size: 12px; cursor: pointer; white-space: nowrap; color: #8a93a6; }
+  .tag-chip.active { background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8; }
+
+  .shelf-view { flex: 1; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
+  .score-card { background: #1b2230; border: 1px solid #2a3140; border-radius: 12px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; position: relative; transition: 0.2s; overflow: hidden; }
   .score-card:hover { background: #252e3c; border-color: #38bdf8; transform: translateY(-2px); }
-  .score-icon { font-size: 40px; margin-bottom: 10px; }
-  .score-name { font-size: 13px; text-align: center; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .btn-delete { position: absolute; top: 8px; right: 8px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: none; }
-  .score-card:hover .btn-delete { display: block; }
+  .score-icon { font-size: 36px; margin-bottom: 8px; }
+  .score-name { font-size: 13px; text-align: center; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+  
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
+  .card-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(201, 168, 245, 0.15); color: #c9a8f5; border: 1px solid rgba(201, 168, 245, 0.3); }
+  
+  .card-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
+  .score-card:hover .card-actions { opacity: 1; }
+  .action-btn { width: 22px; height: 22px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+  .btn-edit { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+  .btn-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 
   .viewer { flex: 1; overflow: auto; position: relative; background: #121212; cursor: grab; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; display: none; }
   .viewer:active { cursor: grabbing; }
   .content-container { display: flex; flex-direction: column; align-items: center; min-width: 100%; width: 100%; padding: 20px 0; box-sizing: border-box; }
-  
   .page-box { width: 100%; margin-bottom: 15px; background: #1a1a1a; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
   .page-box::after { content: '加载中...'; color: #555; font-size: 12px; position: absolute; }
   .page-box.loaded::after { display: none; }
   .content-container img, .content-container canvas { display: block; width: 100%; height: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
 
   .empty-tip { text-align: center; color: #6a7890; margin-top: 50px; grid-column: 1 / -1; }
-  
   .zoom-controls { position: absolute; bottom: 30px; right: 20px; display: none; flex-direction: column; gap: 8px; z-index: 20; }
-  .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-  .zoom-btn:active { background: rgba(56,189,248,0.3); transform: scale(0.95); }
-
+  .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  
   .mini-metronome { position: absolute; bottom: 30px; left: 20px; display: none; flex-direction: column; align-items: center; z-index: 20; }
-  .mm-panel { background: rgba(30, 42, 58, 0.95); backdrop-filter: blur(8px); border: 1px solid #2f6f9e; border-radius: 16px; padding: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.3s ease; }
+  .mm-panel { background: rgba(30, 42, 58, 0.95); backdrop-filter: blur(8px); border: 1px solid #2f6f9e; border-radius: 16px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.3s ease; }
   .mm-main-row { display: flex; align-items: center; gap: 12px; }
-  .mm-btn { background: #38bdf8; color: #000; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(56,189,248,0.3); }
-  .mm-btn.playing { background: #ef4444; color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
-  .mm-bpm-display { font-size: 20px; font-weight: bold; color: #fff; cursor: pointer; min-width: 50px; text-align: center; user-select: none; }
+  .mm-btn { background: #38bdf8; color: #000; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .mm-btn.playing { background: #ef4444; color: #fff; }
+  .mm-bpm-display { font-size: 20px; font-weight: bold; color: #fff; cursor: pointer; min-width: 50px; text-align: center; }
   .mm-bpm-display::after { content: ' BPM'; font-size: 10px; color: #8a93a6; font-weight: normal; }
   .mm-advanced-area { display: none; flex-direction: column; align-items: center; gap: 8px; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
   .mini-metronome.advanced .mm-advanced-area { display: flex; }
   .mm-knob-wrap { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
   .mm-knob-wrap canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: grab; }
   .mm-adv-controls { display: flex; align-items: center; gap: 16px; }
-  .mm-step { background: rgba(255,255,255,0.1); color: #fff; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .mm-step:active { background: rgba(56,189,248,0.3); }
+  .mm-step { background: rgba(255,255,255,0.1); color: #fff; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; cursor: pointer; }
 
-  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 16px; z-index: 30; display: none; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 16px; z-index: 300; display: none; }
   .loading.show { display: flex; }
-
-  .toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 10px); background: rgba(56, 189, 248, 0.9); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+  .toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 10px); background: rgba(56, 189, 248, 0.9); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 400; opacity: 0; pointer-events: none; transition: 0.3s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-  .action-sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-end; z-index: 100; }
-  .action-sheet-mask.show { display: flex; }
-  .action-sheet { width: 100%; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px; display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; box-sizing: border-box; }
+  .action-sheet-mask, .modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-end; z-index: 200; }
+  .action-sheet-mask.show, .modal-mask.show { display: flex; }
+  .action-sheet { width: 100%; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px; display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; }
   .action-sheet-mask.show .action-sheet { transform: translateY(0); }
-  .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; font-weight: 500; cursor: pointer; text-align: center; }
-  .action-btn.cancel { background: transparent; color: #8a93a6; margin-top: 8px; }
+  .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+  .action-btn.cancel { background: transparent; color: #8a93a6; }
 
-  .log-modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 150; padding: 20px; }
-  .log-modal-mask.show { display: flex; }
-  .log-modal { background: #1b2230; border: 1px solid #2a3140; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: scale(0.95); transition: 0.2s; }
-  .log-modal-mask.show .log-modal { transform: scale(1); }
-  .log-modal h3 { margin: 0; text-align: center; color: #4ade80; font-size: 18px; }
-  .log-field { display: flex; flex-direction: column; gap: 6px; }
-  .log-field label { font-size: 12px; color: #8a93a6; }
-  .log-input { padding: 12px; border-radius: 8px; border: 1px solid #2a3444; background: #151a22; color: #fff; font-size: 14px; outline: none; }
-  .log-input:focus { border-color: #4ade80; }
-  .log-footer { display: flex; gap: 10px; margin-top: 8px; }
-  .log-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
-  .log-btn.cancel { background: #2a3444; color: #fff; }
-  .log-btn.confirm { background: #4ade80; color: #000; }
+  .modal-mask { align-items: center; justify-content: center; padding: 20px; }
+  .modal-box { background: #1b2230; border: 1px solid #2a3140; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-box h3 { margin: 0; text-align: center; color: #38bdf8; font-size: 18px; }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; }
+  .modal-field label { font-size: 12px; color: #8a93a6; }
+  .modal-inp { padding: 12px; border-radius: 8px; border: 1px solid #2a3444; background: #151a22; color: #fff; font-size: 14px; outline: none; }
+  .modal-footer { display: flex; gap: 10px; margin-top: 8px; }
+  .modal-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
+  .modal-btn.cancel { background: #2a3444; color: #fff; }
+  .modal-btn.confirm { background: #38bdf8; color: #000; }
+  .modal-btn.danger { background: #ef4444; color: #fff; }
+  
+  /* 🌟 沉浸式虚化：只降透明度，不禁用指针事件，否则鼠标永远移不上去、无法实体化 */
+  .mini-metronome { transition: opacity 0.25s ease; }
+  .mini-metronome.faded { opacity: 0.15; cursor: pointer; }
 
-  /* 🌟 云同步弹窗专属样式 */
-  .cloud-modal h3 { color: #c9a8f5; }
-  .cloud-btn { background: #c9a8f5; color: #000; border: 1px solid #c9a8f5; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-  .cloud-btn.outline { background: transparent; color: #c9a8f5; }
+  /* 🌟 左右点击翻页热区：内缩安全距离，避免压住滚动条 / 手机边缘返回手势 */
+  .nav-zone {
+    position: absolute; top: 56px; bottom: 120px; width: 7%; z-index: 15;
+    cursor: pointer; opacity: 0; transition: opacity 0.2s; display: none;
+    align-items: center; justify-content: center;
+    font-size: 30px; color: rgba(255,255,255,0.35); font-weight: bold;
+    user-select: none; -webkit-user-select: none;
+  }
+  .nav-zone.show { display: flex; }
+  .nav-zone:hover, .nav-zone:active { opacity: 1; background: rgba(0,0,0,0.18); }
+  .nav-zone.left { left: 20px; }
+  .nav-zone.right { right: 26px; }
+
+  /* 🌟 阅读进度提示条：独立于滚动容器，避免显示/隐藏时把谱面顶偏 */
+  #progressBanner {
+    position: absolute; top: 70px; left: 50%; transform: translate(-50%, -6px);
+    display: none; align-items: center; gap: 10px;
+    z-index: 60; background: rgba(56, 189, 248, 0.95); color: #000;
+    padding: 8px 10px 8px 16px; border-radius: 22px; font-size: 13px; font-weight: bold;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45); white-space: nowrap;
+    opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #progressBanner.show { display: flex; opacity: 1; transform: translate(-50%, 0); }
+  #progressBanner .pb-text { cursor: pointer; }
+  #progressBanner .pb-close {
+    background: rgba(0,0,0,0.18); border: none; color: #000; width: 22px; height: 22px;
+    border-radius: 50%; font-size: 13px; font-weight: bold; cursor: pointer; line-height: 1;
+  }
+
+  /* 🌟 打卡弹窗内的「阅读进度」区 */
+  .progress-readout { font-size: 13px; color: #7fd4ff; font-weight: bold; }
+  .modal-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a93a6; cursor: pointer; }
+  .modal-check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer; }
+  .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
+
+  
+
 
 const readerHTML = `
   <div class="toolbar">
-    <button class="btn-back" id="btnBack">← 返回书架</button>
-    <button class="btn-log" id="btnLog">📝 打卡</button>
+    <button class="btn btn-back" id="btnBack">← 返回书架</button>
+    <button class="btn btn-log" id="btnLog">📝 打卡</button>
+    <button class="btn btn-save-pos" id="btnSavePos" style="display:none;">📍 存进度</button>
     <div class="pc-actions" id="pcActions">
       <button class="btn" id="btnSingleFile">📂 导入单文件</button>
       <button class="btn outline" id="btnFolder">📁 导入整个文件夹</button>
-      <button class="btn-backup" id="btnExport">📤 导出备份</button>
-      <button class="btn-backup" id="btnImport">📥 导入备份</button>
-      <button class="btn-cloud" id="btnCloudSync">☁️ 云同步</button>
+      <button class="btn btn-backup" id="btnExport">📤 备份</button>
+      <button class="btn btn-backup" id="btnImport">📥 恢复</button>
+      <button class="btn btn-cloud" id="btnCloudSync">☁️ 云同步</button>
     </div>
-    <button class="btn" id="btnMobileUpload" style="display:none;">📂 导入乐谱</button>
-    <button class="btn-backup" id="btnMobileExport" style="display:none;">📤 备份</button>
-    <button class="btn-cloud" id="btnMobileCloud" style="display:none;">☁️ 云同步</button>
+    <button class="btn" id="btnMobileUpload" style="display:none;">📂 导入</button>
+    <button class="btn btn-backup" id="btnMobileExport" style="display:none;">📤 备份</button>
+    <button class="btn btn-backup" id="btnMobileImport" style="display:none;">📥 恢复</button>
+    <button class="btn btn-cloud" id="btnMobileCloud" style="display:none;">☁️ 云同步</button>
   </div>
   
   <input type="file" id="inputSingleFile" accept="image/*,application/pdf" multiple style="display:none">
@@ -112,12 +161,32 @@ const readerHTML = `
   <input type="file" id="inputGallery" accept="image/*" multiple style="display:none">
   <input type="file" id="inputMobileFile" accept=".pdf,application/pdf,image/*" multiple style="display:none">
 
-  <div class="shelf-view" id="shelfView">
-    <div class="empty-tip" id="emptyTip">书架空空如也，点击上方导入书籍或乐谱</div>
+  <div class="filter-bar" id="filterBar">
+    <div class="search-row">
+      <input type="text" id="searchInp" class="search-inp" placeholder="搜索谱名或标签...">
+      <select id="sortSel" class="sort-sel">
+        <option value="newest">最新添加</option>
+        <option value="oldest">最旧添加</option>
+        <option value="name">按名称 A-Z</option>
+      </select>
+    </div>
+    <div class="tag-bar" id="tagBar"></div>
   </div>
+
+  <div class="shelf-view" id="shelfView"></div>
 
   <div class="viewer" id="viewer">
     <div class="content-container" id="contentContainer"></div>
+  </div>
+
+  <!-- 🌟 翻页热区：放在滚动容器外，滚动谱面时固定在可视区左右两侧 -->
+  <div class="nav-zone left" id="navPrev">❮</div>
+  <div class="nav-zone right" id="navNext">❯</div>
+
+  <!-- 🌟 阅读进度提示：放在滚动容器外面，跳转后隐藏也不会导致谱面抖动 -->
+  <div id="progressBanner">
+    <span class="pb-text" id="pbText"></span>
+    <button class="pb-close" id="pbClose" title="从第一页开始">✕</button>
   </div>
 
   <div class="zoom-controls" id="zoomControls">
@@ -141,7 +210,7 @@ const readerHTML = `
     </div>
   </div>
 
-  <div class="loading" id="loading">正在解析文件，请稍候...</div>
+  <div class="loading" id="loading">处理中...</div>
   <div class="toast" id="toast"></div>
 
   <div class="action-sheet-mask" id="actionSheetMask">
@@ -153,30 +222,47 @@ const readerHTML = `
     </div>
   </div>
 
-  <div class="log-modal-mask" id="logModalMask">
-    <div class="log-modal">
+  <div class="modal-mask" id="logModalMask">
+    <div class="modal-box">
       <h3>记录本次练习</h3>
-      <div class="log-field"><label>练习内容</label><input type="text" class="log-input" id="logName"></div>
-      <div class="log-field"><label>练习时长 (分钟)</label><input type="number" class="log-input" id="logTime" min="1"></div>
-      <div class="log-field"><label>练习 BPM</label><input type="number" class="log-input" id="logBpm" min="30" max="250"></div>
-      <div class="log-footer">
-        <button class="log-btn cancel" id="logCancel">取消</button>
-        <button class="log-btn confirm" id="logConfirm">保存记录</button>
+      <div class="modal-field"><label>练习内容</label><input type="text" class="modal-inp" id="logName"></div>
+      <div class="modal-field"><label>练习时长 (分钟)</label><input type="number" class="modal-inp" id="logTime" min="1"></div>
+      <div class="modal-field"><label>练习 BPM</label><input type="number" class="modal-inp" id="logBpm" min="30" max="250"></div>
+      <div class="modal-field">
+        <label>📍 阅读位置</label>
+        <div class="progress-readout" id="logProgressText">第 1 页</div>
+        <label class="modal-check-row"><input type="checkbox" id="logSaveProgress" checked> 把这次的位置存到本曲</label>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn cancel" id="logCancel">取消</button>
+        <button class="modal-btn confirm" id="logConfirm">保存记录</button>
       </div>
     </div>
   </div>
 
-  <!-- 🌟 云端同步弹窗 -->
-  <div class="log-modal-mask" id="cloudModalMask">
-    <div class="log-modal cloud-modal">
-      <h3>☁️ 坚果云同步</h3>
-      <div class="log-field"><label>坚果云邮箱</label><input type="email" class="log-input" id="cloudUser" placeholder="example@email.com"></div>
-      <div class="log-field"><label>应用密码 (非登录密码)</label><input type="password" class="log-input" id="cloudPass" placeholder="在坚果云安全选项申请"></div>
-      <div class="log-field"><label>云端文件路径</label><input type="text" class="log-input" id="cloudPath" value="GuitarShell/backup.json"></div>
-      <div class="log-footer">
-        <button class="log-btn cancel" id="cloudCancel">取消</button>
-        <button class="log-btn cloud-btn outline" id="cloudDownload">📥 下载覆盖</button>
-        <button class="log-btn cloud-btn" id="cloudUpload">📤 上传备份</button>
+  <div class="modal-mask" id="editModalMask">
+    <div class="modal-box">
+      <h3>编辑乐谱信息</h3>
+      <div class="modal-field"><label>名称</label><input type="text" class="modal-inp" id="editName"></div>
+      <div class="modal-field"><label>标签 (用逗号分隔)</label><input type="text" class="modal-inp" id="editTags" placeholder="如: 流行, 练习曲, 待练"></div>
+      <div class="modal-footer">
+        <button class="modal-btn danger" id="editDeleteBtn" style="flex:0 0 60px;">删除</button>
+        <button class="modal-btn cancel" id="editCancel">取消</button>
+        <button class="modal-btn confirm" id="editConfirm">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="cloudModalMask">
+    <div class="modal-box">
+      <h3>☁️ 云同步</h3>
+      <div class="modal-field"><label>账号</label><input type="text" class="modal-inp" id="cloudUser" placeholder="坚果云邮箱"></div>
+      <div class="modal-field"><label>应用密码</label><input type="password" class="modal-inp" id="cloudPass" placeholder="在坚果云安全选项申请"></div>
+      <div class="modal-field"><label>路径</label><input type="text" class="modal-inp" id="cloudPath" value="GuitarShell/backup.json"></div>
+      <div class="modal-footer">
+        <button class="modal-btn cancel" id="cloudCancel">取消</button>
+        <button class="modal-btn confirm" id="cloudDownload">📥 覆盖本地</button>
+        <button class="modal-btn confirm" id="cloudUpload" style="background:#c9a8f5;">📤 上传备份</button>
       </div>
     </div>
   </div>
@@ -194,27 +280,49 @@ class SheetReader extends HTMLElement {
     this.observer = null;
     this.isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
     
+    this.allScores = [];
+    this.filteredScores = [];
+    this.searchKeyword = '';
+    this.activeTag = '全部';
+    this.sortMode = 'newest';
+    
     this.mmBpm = 120;
     this.mmPlaying = false;
     this.mmAudioCtx = null;
     this.mmTimer = null;
-    this.mmNextTick = 0;
     this.toastTimer = null;
     this.mmAutoCollapseTimer = null;
     this.currentFileName = "";
+    this.currentScoreId = null;
     this.mmKnob = { ctx: null, size: 0, cx: 0, cy: 0, r: 0, dragging: false };
+
+    // 🌟 阅读进度状态
+    this.totalPages = 0;
+    this.lastKnownPosition = null;   // 缓存的 { page, ratio, scrollY, total }
+    this.bannerTimer = null;
   }
 
   connectedCallback() {
     this.shadowRoot.innerHTML = `<style>${readerCSS}</style>${readerHTML}`;
     this.initLogic();
     this.loadShelf();
+
+    // 🌟 切换到其他标签页（节拍器/记录/调音）时，立刻停掉 mini 节拍器，避免双声道串音
+    this.handleTabChange = (e) => {
+      if (!e.detail || e.detail.target !== 'view-reader') {
+        if (this.stopMiniMetronome) this.stopMiniMetronome();
+      }
+    };
+    window.addEventListener('app-tab-changed', this.handleTabChange);
   }
 
   disconnectedCallback() {
     if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
     if (this.observer) this.observer.disconnect();
     if (this.stopMiniMetronome) this.stopMiniMetronome();
+    if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
+    if (this.handleTabChange) window.removeEventListener('app-tab-changed', this.handleTabChange);
+    if (this.positionNavZones) window.removeEventListener('resize', this.positionNavZones);
     clearTimeout(this.mmAutoCollapseTimer);
   }
 
@@ -226,19 +334,21 @@ class SheetReader extends HTMLElement {
     const pcActions = $('pcActions');
     const btnMobileUpload = $('btnMobileUpload');
     const shelfView = $('shelfView');
+    const filterBar = $('filterBar');
     const viewer = $('viewer');
     const container = $('contentContainer');
     const zoomControls = $('zoomControls');
     const miniMetronome = $('miniMetronome');
     const loading = $('loading');
-    const actionSheetMask = $('actionSheetMask');
     const toastEl = $('toast');
     
+    const searchInp = $('searchInp');
+    const sortSel = $('sortSel');
+    const tagBar = $('tagBar');
+
     const logModalMask = $('logModalMask');
-    const logName = $('logName'), logTime = $('logTime'), logBpm = $('logBpm');
-    
+    const editModalMask = $('editModalMask');
     const cloudModalMask = $('cloudModalMask');
-    const cloudUser = $('cloudUser'), cloudPass = $('cloudPass'), cloudPath = $('cloudPath');
     
     const showToast = (msg) => {
       toastEl.textContent = msg;
@@ -247,17 +357,121 @@ class SheetReader extends HTMLElement {
       this.toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2000);
     };
 
-    const collapseMmKnob = () => { if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced'); clearTimeout(this.mmAutoCollapseTimer); };
-    const resetAutoCollapse = () => { clearTimeout(this.mmAutoCollapseTimer); if (miniMetronome.classList.contains('advanced')) this.mmAutoCollapseTimer = setTimeout(collapseMmKnob, 3000); };
-    
     if (this.isMobile) {
-      btnMobileUpload.style.display = 'block'; $('btnMobileExport').style.display = 'block'; $('btnMobileCloud').style.display = 'block'; pcActions.style.display = 'none';
+      btnMobileUpload.style.display = 'block'; 
+      $('btnMobileExport').style.display = 'block'; 
+      $('btnMobileImport').style.display = 'block';
+      $('btnMobileCloud').style.display = 'block'; 
+      pcActions.style.display = 'none';
     } else {
       pcActions.style.display = 'flex';
     }
 
-    const applyScale = () => { container.style.width = `${this.scale * 100}%`; };
+    this.renderList = () => {
+      this.filteredScores = this.allScores.filter(score => {
+        const tagMatch = this.activeTag === '全部' || (score.tags && score.tags.includes(this.activeTag));
+        const keywordMatch = !this.searchKeyword || 
+                             score.name.toLowerCase().includes(this.searchKeyword.toLowerCase()) ||
+                             (score.tags && score.tags.some(t => t.includes(this.searchKeyword)));
+        return tagMatch && keywordMatch;
+      });
 
+      this.filteredScores.sort((a, b) => {
+        if (this.sortMode === 'newest') return b.createdAt - a.createdAt;
+        if (this.sortMode === 'oldest') return a.createdAt - b.createdAt;
+        if (this.sortMode === 'name') return a.name.localeCompare(b.name);
+        return 0;
+      });
+
+      shelfView.innerHTML = '';
+      if (this.filteredScores.length === 0) {
+        shelfView.innerHTML = `<div class="empty-tip">没有找到符合条件的乐谱</div>`;
+        return;
+      }
+
+      this.filteredScores.forEach(score => {
+        const card = document.createElement('div');
+        card.className = 'score-card';
+        const isPdf = score.name.toLowerCase().endsWith('.pdf');
+        const tagsHtml = (score.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('');
+
+        card.innerHTML = `
+          <div class="score-icon">${isPdf ? '📄' : '🖼️'}</div>
+          <div class="score-name" title="${score.name}">${score.name}</div>
+          <div class="card-tags">${tagsHtml}</div>
+          <div class="card-actions">
+            <button class="action-btn btn-edit" title="编辑">✎</button>
+            <button class="action-btn btn-delete" title="删除">×</button>
+          </div>
+        `;
+        
+        card.onclick = () => this.openScore(score.fileBlob, score.name, score.id, score.tags, score);
+
+        card.querySelector('.btn-edit').onclick = (e) => {
+          e.stopPropagation();
+          $('editName').value = score.name;
+          $('editTags').value = (score.tags || []).join(', ');
+          $('editConfirm').onclick = async () => {
+            const newName = $('editName').value.trim();
+            const newTagsStr = $('editTags').value.trim();
+            if (!newName) return showToast('名称不能为空');
+            
+            const newTags = newTagsStr ? newTagsStr.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+            
+            await dbService.updateScore(score.id, { name: newName, tags: newTags });
+            showToast('修改成功');
+            editModalMask.classList.remove('show');
+            this.loadShelf(); 
+          };
+          $('editDeleteBtn').onclick = async () => {
+            if (confirm(`确定删除《${score.name}》吗？`)) {
+              await dbService.deleteScore(score.id);
+              editModalMask.classList.remove('show');
+              this.loadShelf();
+            }
+          };
+          editModalMask.classList.add('show');
+        };
+
+        card.querySelector('.btn-delete').onclick = async (e) => {
+          e.stopPropagation();
+          if (confirm(`确定要从书架删除《${score.name}》吗？`)) {
+            await dbService.deleteScore(score.id);
+            this.loadShelf();
+          }
+        };
+
+        shelfView.appendChild(card);
+      });
+    };
+
+    this.loadShelf = async () => {
+      this.allScores = await dbService.getAllScores();
+      
+      const allTags = new Set();
+      this.allScores.forEach(s => { (s.tags || []).forEach(t => allTags.add(t)); });
+      
+      tagBar.innerHTML = `<div class="tag-chip ${this.activeTag === '全部' ? 'active' : ''}" data-tag="全部">全部</div>`;
+      allTags.forEach(tag => {
+        tagBar.innerHTML += `<div class="tag-chip ${this.activeTag === tag ? 'active' : ''}" data-tag="${tag}">${tag}</div>`;
+      });
+      
+      tagBar.querySelectorAll('.tag-chip').forEach(chip => {
+        chip.onclick = () => {
+          this.activeTag = chip.dataset.tag;
+          this.renderList();
+          tagBar.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+        };
+      });
+
+      this.renderList();
+    };
+
+    searchInp.oninput = (e) => { this.searchKeyword = e.target.value; this.renderList(); };
+    sortSel.onchange = (e) => { this.sortMode = e.target.value; this.renderList(); };
+
+    const applyScale = () => { container.style.width = `${this.scale * 100}%`; };
     const loadPdfLib = async () => {
       if (window.pdfjsLib) { pdfjsLib = window.pdfjsLib; return pdfjsLib; }
       loading.textContent = '正在加载解析引擎...'; loading.classList.add('show');
@@ -279,6 +493,7 @@ class SheetReader extends HTMLElement {
       const lib = await loadPdfLib();
       const arrayBuffer = await fileBlob.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+      this.totalPages = pdf.numPages;
       const firstPage = await pdf.getPage(1);
       const viewport = firstPage.getViewport({ scale: 1.0 }); 
       const ratio = viewport.height / viewport.width;
@@ -306,217 +521,584 @@ class SheetReader extends HTMLElement {
       }
     };
 
-    this.openScore = async (fileBlob, fileName) => {
+    // ==================== 🌟 阅读进度：计算 / 恢复 / 提示 ====================
+    const pageBoxes = () => Array.from(container.querySelectorAll('.page-box'));
+
+    // 当前阅读位置：页码 + 页内比例（不依赖像素，缩放后也不会偏）
+    const getReadingPosition = () => {
+      const cached = this.lastKnownPosition;
+      if ((!viewer.offsetParent || viewer.clientHeight === 0) && cached) return cached;
+
+      const scrollTop = viewer.scrollTop;
+      const viewH = viewer.clientHeight || 1;
+      const viewTop = viewer.getBoundingClientRect().top;
+      const boxes = pageBoxes();
+      let page = 1, ratio = 0;
+      const total = boxes.length || this.totalPages || 1;
+
+      if (boxes.length) {
+        // 用「视口中心」判定当前页，落在两页之间的留白时也不会误判
+        const probe = scrollTop + viewH * 0.5;
+        let current = boxes[0];
+        for (const box of boxes) {
+          const top = box.getBoundingClientRect().top - viewTop + scrollTop;
+          if (top <= probe) current = box; else break;
+        }
+        page = parseInt(current.dataset.page, 10) || 1;
+        const top = current.getBoundingClientRect().top - viewTop + scrollTop;
+        const h = current.offsetHeight || 1;
+        ratio = Math.min(1, Math.max(0, (scrollTop - top) / Math.max(1, h - viewH)));
+      } else {
+        const img = container.querySelector('img');
+        if (img) {
+          const top = img.getBoundingClientRect().top - viewTop + scrollTop;
+          const h = img.offsetHeight || 1;
+          page = 1;
+          ratio = Math.min(1, Math.max(0, (scrollTop - top) / Math.max(1, h - viewH)));
+        }
+      }
+
+      const pos = { page, ratio, scrollY: Math.round(scrollTop), total };
+      this.lastKnownPosition = pos;
+      return pos;
+    };
+
+    // 跳到「第 page 页 + 页内比例」
+    const scrollToPage = (page, ratio) => {
+      const boxes = pageBoxes();
+      const targetEl = boxes.length
+        ? (boxes.find(b => parseInt(b.dataset.page, 10) === page) || boxes[boxes.length - 1])
+        : container.querySelector('img');
+      if (!targetEl) return;
+
+      const viewTop = viewer.getBoundingClientRect().top;
+      const top = targetEl.getBoundingClientRect().top - viewTop + viewer.scrollTop;
+      const h = targetEl.offsetHeight || 1;
+      const maxStop = Math.max(0, viewer.scrollHeight - viewer.clientHeight);
+      const wanted = top + Math.min(1, Math.max(0, ratio)) * Math.max(0, h - viewer.clientHeight);
+      const target = Math.round(Math.min(Math.max(0, wanted), maxStop));
+
+      viewer.scrollTo({ top: target, behavior: 'smooth' });
+      this.lastKnownPosition = { page, ratio, scrollY: target, total: boxes.length || this.totalPages || 1 };
+    };
+
+    // 🌟 统一的进度写库入口（手动按钮 / 打卡 / 定时兜底 / 返回书架 共用）
+    const saveReadingProgress = async (withToast) => {
+      if (!this.currentScoreId) return false;
+      const pos = getReadingPosition();
+      await dbService.updateScore(this.currentScoreId, {
+        lastReadPage: pos.page,
+        lastReadPageRatio: pos.ratio,
+        lastReadScrollY: pos.scrollY,
+        lastReadAt: Date.now()
+      });
+      this.lastKnownPosition = pos;
+      if (withToast) {
+        showToast(pos.total > 1 ? `已保存：第 ${pos.page} 页 / 共 ${pos.total} 页` : `已保存当前阅读位置`);
+      }
+      return true;
+    };
+
+    // 🌟 弱自动兜底：每 5 分钟存一次（仅在阅读页可见时才写，避免隐藏时写 0）
+    const stopAutoSave = () => {
+      if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
+    };
+    const startAutoSave = () => {
+      stopAutoSave();
+      this.autoSaveTimer = setInterval(() => {
+        if (!this.currentScoreId || !viewer.offsetParent) return;
+        saveReadingProgress(false).catch(err => console.warn('自动保存进度失败', err));
+      }, 5 * 60 * 1000);
+    };
+
+    // 🌟 翻页热区定位：随 viewer 顶部对齐（热区已移出滚动容器，不随内容滚动）
+    const positionNavZones = () => {
+      const hostTop = this.getBoundingClientRect().top;
+      const top = Math.max(0, Math.round(viewer.getBoundingClientRect().top - hostTop));
+      $('navPrev').style.top = top + 'px';
+      $('navNext').style.top = top + 'px';
+    };
+    window.addEventListener('resize', positionNavZones);
+    this.positionNavZones = positionNavZones;
+
+    const hideProgressBanner = () => {
+      const banner = $('progressBanner');
+      if (!banner) return;
+      clearTimeout(this.bannerTimer);
+      banner.classList.remove('show');
+      this.bannerTimer = setTimeout(() => { banner.style.display = 'none'; }, 260);
+    };
+
+    const showProgressBanner = (page, savedAt, total, onJump) => {
+      const banner = $('progressBanner');
+      const text = $('pbText');
+      if (!banner || !text) return;
+
+      let when = '';
+      if (savedAt) {
+        const d = new Date(savedAt);
+        when = `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+      const pageText = (total > 1) ? `第 ${page} 页` : '上次的位置';
+      text.textContent = when ? `上次读到${pageText} · ${when}` : `上次读到${pageText}`;
+      text.onclick = () => { onJump(); hideProgressBanner(); };
+
+      // 清掉上一次隐藏留下的定时器，避免刚显示就被关掉
+      clearTimeout(this.bannerTimer);
+      banner.classList.remove('show');
+      banner.style.display = 'flex';
+      requestAnimationFrame(() => banner.classList.add('show'));
+    };
+
+    $('pbClose').onclick = () => hideProgressBanner();
+
+    // 用户自己一开始滚动就收起提示条，别挡视线
+    viewer.addEventListener('scroll', () => {
+      const banner = $('progressBanner');
+      if (banner && banner.classList.contains('show') && viewer.scrollTop > 40) hideProgressBanner();
+    }, { passive: true });
+
+    this.openScore = async (fileBlob, fileName, fileId, tags, scoreData, opts = {}) => {
       this.currentFileName = fileName.replace(/\.[^/.]+$/, ""); 
+      this.currentScoreId = fileId;
+      
       shelfView.style.display = 'none';
-      if (this.isMobile) { btnMobileUpload.style.display = 'none'; $('btnMobileExport').style.display = 'none'; $('btnMobileCloud').style.display = 'none'; } 
+      filterBar.style.display = 'none';
+      
+      if (this.isMobile) { btnMobileUpload.style.display = 'none'; $('btnMobileExport').style.display = 'none'; $('btnMobileImport').style.display = 'none'; $('btnMobileCloud').style.display = 'none'; } 
       else pcActions.style.display = 'none';
+      
       btnBack.style.display = 'block'; btnLog.style.display = 'block'; viewer.style.display = 'block'; miniMetronome.style.display = 'flex'; 
-      collapseMmKnob();
+      $('btnSavePos').style.display = 'block';
+      $('navPrev').classList.add('show'); $('navNext').classList.add('show');
+      
+      if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
+      miniMetronome.classList.remove('faded'); // 刚打开文件时保持实体化
+      clearTimeout(this.mmAutoCollapseTimer);
+
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
       if (this.observer) { this.observer.disconnect(); this.observer = null; }
       container.innerHTML = ''; this.scale = 1; applyScale();
+      
+      this.totalPages = 0;
+      this.lastKnownPosition = null;
+      hideProgressBanner();
+
+      // 🌟 关键修复：向数据库要「最新」记录，不要用书架里的旧快照
+      let fresh = null;
+      try { fresh = await dbService.getScore(fileId); } catch (e) { console.warn('读取乐谱记录失败', e); }
+      if (!fresh && scoreData) fresh = scoreData;
 
       try {
         const lastLog = await dbService.getLatestLogByName(this.currentFileName);
         if (lastLog && lastLog.bpm) { updateMmBpm(lastLog.bpm, true); showToast(`已恢复上次练习速度：${this.mmBpm} BPM`); }
       } catch(e) { console.error(e); }
 
+      // 🌟 统一渲染：PDF 与图片共用同一个滚动容器，父级才能拿到真实 scrollTop
+      zoomControls.style.display = 'flex';
+      container.style.padding = '20px 0'; container.style.height = ''; container.style.position = 'static';
+
       if (fileName.toLowerCase().endsWith('.pdf')) {
-        if (this.isMobile) {
-          zoomControls.style.display = 'flex'; container.style.padding = '20px 0'; container.style.height = ''; container.style.position = 'static';
-          try { await renderPDFLazy(fileBlob); } catch (err) { alert(err.message); }
-        } else {
-          zoomControls.style.display = 'none'; container.style.padding = '0'; container.style.height = '100%'; container.style.position = 'relative';
-          this.currentObjectUrl = URL.createObjectURL(fileBlob);
-          const iframe = document.createElement('iframe'); iframe.src = this.currentObjectUrl;
-          iframe.style.position = 'absolute'; iframe.style.inset = '0'; iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = 'none';
-          container.appendChild(iframe);
-        }
+        try { await renderPDFLazy(fileBlob); } catch (err) { alert(err.message); }
       } else {
-        zoomControls.style.display = 'flex'; container.style.padding = '20px 0'; container.style.height = ''; container.style.position = 'static';
         this.currentObjectUrl = URL.createObjectURL(fileBlob);
         const img = document.createElement('img'); img.src = this.currentObjectUrl; img.draggable = false;
         container.appendChild(img);
+        this.totalPages = 1;
+        // 图片必须解码完才有真实高度，否则算出来的恢复位置恒为 0
+        await new Promise((resolve) => {
+          if (img.complete && img.naturalHeight) return resolve();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
       }
+
+      // 🌟 恢复阅读进度：按「页码 + 页内比例」，换缩放/换屏宽都不会偏
+      const savedPage = fresh ? (fresh.lastReadPage || 0) : 0;
+      const savedRatio = fresh ? (fresh.lastReadPageRatio || 0) : 0;
+      const savedScrollY = fresh ? (fresh.lastReadScrollY || 0) : 0;
+      const savedAt = fresh ? (fresh.lastReadAt || 0) : 0;
+
+      if (savedPage > 0) {
+        if (opts.autoRestore) {
+          // 翻页切换（上一本/下一本）：直接回到上次位置，不再弹提示条
+          scrollToPage(savedPage, savedRatio);
+        } else {
+          showProgressBanner(savedPage, savedAt, this.totalPages, () => scrollToPage(savedPage, savedRatio));
+        }
+      } else if (savedScrollY > 0) {
+        // 兼容旧数据：只有像素值，没有页码
+        if (opts.autoRestore) {
+          viewer.scrollTo({ top: savedScrollY, behavior: 'smooth' });
+        } else {
+          showProgressBanner(1, savedAt, this.totalPages, () => {
+            viewer.scrollTo({ top: savedScrollY, behavior: 'smooth' });
+          });
+        }
+      }
+
+      // 🌟 阅读模式收尾：热区对齐 + 启动 5 分钟兜底自动保存
+      positionNavZones();
+      startAutoSave();
     };
 
-    btnLog.onclick = () => { logName.value = this.currentFileName; logBpm.value = this.mmBpm; logTime.value = ''; logModalMask.classList.add('show'); };
-    $('logCancel').onclick = () => logModalMask.classList.remove('show');
-    logModalMask.onclick = (e) => { if(e.target === logModalMask) logModalMask.classList.remove('show'); };
-    $('logConfirm').onclick = async () => {
-      const name = logName.value.trim(), time = logTime.value.trim(), bpm = logBpm.value.trim();
-      if (!name) return showToast('请输入练习内容');
-      if (!time || isNaN(time) || time <= 0) return showToast('请输入正确的时长');
-      await dbService.addLog({ name, minutes: parseInt(time, 10), bpm: bpm ? parseInt(bpm, 10) : null });
-      logModalMask.classList.remove('show'); showToast('打卡成功！'); window.dispatchEvent(new CustomEvent('log-updated'));
-    };
+    btnBack.onclick = async () => {
+      // 🌟 弱自动兜底之一：返回书架时强制保存一次，防止意外退出丢位置
+      if (this.currentScoreId) {
+        try { await saveReadingProgress(false); } catch (e) { console.warn('返回时保存进度失败', e); }
+      }
+      stopAutoSave();
+      hideProgressBanner();
+      this.lastKnownPosition = null;
 
-    btnBack.onclick = () => {
+      $('btnSavePos').style.display = 'none';
+      $('navPrev').classList.remove('show'); $('navNext').classList.remove('show');
+
       viewer.style.display = 'none'; zoomControls.style.display = 'none'; btnLog.style.display = 'none'; miniMetronome.style.display = 'none'; 
       if (this.stopMiniMetronome) this.stopMiniMetronome();
-      collapseMmKnob(); btnBack.style.display = 'none'; shelfView.style.display = 'grid';
-      if (this.isMobile) { btnMobileUpload.style.display = 'block'; $('btnMobileExport').style.display = 'block'; $('btnMobileCloud').style.display = 'block'; } 
+      if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
+      miniMetronome.classList.remove('faded');
+      clearTimeout(this.mmAutoCollapseTimer);
+      
+      btnBack.style.display = 'none'; shelfView.style.display = 'grid'; filterBar.style.display = 'flex';
+      if (this.isMobile) { btnMobileUpload.style.display = 'block'; $('btnMobileExport').style.display = 'block'; $('btnMobileImport').style.display = 'block'; $('btnMobileCloud').style.display = 'block'; } 
       else pcActions.style.display = 'flex';
       if (this.observer) this.observer.disconnect();
     };
 
-    this.loadShelf = async () => {
-      const scores = await dbService.getAllScores();
-      shelfView.innerHTML = '';
-      if (scores.length === 0) { shelfView.innerHTML = `<div class="empty-tip">书架空空如也，点击上方导入书籍或乐谱</div>`; return; }
-      scores.forEach(score => {
-        const card = document.createElement('div'); card.className = 'score-card';
-        const isPdf = score.name.toLowerCase().endsWith('.pdf');
-        card.innerHTML = `<div class="score-icon">${isPdf ? '📄' : '🖼️'}</div><div class="score-name">${score.name}</div><button class="btn-delete" data-id="${score.id}">×</button>`;
-        card.onclick = () => this.openScore(score.fileBlob, score.name);
-        card.querySelector('.btn-delete').onclick = async (e) => {
-          e.stopPropagation();
-          if (confirm(`确定要从书架删除《${score.name}》吗？`)) { await dbService.deleteScore(score.id); this.loadShelf(); }
-        };
-        shelfView.appendChild(card);
-      });
+    $('logCancel').onclick = () => logModalMask.classList.remove('show');
+
+    // 🌟 手动档：一键存进度（与「打卡」互补——只想存位置时不用编练习时长）
+    $('btnSavePos').onclick = async () => {
+      if (!this.currentScoreId) return showToast('还没有打开的谱子');
+      const btn = $('btnSavePos');
+      btn.disabled = true;
+      try { await saveReadingProgress(true); }
+      catch (err) { console.error(err); showToast('保存进度失败，请重试'); }
+      finally { btn.disabled = false; }
     };
 
-    const handleFiles = async (files) => {
-      if (!files || files.length === 0) return;
-      loading.textContent = `正在导入 ${files.length} 个文件...`; loading.classList.add('show');
-      let count = 0;
-      for (const file of files) {
-        if (file.type.startsWith('image/') || file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          await dbService.addScore(file.name, file); count++;
+    btnLog.onclick = () => {
+      $('logName').value = this.currentFileName; $('logBpm').value = this.mmBpm; $('logTime').value = '';
+      // 🌟 打开弹窗时快照当前阅读位置并展示出来
+      const pos = getReadingPosition();
+      $('logProgressText').textContent = (pos.total > 1) ? `第 ${pos.page} 页 / 共 ${pos.total} 页` : '第 1 页';
+      logModalMask.classList.add('show');
+    };
+    $('logConfirm').onclick = async () => {
+      const name = $('logName').value.trim(), time = $('logTime').value.trim(), bpm = $('logBpm').value.trim();
+      const saveProgress = $('logSaveProgress').checked;
+      const hasTime = !!time && !isNaN(time) && Number(time) > 0;
+
+      if (!name) return showToast('请输入练习内容');
+      if (!hasTime && !saveProgress) return showToast('请输入练习时长，或勾选保存阅读进度');
+
+      const pos = getReadingPosition();
+      const confirmBtn = $('logConfirm');
+      confirmBtn.disabled = true;
+
+      try {
+        // 1) 先写进度（用户勾选时才写）—— 与手动按钮共用同一入口
+        if (saveProgress) {
+          if (!this.currentScoreId) return showToast('还没有打开的谱子，无法保存进度');
+          await saveReadingProgress(false);
         }
+
+        // 2) 再写练习日志（填了合法时长才写），带上阅读位置，便于回溯
+        if (hasTime) {
+          await dbService.addLog({
+            name: name,
+            minutes: parseInt(time, 10),
+            bpm: bpm ? parseInt(bpm, 10) : null,
+            scoreId: this.currentScoreId,
+            page: pos.page,
+            pageRatio: pos.ratio,
+            totalPages: pos.total
+          });
+          window.dispatchEvent(new CustomEvent('log-updated'));
+        }
+
+        logModalMask.classList.remove('show');
+        if (hasTime && saveProgress) showToast(`打卡完成，已记到第 ${pos.page} 页`);
+        else if (hasTime) showToast('打卡成功！');
+        else showToast(`已记录阅读进度：第 ${pos.page} 页`);
+      } catch (err) {
+        console.error('保存失败', err);
+        showToast('保存失败，请重试');
+      } finally {
+        confirmBtn.disabled = false;
       }
-      loading.classList.remove('show'); if(count > 0) showToast(`成功导入 ${count} 本乐谱！`); this.loadShelf();
     };
 
-    // ================= 本地导出导入 =================
-    const exportBackup = async () => {
-      const scores = await dbService.getAllScores(); const logs = await dbService.getAllLogs();
-      if(scores.length === 0 && logs.length === 0) return showToast('没有可备份的数据');
-      loading.textContent = '正在打包全量数据...'; loading.classList.add('show');
-      const exportScores = [];
-      for (const item of scores) {
-        const reader = new FileReader();
-        const base64Promise = new Promise(resolve => { reader.onload = () => resolve(reader.result); reader.readAsDataURL(item.fileBlob); });
-        const base64Data = await base64Promise;
-        exportScores.push({ name: item.name, createdAt: item.createdAt, data: base64Data, tags: item.tags || [], lastReadPage: item.lastReadPage || 0, lastReadScrollY: item.lastReadScrollY || 0, fileHash: item.fileHash || '' });
-      }
-      const backupData = { version: '0.0.2', exportedAt: Date.now(), scores: exportScores, logs: logs };
-      const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `GuitarShell_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
-      URL.revokeObjectURL(url); loading.classList.remove('show'); showToast('全量备份文件已下载');
-    };
+    $('editCancel').onclick = () => editModalMask.classList.remove('show');
+    $('cloudCancel').onclick = () => cloudModalMask.classList.remove('show');
 
-    const importBackup = (file) => {
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          let scoresToImport = [], logsToImport = [];
-          if (Array.isArray(parsed)) { scoresToImport = parsed; } 
-          else if (parsed && typeof parsed === 'object') { scoresToImport = parsed.scores || []; logsToImport = parsed.logs || []; } 
-          else throw new Error('未知的文件格式');
-          
-          loading.textContent = `正在恢复数据...`; loading.classList.add('show');
-          await dbService.clearAllData(); 
-          const formattedScores = [];
-          for (const item of scoresToImport) {
-            const res = await fetch(item.data); const blob = await res.blob();
-            formattedScores.push({ name: item.name, fileBlob: blob, createdAt: item.createdAt, tags: item.tags || [], lastReadPage: item.lastReadPage || 0, lastReadScrollY: item.lastReadScrollY || 0, fileHash: item.fileHash || '' });
+    // 🌟 核心修复：极其宽容的文件过滤逻辑
+    const handleFiles = async (filesArray) => {
+      if (!filesArray || filesArray.length === 0) return;
+      loading.textContent = `正在导入 ${filesArray.length} 个文件...`; loading.classList.add('show');
+      
+      let addedCount = 0;
+      let dupCount = 0;
+      let failCount = 0;
+      
+      try {
+        const existingScores = await dbService.getAllScores();
+        for (const file of filesArray) {
+          // 只要后缀是图片或PDF就放行
+          const fileName = file.name.toLowerCase();
+          const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileName);
+          const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf');
+
+          if (isImage || isPdf) {
+            const isDuplicate = existingScores.some(existing => 
+              existing.name === file.name && existing.fileBlob && existing.fileBlob.size === file.size
+            );
+            
+            if (isDuplicate) {
+              dupCount++;
+              continue;
+            }
+            
+            try {
+              await dbService.addScore(file.name, file); 
+              addedCount++;
+            } catch (err) {
+              console.error('保存文件失败:', file.name, err);
+              failCount++;
+            }
+          } else {
+            failCount++;
           }
-          await dbService.bulkImport(formattedScores, logsToImport);
-          loading.classList.remove('show'); showToast(`恢复成功！${formattedScores.length} 本谱，${logsToImport.length} 条记录`);
-          this.loadShelf(); window.dispatchEvent(new CustomEvent('log-updated'));
-        } catch (err) { loading.classList.remove('show'); showToast('导入失败：' + err.message); }
-      };
-      reader.readAsText(file);
+        }
+        
+        let msg = `导入完成: 成功 ${addedCount} 本`;
+        if (dupCount > 0) msg += `, 跳过重复 ${dupCount} 本`;
+        if (failCount > 0) msg += `, 失败/不支持 ${failCount} 本`;
+        
+        if (addedCount > 0 || dupCount > 0) {
+          showToast(msg);
+        } else {
+          showToast('没有找到支持的格式或全部导入失败');
+        }
+        
+        this.loadShelf();
+      } catch (err) {
+        console.error(err);
+        showToast(`导入出错：${err.message}`);
+      } finally {
+        loading.classList.remove('show'); 
+      }
     };
 
-    $('btnExport').onclick = exportBackup;
-    $('btnMobileExport').onclick = exportBackup;
+    // 🌟 核心修复：先将 FileList 转为真正的 Array 拷贝，然后再清空 input 的值，防止异步操作中文件被浏览器销毁！
+    const handleInputChange = (e) => {
+      const files = Array.from(e.target.files);
+      e.target.value = ''; 
+      handleFiles(files); 
+    };
+
+    $('inputSingleFile').onchange = handleInputChange;
+    $('inputFolder').onchange = handleInputChange;
+    $('inputCamera').onchange = handleInputChange;
+    $('inputGallery').onchange = handleInputChange;
+    $('inputMobileFile').onchange = handleInputChange;
+    
+    $('btnSingleFile').onclick = () => $('inputSingleFile').click();
+    $('btnFolder').onclick = () => $('inputFolder').click();
+    btnMobileUpload.onclick = () => $('actionSheetMask').classList.add('show');
+    $('btnCancel').onclick = () => $('actionSheetMask').classList.remove('show');
+
     $('btnImport').onclick = () => $('inputBackup').click();
+    $('btnMobileImport').onclick = () => $('inputBackup').click();
     $('inputBackup').onchange = (e) => { importBackup(e.target.files[0]); e.target.value = ''; };
 
-    // ================= 云同步逻辑 =================
+    // 🌟 打包：本地导出与云端上传共用同一份数据（含阅读进度与打卡记录）
+    const buildBackupPayload = async () => {
+      const scores = await dbService.getAllScores();
+      const logs = await dbService.getAllLogs();
+      if (scores.length === 0 && logs.length === 0) { showToast('没有可备份的数据'); return null; }
+      loading.textContent = '正在打包...'; loading.classList.add('show');
+      try {
+        const exportScores = [];
+        for (const item of scores) {
+          const base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(item.fileBlob);
+          });
+          exportScores.push({
+            name: item.name, createdAt: item.createdAt, data: base64Data, tags: item.tags || [],
+            lastReadPage: item.lastReadPage || 0,
+            lastReadPageRatio: item.lastReadPageRatio || 0,
+            lastReadScrollY: item.lastReadScrollY || 0,
+            lastReadAt: item.lastReadAt || 0,
+            fileHash: item.fileHash || ''
+          });
+        }
+        return { version: '0.0.3', exportedAt: Date.now(), scores: exportScores, logs: logs };
+      } finally { loading.classList.remove('show'); }
+    };
+
+    // 🌟 恢复：先完整校验并转好 Blob，再清空写入，保证「要么全成功，要么不动本地」
+    const restoreFromPayload = async (payload, confirmOverwrite = true) => {
+      if (!payload || !Array.isArray(payload.scores)) throw new Error('备份文件格式不正确');
+      if (confirmOverwrite && !confirm(`将用备份覆盖本地数据（${payload.scores.length} 份乐谱 / ${(payload.logs || []).length} 条记录），确定吗？`)) return false;
+
+      loading.textContent = '正在恢复...'; loading.classList.add('show');
+      try {
+        const scoreRecords = [];
+        for (const item of payload.scores) {
+          if (!item || !item.data) throw new Error('备份中存在无效的乐谱数据');
+          const blob = await (await fetch(item.data)).blob();
+          scoreRecords.push({
+            name: item.name, fileBlob: blob, createdAt: item.createdAt || Date.now(),
+            tags: item.tags || [], fileHash: item.fileHash || '',
+            lastReadPage: item.lastReadPage || 0,
+            lastReadPageRatio: item.lastReadPageRatio || 0,
+            lastReadScrollY: item.lastReadScrollY || 0,
+            lastReadAt: item.lastReadAt || 0
+          });
+        }
+        await dbService.clearAllData();
+        await dbService.bulkImport(scoreRecords, payload.logs || []);
+        this.loadShelf();
+        window.dispatchEvent(new CustomEvent('log-updated'));
+        showToast('恢复完成');
+        return true;
+      } finally { loading.classList.remove('show'); }
+    };
+
+    // 🌟 修复：此前 importBackup 未定义，点「📥 恢复」直接 ReferenceError
+    const importBackup = async (file) => {
+      if (!file) return;
+      try {
+        const payload = JSON.parse(await file.text());
+        await restoreFromPayload(payload);
+      } catch (err) {
+        console.error(err);
+        showToast(`恢复失败：${err.message}`);
+      }
+    };
+
+    const exportBackup = async () => {
+      try {
+        const payload = await buildBackupPayload();
+        if (!payload) return;
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `GuitarShell_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('备份已下载');
+      } catch (err) {
+        console.error(err);
+        showToast(`备份失败：${err.message}`);
+      }
+    };
+    $('btnExport').onclick = exportBackup;
+    $('btnMobileExport').onclick = exportBackup;
+
+    // ==================== ☁️ 云同步（坚果云 WebDAV） ====================
+    const readCloudForm = () => {
+      const user = $('cloudUser').value.trim();
+      const pass = $('cloudPass').value;
+      const path = $('cloudPath').value.trim() || 'GuitarShell/backup.json';
+      if (!user || !pass) { showToast('请填写账号与应用密码'); return null; }
+      localStorage.setItem('gs_cloud_user', user);
+      localStorage.setItem('gs_cloud_path', path);
+      return { user, pass, path };
+    };
+
     const openCloudModal = () => {
-      // 读取本地保存的账号信息
-      cloudUser.value = localStorage.getItem('gs_cloud_user') || '';
-      cloudPass.value = localStorage.getItem('gs_cloud_pass') || '';
-      cloudPath.value = localStorage.getItem('gs_cloud_path') || 'GuitarShell/backup.json';
+      $('cloudUser').value = localStorage.getItem('gs_cloud_user') || '';
+      $('cloudPath').value = localStorage.getItem('gs_cloud_path') || 'GuitarShell/backup.json';
+      $('cloudPass').value = ''; // 密码不落盘，每次手动填
       cloudModalMask.classList.add('show');
     };
     $('btnCloudSync').onclick = openCloudModal;
     $('btnMobileCloud').onclick = openCloudModal;
-    $('cloudCancel').onclick = () => cloudModalMask.classList.remove('show');
-    cloudModalMask.onclick = (e) => { if (e.target === cloudModalMask) cloudModalMask.classList.remove('show'); };
-
-    const saveCloudConfig = () => {
-      localStorage.setItem('gs_cloud_user', cloudUser.value.trim());
-      localStorage.setItem('gs_cloud_pass', cloudPass.value.trim());
-      localStorage.setItem('gs_cloud_path', cloudPath.value.trim() || 'GuitarShell/backup.json');
-    };
 
     $('cloudUpload').onclick = async () => {
-      saveCloudConfig();
-      const user = cloudUser.value.trim(), pass = cloudPass.value.trim(), path = cloudPath.value.trim();
-      if (!user || !pass) return showToast('请填写账号和应用密码');
-      
-      cloudModalMask.classList.remove('show');
-      
-      // 生成全量 JSON (复用上面的导出逻辑)
-      const scores = await dbService.getAllScores(); const logs = await dbService.getAllLogs();
-      if(scores.length === 0 && logs.length === 0) return showToast('本地没有可备份的数据');
-      loading.textContent = '正在打包并上传...'; loading.classList.add('show');
-      
-      const exportScores = [];
-      for (const item of scores) {
-        const reader = new FileReader();
-        const base64Promise = new Promise(resolve => { reader.onload = () => resolve(reader.result); reader.readAsDataURL(item.fileBlob); });
-        const base64Data = await base64Promise;
-        exportScores.push({ name: item.name, createdAt: item.createdAt, data: base64Data, tags: item.tags || [], lastReadPage: item.lastReadPage || 0, lastReadScrollY: item.lastReadScrollY || 0, fileHash: item.fileHash || '' });
-      }
-      const backupData = { version: '0.0.2', exportedAt: Date.now(), scores: exportScores, logs: logs };
-      
+      const form = readCloudForm(); if (!form) return;
+      const btn = $('cloudUpload'); btn.disabled = true;
       try {
-        await webdavService.upload(user, pass, path, JSON.stringify(backupData));
-        loading.classList.remove('show'); showToast('☁️ 云端备份成功！');
+        const payload = await buildBackupPayload();
+        if (!payload) return;
+        loading.textContent = '正在上传到云端...'; loading.classList.add('show');
+        await webdavService.upload(form.user, form.pass, form.path, JSON.stringify(payload));
+        showToast('☁️ 已上传到云端');
       } catch (err) {
-        loading.classList.remove('show'); alert('上传失败：' + err.message);
-      }
+        console.error(err);
+        showToast(`上传失败：${err.message}`);
+      } finally { loading.classList.remove('show'); btn.disabled = false; }
     };
 
     $('cloudDownload').onclick = async () => {
-      saveCloudConfig();
-      const user = cloudUser.value.trim(), pass = cloudPass.value.trim(), path = cloudPath.value.trim();
-      if (!user || !pass) return showToast('请填写账号和应用密码');
-      
-      if (!confirm('警告：下载云端备份将覆盖本地所有数据！确定继续吗？')) return;
-      cloudModalMask.classList.remove('show');
-      
-      loading.textContent = '正在从云端下载...'; loading.classList.add('show');
+      const form = readCloudForm(); if (!form) return;
+      const btn = $('cloudDownload'); btn.disabled = true;
       try {
-        const dataStr = await webdavService.download(user, pass, path);
-        const parsed = JSON.parse(dataStr);
-        
-        await dbService.clearAllData(); 
-        const formattedScores = [];
-        for (const item of (parsed.scores || [])) {
-          const res = await fetch(item.data); const blob = await res.blob();
-          formattedScores.push({ name: item.name, fileBlob: blob, createdAt: item.createdAt, tags: item.tags || [], lastReadPage: item.lastReadPage || 0, lastReadScrollY: item.lastReadScrollY || 0, fileHash: item.fileHash || '' });
-        }
-        await dbService.bulkImport(formattedScores, parsed.logs || []);
-        
-        loading.classList.remove('show'); showToast('☁️ 云端数据恢复成功！');
-        this.loadShelf(); window.dispatchEvent(new CustomEvent('log-updated'));
+        loading.textContent = '正在下载云端备份...'; loading.classList.add('show');
+        const text = await webdavService.download(form.user, form.pass, form.path);
+        const payload = JSON.parse(text);
+        loading.classList.remove('show');
+        await restoreFromPayload(payload);
       } catch (err) {
-        loading.classList.remove('show'); alert('下载失败：' + err.message);
-      }
+        console.error(err);
+        showToast(`下载失败：${err.message}`);
+      } finally { loading.classList.remove('show'); btn.disabled = false; }
     };
 
-    // ================= 迷你节拍器 =================
+    // 🌟 沉浸式虚化状态机：谱面交互 → 虚化；鼠标移入节拍器 → 实体化（无自动恢复定时器）
+    const setMmFaded = (faded) => {
+      if (faded) miniMetronome.classList.add('faded');
+      else miniMetronome.classList.remove('faded');
+    };
+
+    // 鼠标在谱面上移动即虚化（只在状态不同时写 DOM，避免每帧重排）
+    viewer.addEventListener('pointermove', () => {
+      if (!miniMetronome.classList.contains('faded')) setMmFaded(true);
+    }, { passive: true });
+
+    // 鼠标移到节拍器上 / 手指按在节拍器上 → 立刻实体化
+    miniMetronome.addEventListener('pointerenter', () => setMmFaded(false));
+    miniMetronome.addEventListener('pointerdown', () => setMmFaded(false));
+    miniMetronome.addEventListener('touchstart', () => setMmFaded(false), { passive: true });
+
+    viewer.addEventListener('wheel', (e) => {
+      setMmFaded(true); // 滚动谱面时虚化
+      if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); const delta = e.deltaY > 0 ? -0.15 : 0.15; this.scale = Math.max(1, Math.min(6, this.scale + delta)); applyScale(); }
+    }, { passive: false });
+    
+    viewer.addEventListener('pointerdown', (e) => {
+      setMmFaded(true); // 触摸/拖拽谱面时虚化
+      if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
+      if (e.target.closest('.zoom-controls') || e.target.closest('.toolbar') || e.target.closest('.mini-metronome') || e.target.closest('.nav-zone')) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      this.isDragging = true; this.startX = e.clientX; this.startY = e.clientY; this.scrollLeftStart = viewer.scrollLeft; this.scrollTopStart = viewer.scrollTop; viewer.style.cursor = 'grabbing';
+    });
+
+    // 触屏按下谱面同样虚化
+    viewer.addEventListener('touchstart', (e) => {
+      setMmFaded(true);
+      if (e.touches.length === 2) {
+        this.isDragging = false;
+        const t1 = e.touches[0], t2 = e.touches[1];
+        initialDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        initialScale = this.scale;
+      }
+    }, { passive: false });
+
+    viewer.addEventListener('pointermove', (e) => { if (!this.isDragging) return; e.preventDefault(); viewer.scrollLeft = this.scrollLeftStart - (e.clientX - this.startX); viewer.scrollTop = this.scrollTopStart - (e.clientY - this.startY); });
+    const onPointerUp = () => { this.isDragging = false; viewer.style.cursor = 'grab'; };
+    viewer.addEventListener('pointerup', onPointerUp); viewer.addEventListener('pointercancel', onPointerUp);
+    $('zoomIn').onclick = () => { this.scale = Math.min(6, this.scale * 1.25); applyScale(); };
+    $('zoomOut').onclick = () => { this.scale = Math.max(1, this.scale / 1.25); applyScale(); };
+
     const mmPlay = $('mmPlay'), mmBpmDisplay = $('mmBpmDisplay'), mmKnobCanvas = $('mmKnobCanvas'), mmKnobWrap = $('mmKnobWrap');
     this.mmKnob.ctx = mmKnobCanvas.getContext('2d');
     const initMmKnob = () => {
@@ -543,7 +1125,7 @@ class SheetReader extends HTMLElement {
     const drawMmKnob = this.drawMmKnob; 
     const updateMmBpm = (v, isSync) => {
       this.mmBpm = Math.round(v); if (this.mmBpm < 30) this.mmBpm = 30; if (this.mmBpm > 250) this.mmBpm = 250;
-      mmBpmDisplay.textContent = this.mmBpm; drawMmKnob(); resetAutoCollapse();
+      mmBpmDisplay.textContent = this.mmBpm; drawMmKnob();
       if (!isSync) window.dispatchEvent(new CustomEvent('bpm-changed', { detail: { bpm: this.mmBpm } }));
     };
     const pointerToMmBpm = (e) => {
@@ -555,8 +1137,7 @@ class SheetReader extends HTMLElement {
     mmKnobWrap.addEventListener('pointermove', (e) => { if (!this.mmKnob.dragging) return; e.preventDefault(); updateMmBpm(pointerToMmBpm(e), false); });
     const onMmKnobUp = (e) => { if (!this.mmKnob.dragging) return; this.mmKnob.dragging = false; try { mmKnobWrap.releasePointerCapture(e.pointerId); } catch(err){} };
     mmKnobWrap.addEventListener('pointerup', onMmKnobUp); mmKnobWrap.addEventListener('pointercancel', onMmKnobUp);
-    mmBpmDisplay.onclick = () => { miniMetronome.classList.toggle('advanced'); if (miniMetronome.classList.contains('advanced')) { initMmKnob(); resetAutoCollapse(); } else clearTimeout(this.mmAutoCollapseTimer); };
-
+    mmBpmDisplay.onclick = () => { miniMetronome.classList.toggle('advanced'); if (miniMetronome.classList.contains('advanced')) { initMmKnob(); } };
     const playMmClick = (time) => {
       if (!this.mmAudioCtx) return;
       const osc = this.mmAudioCtx.createOscillator(), gain = this.mmAudioCtx.createGain();
@@ -564,44 +1145,59 @@ class SheetReader extends HTMLElement {
       gain.gain.setValueAtTime(0.0001, time); gain.gain.exponentialRampToValueAtTime(0.6, time + 0.002); gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
       osc.connect(gain); gain.connect(this.mmAudioCtx.destination); osc.start(time); osc.stop(time + 0.07);
     };
-    this.stopMiniMetronome = () => { this.mmPlaying = false; if (this.mmTimer) { clearInterval(this.mmTimer); this.mmTimer = null; } if(mmPlay) { mmPlay.textContent = '▶'; mmPlay.classList.remove('playing'); } };
+    this.stopMiniMetronome = () => {
+      this.mmPlaying = false;
+      if (this.mmTimer) { clearInterval(this.mmTimer); this.mmTimer = null; }
+      const btn = this.shadowRoot.getElementById('mmPlay');
+      if (btn) { btn.textContent = '▶'; btn.classList.remove('playing'); }
+    };
     const startMiniMetronome = () => {
       this.stopMiniMetronome();
       if (!this.mmAudioCtx) this.mmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (this.mmAudioCtx.state === 'suspended') this.mmAudioCtx.resume();
-      this.mmPlaying = true; mmPlay.textContent = '■'; mmPlay.classList.add('playing');
+      this.mmPlaying = true;
+      const btn = this.shadowRoot.getElementById('mmPlay');
+      if (btn) { btn.textContent = '■'; btn.classList.add('playing'); }
+      // 🌟 互斥：通知主节拍器让路，保证同一时刻只有一路声音
+      window.dispatchEvent(new CustomEvent('mini-metronome-start'));
       this.mmNextTick = this.mmAudioCtx.currentTime + 0.05;
       this.mmTimer = setInterval(() => { if (!this.mmPlaying) return; while (this.mmNextTick < this.mmAudioCtx.currentTime + 0.1) { playMmClick(this.mmNextTick); this.mmNextTick += 60 / this.mmBpm; } }, 25);
     };
-    mmPlay.onclick = () => { if (this.mmPlaying) this.stopMiniMetronome(); else { startMiniMetronome(); collapseMmKnob(); } };
-    $('mmMinus').onclick = () => updateMmBpm(this.mmBpm - 1, false); $('mmPlus').onclick = () => updateMmBpm(this.mmBpm + 1, false);
 
-    // ================= 基础绑定 =================
-    $('inputSingleFile').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
-    $('inputFolder').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
-    $('inputCamera').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
-    $('inputGallery').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
-    $('inputMobileFile').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
-    $('btnSingleFile').onclick = () => $('inputSingleFile').click();
-    $('btnFolder').onclick = () => $('inputFolder').click();
-    btnMobileUpload.onclick = () => actionSheetMask.classList.add('show');
-    $('btnCancel').onclick = () => actionSheetMask.classList.remove('show');
-    actionSheetMask.onclick = (e) => { if (e.target === actionSheetMask) actionSheetMask.classList.remove('show'); };
-    $('zoomIn').onclick = () => { this.scale = Math.min(6, this.scale * 1.25); applyScale(); };
-    $('zoomOut').onclick = () => { this.scale = Math.max(1, this.scale / 1.25); applyScale(); };
-    
-    viewer.addEventListener('wheel', (e) => { collapseMmKnob(); if (e.ctrlKey || e.metaKey) { e.preventDefault(); const delta = e.deltaY > 0 ? -0.15 : 0.15; this.scale = Math.max(1, Math.min(6, this.scale + delta)); applyScale(); } }, { passive: false });
-    viewer.addEventListener('pointerdown', (e) => {
-      collapseMmKnob(); if (e.target.closest('.zoom-controls') || e.target.closest('.toolbar') || e.target.closest('.mini-metronome')) return;
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      this.isDragging = true; this.startX = e.clientX; this.startY = e.clientY; this.scrollLeftStart = viewer.scrollLeft; this.scrollTopStart = viewer.scrollTop; viewer.style.cursor = 'grabbing';
-    });
-    viewer.addEventListener('pointermove', (e) => { if (!this.isDragging) return; e.preventDefault(); viewer.scrollLeft = this.scrollLeftStart - (e.clientX - this.startX); viewer.scrollTop = this.scrollTopStart - (e.clientY - this.startY); });
-    const onPointerUp = () => { this.isDragging = false; viewer.style.cursor = 'grab'; };
-    viewer.addEventListener('pointerup', onPointerUp); viewer.addEventListener('pointercancel', onPointerUp);
-    let initialDistance = 0; let initialScale = 1;
-    viewer.addEventListener('touchstart', (e) => { collapseMmKnob(); if (e.touches.length === 2) { this.isDragging = false; const t1 = e.touches[0], t2 = e.touches[1]; initialDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); initialScale = this.scale; } }, { passive: false });
-    viewer.addEventListener('touchmove', (e) => { if (e.touches.length === 2) { e.preventDefault(); const t1 = e.touches[0], t2 = e.touches[1]; const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); if (initialDistance > 0) { this.scale = Math.max(1, Math.min(6, initialScale * (dist / initialDistance))); applyScale(); } } }, { passive: false });
+    // 🌟 修复：mini 节拍器开始/停止按钮（此前完全没有绑定事件，点「▶」无任何反应）
+    mmPlay.onclick = (e) => {
+      e.stopPropagation();
+      if (this.mmPlaying) this.stopMiniMetronome();
+      else startMiniMetronome();
+    };
+
+    // 🌟 左右翻页逻辑：切换前先保存当前进度，切换后直接回到目标谱的上次位置
+    const openAdjacentScore = async (direction) => {
+      if (this.navSwitching) return; // 防连点重入
+      if (!this.currentScoreId || !this.filteredScores.length) return;
+      const currentIndex = this.filteredScores.findIndex(s => s.id === this.currentScoreId);
+      if (currentIndex === -1) return;
+
+      let nextIndex = currentIndex + direction;
+      if (nextIndex < 0) nextIndex = this.filteredScores.length - 1; // 循环到最后一个
+      if (nextIndex >= this.filteredScores.length) nextIndex = 0; // 循环到第一个
+
+      const nextScore = this.filteredScores[nextIndex];
+      if (!nextScore || nextScore.id === this.currentScoreId) return; // 书架只有一本时不重载
+
+      this.navSwitching = true;
+      try {
+        // 关键修复：离开当前谱之前先存位，否则回到它时会退回第一页
+        try { await saveReadingProgress(false); } catch (e) { console.warn('切歌前保存进度失败', e); }
+        await this.openScore(nextScore.fileBlob, nextScore.name, nextScore.id, nextScore.tags, nextScore, { autoRestore: true });
+      } finally {
+        this.navSwitching = false;
+      }
+    };
+
+    $('navPrev').onclick = () => openAdjacentScore(-1);
+    $('navNext').onclick = () => openAdjacentScore(1);
+
   }
 }
 

@@ -203,6 +203,10 @@ class GuitarMetronome extends HTMLElement {
     
     // 🌟 监听来自其他组件的 BPM 广播
     window.addEventListener('bpm-changed', this.handleGlobalBpmChange);
+
+    // 🌟 互斥：读谱页的 mini 节拍器一启动，主节拍器就让路（避免两路声音叠加）
+    this.handleMiniStart = () => { if (this.isRunning) this.stop(); };
+    window.addEventListener('mini-metronome-start', this.handleMiniStart);
   }
 
   disconnectedCallback() {
@@ -210,6 +214,7 @@ class GuitarMetronome extends HTMLElement {
     if (this.scheduleId) clearInterval(this.scheduleId);
     // 🌟 移除监听
     window.removeEventListener('bpm-changed', this.handleGlobalBpmChange);
+    if (this.handleMiniStart) window.removeEventListener('mini-metronome-start', this.handleMiniStart);
   }
 
   initLogic() {

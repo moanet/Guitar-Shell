@@ -97,7 +97,7 @@ class GuitarPracticeLog extends HTMLElement {
         card.innerHTML = `
           <div class="log-info">
             <div class="log-title">${log.name}</div>
-            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}<span style="color:#5d6678">${timeStr}</span></div>
+            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:#5d6678">${timeStr}</span></div>
           </div>
           <button class="btn-del" data-id="${log.id}">删除</button>
         `;
