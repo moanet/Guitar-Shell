@@ -259,6 +259,8 @@ const readerHTML = `
       <div class="modal-field"><label>账号</label><input type="text" class="modal-inp" id="cloudUser" placeholder="坚果云邮箱"></div>
       <div class="modal-field"><label>应用密码</label><input type="password" class="modal-inp" id="cloudPass" placeholder="在坚果云安全选项申请"></div>
       <div class="modal-field"><label>路径</label><input type="text" class="modal-inp" id="cloudPath" value="GuitarShell/backup.json"></div>
+      <div class="modal-field"><label>同步通道（留空自动选）</label><input type="text" class="modal-inp" id="cloudBase" placeholder="https://你的域名/dav/"></div>
+      <button class="modal-btn cancel" id="cloudTest" style="background:#232b38;color:#9fb2c8;font-size:13px;font-weight:normal;">测试连接</button>
       <div class="modal-footer">
         <button class="modal-btn cancel" id="cloudCancel">取消</button>
         <button class="modal-btn confirm" id="cloudDownload">📥 覆盖本地</button>
@@ -944,7 +946,18 @@ class SheetReader extends HTMLElement {
     // 🌟 恢复：先完整校验并转好 Blob，再清空写入，保证「要么全成功，要么不动本地」
     const restoreFromPayload = async (payload, confirmOverwrite = true) => {
       if (!payload || !Array.isArray(payload.scores)) throw new Error('备份文件格式不正确');
-      if (confirmOverwrite && !confirm(`将用备份覆盖本地数据（${payload.scores.length} 份乐谱 / ${(payload.logs || []).length} 条记录），确定吗？`)) return false;
+
+      // 🌟 空备份保护：云端失联时可能拿到空载荷，绝不能用一句普通 confirm 就把本地清空
+      const scoreCount = payload.scores.length;
+      const logCount = (payload.logs || []).length;
+      if (scoreCount === 0 && logCount === 0) {
+        const localScores = await dbService.getAllScores();
+        const localLogs = await dbService.getAllLogs();
+        const ok = confirm(`这份备份是空的（0 份乐谱 / 0 条记录）。\n继续会清空本地 ${localScores.length} 份乐谱、${localLogs.length} 条打卡记录，且无法撤销。\n确定继续吗？`);
+        if (!ok) { showToast('已取消：空备份未写入'); return false; }
+      } else if (confirmOverwrite && !confirm(`将用备份覆盖本地数据（${scoreCount} 份乐谱 / ${logCount} 条记录），确定吗？`)) {
+        return false;
+      }
 
       loading.textContent = '正在恢复...'; loading.classList.add('show');
       try {
@@ -1007,15 +1020,20 @@ class SheetReader extends HTMLElement {
       const user = $('cloudUser').value.trim();
       const pass = $('cloudPass').value;
       const path = $('cloudPath').value.trim() || 'GuitarShell/backup.json';
+      const base = $('cloudBase').value.trim();
       if (!user || !pass) { showToast('请填写账号与应用密码'); return null; }
       localStorage.setItem('gs_cloud_user', user);
       localStorage.setItem('gs_cloud_path', path);
+      // 自定义通道：留空即清掉，回到自动选择
+      if (base) localStorage.setItem('gs_dav_base', base);
+      else localStorage.removeItem('gs_dav_base');
       return { user, pass, path };
     };
 
     const openCloudModal = () => {
       $('cloudUser').value = localStorage.getItem('gs_cloud_user') || '';
       $('cloudPath').value = localStorage.getItem('gs_cloud_path') || 'GuitarShell/backup.json';
+      $('cloudBase').value = localStorage.getItem('gs_dav_base') || '';
       $('cloudPass').value = ''; // 密码不落盘，每次手动填
       cloudModalMask.classList.add('show');
     };
@@ -1030,7 +1048,7 @@ class SheetReader extends HTMLElement {
         if (!payload) return;
         loading.textContent = '正在上传到云端...'; loading.classList.add('show');
         await webdavService.upload(form.user, form.pass, form.path, JSON.stringify(payload));
-        showToast('☁️ 已上传到云端');
+        showToast(`已上传到云端 · ${webdavService.getEndpointLabel()}`);
       } catch (err) {
         console.error(err);
         showToast(`上传失败：${err.message}`);
@@ -1050,6 +1068,24 @@ class SheetReader extends HTMLElement {
         console.error(err);
         showToast(`下载失败：${err.message}`);
       } finally { loading.classList.remove('show'); btn.disabled = false; }
+    };
+
+    // 🌟 连通性探测：国内访问 Worker 偶发失联，上传前先试一手，别把备份扔进断网
+    $('cloudTest').onclick = async () => {
+      const form = readCloudForm(); if (!form) return;
+      const btn = $('cloudTest');
+      btn.disabled = true; btn.textContent = '测试中...';
+      try {
+        const r = await webdavService.probe(form.user, form.pass, form.path);
+        if (r.exists === null) showToast(`端点可达 · ${r.endpoint}`);
+        else if (r.exists) showToast(`连接正常 · ${r.endpoint} · 云端已有备份`);
+        else showToast(`连接正常 · ${r.endpoint} · 云端暂无该文件`);
+      } catch (err) {
+        console.error(err);
+        showToast(`连接失败：${err.message}`);
+      } finally {
+        btn.disabled = false; btn.textContent = '测试连接';
+      }
     };
 
     // 🌟 沉浸式虚化状态机：谱面交互 → 虚化；鼠标移入节拍器 → 实体化（无自动恢复定时器）

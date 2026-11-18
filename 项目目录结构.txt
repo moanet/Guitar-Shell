@@ -1,10 +1,10 @@
-Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.6）
+Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.8）
 图例：✅ 完成  🟡 基础版可用待扩展  🚧 待重构/空占位  ⏳ 待创建  📦 本地文件不上传
 
 guitar-shell/
 ├── index.html                   ✅ 外壳 + 4 大导航（节拍器/读谱/记录/调音）
 ├── manifest.json                ✅ PWA 清单
-├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.6，改代码必升版本）
+├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.8，改代码必升版本）
 ├── start-dev.bat                ✅ 一键启动：Python 静态页 :8000 + Node WebDAV 代理 :8081
 ├── .gitignore                   ✅ 忽略 proxy 依赖、*.bat、IDE、*.log
 ├── README.md                    ✅ 项目文档（进度/架构/迭代记录/任务看板/避坑指南）
@@ -19,8 +19,9 @@ guitar-shell/
 │   │   │                           方法：addScore/getScore/getAllScores/updateScore/
 │   │   │                           deleteScore/addLog/getAllLogs/getLatestLogByName/
 │   │   │                           clearAllData/bulkImport
-│   │   ├── webdav.js            ✅ upload/download 已实现（Basic Auth→坚果云）
-│   │   │                           ✅ 云同步 UI 已接入（上传备份 / 覆盖本地 / 二次确认）
+│   │   ├── webdav.js            ✅ upload/download/probe（Basic Auth→坚果云）
+│   │   │                           ✅ 多通道回落：本地代理 → 自建域名 dav.noamet.ccwu.cc → Worker
+│   │   │                           ✅ 单通道超时 / 5xx 自动换线；409 自动建目录后重试
 │   │   │                           ⏳ 仅剩 etag 冲突提示（云端较新时询问）
 │   │   └── audio.js             🚧 空占位(0B)：全局音频引擎待从各组件抽离
 │   ├── components/
