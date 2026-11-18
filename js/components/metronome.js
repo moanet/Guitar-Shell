@@ -1,6 +1,8 @@
 // ==========================================
 // 1. 样式区域
 // ==========================================
+import { audioEngine } from '../services/audio.js';
+
 const metronomeCSS = `
   :host {
     display: flex;
@@ -182,7 +184,7 @@ class GuitarMetronome extends HTMLElement {
     this.currentTimbre = 'sine';
     
     this.isRunning = false;
-    this.audioCtx = null;
+    this.metronomeHandle = null;
     this.queue = [];
     this.dotEls = [];
     
@@ -195,6 +197,11 @@ class GuitarMetronome extends HTMLElement {
         this.setBpm(e.detail.bpm, true); // 传入 true 表示来自外部同步
       }
     };
+
+    // 🌟 切走「节拍器」页就立刻停，不留背景噪音（以前只有开 mini 才会停）
+    this.handleTabChange = (e) => {
+      if (!e.detail || e.detail.target !== 'view-metronome') this.stop();
+    };
   }
 
   connectedCallback() {
@@ -203,18 +210,14 @@ class GuitarMetronome extends HTMLElement {
     
     // 🌟 监听来自其他组件的 BPM 广播
     window.addEventListener('bpm-changed', this.handleGlobalBpmChange);
-
-    // 🌟 互斥：读谱页的 mini 节拍器一启动，主节拍器就让路（避免两路声音叠加）
-    this.handleMiniStart = () => { if (this.isRunning) this.stop(); };
-    window.addEventListener('mini-metronome-start', this.handleMiniStart);
+    window.addEventListener('app-tab-changed', this.handleTabChange);
   }
 
   disconnectedCallback() {
     this.stop();
-    if (this.scheduleId) clearInterval(this.scheduleId);
     // 🌟 移除监听
     window.removeEventListener('bpm-changed', this.handleGlobalBpmChange);
-    if (this.handleMiniStart) window.removeEventListener('mini-metronome-start', this.handleMiniStart);
+    window.removeEventListener('app-tab-changed', this.handleTabChange);
   }
 
   initLogic() {
@@ -264,6 +267,13 @@ class GuitarMetronome extends HTMLElement {
       };
       localStorage.setItem('guitar_metronome_settings', JSON.stringify(data));
     };
+
+    // 把音色 / 重音广播出去：读谱页的 mini 节拍器据此保持同一音色与「首拍重音」
+    const broadcastSettings = () => {
+      window.dispatchEvent(new CustomEvent('metronome-settings', {
+        detail: { timbre: this.currentTimbre, accents: this.accents.slice() }
+      }));
+    };
     
     const loadSettings = () => {
       try {
@@ -287,67 +297,15 @@ class GuitarMetronome extends HTMLElement {
     };
     updateDurations();
 
-    const ensureAudio = () => {
-      if (!this.audioCtx) {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        this.masterGain = this.audioCtx.createGain();
-        this.masterGain.gain.value = 0.9;
-        this.masterGain.connect(this.audioCtx.destination);
-      }
-      if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
-    };
-
-    const playClick = (time, type) => {
-      if (type === 'mute') return;
-      let baseFreq = (type === 'accent') ? 1568 : 1046;
-      
-      let oscType = 'sine';
-      if (this.currentTimbre === 'square') oscType = 'square';
-      if (this.currentTimbre === 'triangle') oscType = 'triangle';
-
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
-      osc.type = oscType;
-      osc.frequency.setValueAtTime(baseFreq, time);
-      
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(type === 'accent' ? 0.8 : 0.5, time + 0.002);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
-      
-      osc.connect(gain);
-      gain.connect(this.masterGain);
-      osc.start(time);
-      osc.stop(time + 0.07);
-    };
-
-    this.scheduler = () => {
-      if (!this.isRunning) return;
-      while (this.nextNoteTime < this.audioCtx.currentTime + 0.1) {
-        const slotCount = this.currentSlots.length;
-        const beatIdx = Math.floor(this.absoluteSlot / slotCount) % this.timeSigNum;
-        const slotIdx = this.absoluteSlot % slotCount;
-
-        if (this.currentSlots[slotIdx]) {
-          if (slotIdx === 0) {
-            playClick(this.nextNoteTime, this.accents[beatIdx] || 'beat');
-          } else {
-            playClick(this.nextNoteTime, 'beat');
-          }
-        }
-
-        if (slotIdx === 0) {
-          this.queue.push({ time: this.nextNoteTime, beat: beatIdx });
-        }
-
-        const step = this.currentSlotDurs[slotIdx] || (this.currentBeatDur / slotCount);
-        this.nextNoteTime += step;
-        this.absoluteSlot++;
-      }
+    // 音频与调度都交给全局引擎：组件只负责“给参数 + 收节拍回调”
+    const resetPlayUI = () => {
+      playBtn.textContent = '开 始';
+      playBtn.classList.remove('running');
+      this.dotEls.forEach(d => d.classList.remove('on'));
     };
 
     this.drawLoop = () => {
-      if (!this.audioCtx) return;
-      const now = this.audioCtx.currentTime;
+      const now = audioEngine.currentTime;
       while (this.queue.length && this.queue[0].time <= now + 0.005) {
         const ev = this.queue.shift();
         for (let i = 0; i < this.dotEls.length; i++) {
@@ -443,6 +401,9 @@ class GuitarMetronome extends HTMLElement {
       drawKnob();
       saveSettings();
 
+      // 正在响就同步变速（引擎会把还没排进 Web Audio 的下一个拍点提前）
+      if (this.metronomeHandle) this.metronomeHandle.setBpm(this.bpm);
+
       // 🌟 如果不是同步过来的（是用户手动改的），就向全局发广播
       if (!isSync) {
         window.dispatchEvent(new CustomEvent('bpm-changed', { detail: { bpm: this.bpm } }));
@@ -450,13 +411,24 @@ class GuitarMetronome extends HTMLElement {
     };
 
     this.start = () => {
-      ensureAudio();
       this.isRunning = true;
-      this.absoluteSlot = 0;
       this.queue = [];
-      this.nextNoteTime = this.audioCtx.currentTime + 0.08;
-      this.scheduler();
-      this.scheduleId = setInterval(this.scheduler, 25);
+      this.metronomeHandle = audioEngine.startMetronome({
+        bpm: this.bpm,
+        // 细分是「每拍切成几个 slot」，拍号是「每小节几拍」，二者在引擎里按 slot 推进
+        slots: this.currentSlots,
+        accents: this.accents,
+        timbre: this.currentTimbre,
+        onBeat: (ev) => { this.queue.push(ev); },
+        // 只有被迷你节拍器抢占时才会走到这里；用户自己点停会先把 isRunning 置 false
+        onStop: () => {
+          if (!this.isRunning) return;
+          this.isRunning = false;
+          cancelAnimationFrame(this.rafId);
+          this.queue = [];
+          resetPlayUI();
+        }
+      });
       this.rafId = requestAnimationFrame(this.drawLoop);
       playBtn.textContent = '停 止';
       playBtn.classList.add('running');
@@ -464,12 +436,14 @@ class GuitarMetronome extends HTMLElement {
 
     this.stop = () => {
       this.isRunning = false;
-      clearInterval(this.scheduleId);
+      if (this.metronomeHandle) {
+        const handle = this.metronomeHandle;
+        this.metronomeHandle = null;
+        handle.stop('user');
+      }
       cancelAnimationFrame(this.rafId);
       this.queue = [];
-      this.dotEls.forEach(d => d.classList.remove('on'));
-      playBtn.textContent = '开 始';
-      playBtn.classList.remove('running');
+      resetPlayUI();
     };
 
     const renderSettings = () => {
@@ -483,6 +457,7 @@ class GuitarMetronome extends HTMLElement {
           this.accents = new Array(ts.num).fill('beat');
           this.accents[0] = 'accent';
           updateUI(); renderSettings();
+          broadcastSettings();
           if (this.isRunning) { this.stop(); this.start(); }
         };
         tsGrid.appendChild(b);
@@ -509,6 +484,9 @@ class GuitarMetronome extends HTMLElement {
         b.onclick = () => {
           this.currentTimbre = t.id;
           updateUI(); renderSettings();
+          broadcastSettings();
+          // 音色在启动时快照给引擎，响着换音色要重启一次调度（不会重复发声，引擎内是同一路）
+          if (this.isRunning) { this.stop(); this.start(); }
         };
         timbreGrid.appendChild(b);
       });

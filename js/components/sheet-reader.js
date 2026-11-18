@@ -2,6 +2,7 @@ import { dbService } from '../services/db.js';
 import { webdavService } from '../services/webdav.js';
 import { vaultService } from '../services/vault.js';
 import { APP_VERSION, BACKUP_SCHEMA } from '../services/version.js';
+import { audioEngine } from '../services/audio.js';
 
 let pdfjsLib = null;
 
@@ -305,8 +306,7 @@ class SheetReader extends HTMLElement {
     
     this.mmBpm = 120;
     this.mmPlaying = false;
-    this.mmAudioCtx = null;
-    this.mmTimer = null;
+    this.mmHandle = null;
     this.toastTimer = null;
     this.mmAutoCollapseTimer = null;
     this.currentFileName = "";
@@ -331,6 +331,14 @@ class SheetReader extends HTMLElement {
       }
     };
     window.addEventListener('app-tab-changed', this.handleTabChange);
+
+    // 🌟 跟主节拍器保持一致：音色、重音（含首拍）实时同步
+    this.handleMetronomeSettings = (e) => {
+      if (!e.detail || !this.mmHandle) return;
+      if (e.detail.timbre) this.mmHandle.setTimbre(e.detail.timbre);
+      if (e.detail.accents) this.mmHandle.setAccents(e.detail.accents);
+    };
+    window.addEventListener('metronome-settings', this.handleMetronomeSettings);
   }
 
   disconnectedCallback() {
@@ -339,6 +347,7 @@ class SheetReader extends HTMLElement {
     if (this.stopMiniMetronome) this.stopMiniMetronome();
     if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
     if (this.handleTabChange) window.removeEventListener('app-tab-changed', this.handleTabChange);
+    if (this.handleMetronomeSettings) window.removeEventListener('metronome-settings', this.handleMetronomeSettings);
     if (this.positionNavZones) window.removeEventListener('resize', this.positionNavZones);
     clearTimeout(this.mmAutoCollapseTimer);
   }
@@ -1294,6 +1303,8 @@ class SheetReader extends HTMLElement {
     const updateMmBpm = (v, isSync) => {
       this.mmBpm = Math.round(v); if (this.mmBpm < 30) this.mmBpm = 30; if (this.mmBpm > 250) this.mmBpm = 250;
       mmBpmDisplay.textContent = this.mmBpm; drawMmKnob();
+      // 正在响就同步变速（引擎会把下一个拍点提前）
+      if (this.mmHandle) this.mmHandle.setBpm(this.mmBpm);
       if (!isSync) window.dispatchEvent(new CustomEvent('bpm-changed', { detail: { bpm: this.mmBpm } }));
     };
     const pointerToMmBpm = (e) => {
@@ -1306,30 +1317,48 @@ class SheetReader extends HTMLElement {
     const onMmKnobUp = (e) => { if (!this.mmKnob.dragging) return; this.mmKnob.dragging = false; try { mmKnobWrap.releasePointerCapture(e.pointerId); } catch(err){} };
     mmKnobWrap.addEventListener('pointerup', onMmKnobUp); mmKnobWrap.addEventListener('pointercancel', onMmKnobUp);
     mmBpmDisplay.onclick = () => { miniMetronome.classList.toggle('advanced'); if (miniMetronome.classList.contains('advanced')) { initMmKnob(); } };
-    const playMmClick = (time) => {
-      if (!this.mmAudioCtx) return;
-      const osc = this.mmAudioCtx.createOscillator(), gain = this.mmAudioCtx.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(1046, time);
-      gain.gain.setValueAtTime(0.0001, time); gain.gain.exponentialRampToValueAtTime(0.6, time + 0.002); gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
-      osc.connect(gain); gain.connect(this.mmAudioCtx.destination); osc.start(time); osc.stop(time + 0.07);
+    this.setMiniPlayUI = (playing) => {
+      const btn = this.shadowRoot.getElementById('mmPlay');
+      if (btn) { btn.textContent = playing ? '■' : '▶'; btn.classList.toggle('playing', playing); }
     };
+
     this.stopMiniMetronome = () => {
       this.mmPlaying = false;
-      if (this.mmTimer) { clearInterval(this.mmTimer); this.mmTimer = null; }
-      const btn = this.shadowRoot.getElementById('mmPlay');
-      if (btn) { btn.textContent = '▶'; btn.classList.remove('playing'); }
+      if (this.mmHandle) { const h = this.mmHandle; this.mmHandle = null; h.stop('user'); }
+      this.setMiniPlayUI(false);
     };
+    // 主节拍器的音色 / 拍号重音存在 localStorage；mini 启动时对齐，避免「两套风格」
+    const readMetronomeSettings = () => {
+      try {
+        const s = JSON.parse(localStorage.getItem('guitar_metronome_settings') || '{}');
+        const tsNum = Math.max(1, Math.min(12, parseInt(s.tsNum, 10) || 4));
+        const accents = new Array(tsNum).fill('beat');
+        accents[0] = 'accent';
+        return { timbre: s.timbre || 'sine', accents };
+      } catch (err) {
+        return { timbre: 'sine', accents: ['accent', 'beat', 'beat', 'beat'] };
+      }
+    };
+
     const startMiniMetronome = () => {
-      this.stopMiniMetronome();
-      if (!this.mmAudioCtx) this.mmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.mmAudioCtx.state === 'suspended') this.mmAudioCtx.resume();
+      const { timbre, accents } = readMetronomeSettings();
+      // 引擎内互斥会让主节拍器自动停下（无需再广播事件）
+      this.mmHandle = audioEngine.startMetronome({
+        bpm: this.mmBpm,
+        slots: [1],
+        // 与主节拍器同一套重音：每小节首拍重音，其余普通拍
+        accents,
+        timbre,
+        // 被主节拍器抢占时把按钮复位，避免显示「■」但其实已经停了
+        onStop: () => {
+          if (!this.mmPlaying) return;
+          this.mmPlaying = false;
+          this.mmHandle = null;
+          this.setMiniPlayUI(false);
+        }
+      });
       this.mmPlaying = true;
-      const btn = this.shadowRoot.getElementById('mmPlay');
-      if (btn) { btn.textContent = '■'; btn.classList.add('playing'); }
-      // 🌟 互斥：通知主节拍器让路，保证同一时刻只有一路声音
-      window.dispatchEvent(new CustomEvent('mini-metronome-start'));
-      this.mmNextTick = this.mmAudioCtx.currentTime + 0.05;
-      this.mmTimer = setInterval(() => { if (!this.mmPlaying) return; while (this.mmNextTick < this.mmAudioCtx.currentTime + 0.1) { playMmClick(this.mmNextTick); this.mmNextTick += 60 / this.mmBpm; } }, 25);
+      this.setMiniPlayUI(true);
     };
 
     // 🌟 修复：mini 节拍器开始/停止按钮（此前完全没有绑定事件，点「▶」无任何反应）

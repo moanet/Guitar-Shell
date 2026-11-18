@@ -1,3 +1,5 @@
+import { audioEngine } from '../services/audio.js';
+
 const tunerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; align-items: center; justify-content: center; }
   
@@ -74,8 +76,8 @@ class GuitarTuner extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.isListening = false;
-    this.audioCtx = null;
     this.analyser = null;
+    this.analyserHandle = null;
     this.stream = null;
     this.rafId = null;
     
@@ -167,7 +169,7 @@ class GuitarTuner extends HTMLElement {
       const buffer = new Float32Array(bufferLength);
       this.analyser.getFloatTimeDomainData(buffer);
 
-      let pitch = autoCorrelate(buffer, this.audioCtx.sampleRate);
+      let pitch = autoCorrelate(buffer, audioEngine.sampleRate);
       
       if (pitch !== -1 && pitch >= 70 && pitch <= 400) {
         // 滑动平均，让数字稳定
@@ -264,12 +266,9 @@ class GuitarTuner extends HTMLElement {
             audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
           });
           
-          this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const source = this.audioCtx.createMediaStreamSource(this.stream);
-          
-          this.analyser = this.audioCtx.createAnalyser();
-          this.analyser.fftSize = 2048;
-          source.connect(this.analyser);
+          // 复用全局上下文，不再为调音器新开一个（也不再 close）
+          this.analyserHandle = audioEngine.openAnalyser(this.stream);
+          this.analyser = this.analyserHandle.analyser;
           
           this.isListening = true;
           btnToggle.textContent = '⏹ 停止调音';
@@ -295,10 +294,12 @@ class GuitarTuner extends HTMLElement {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
     }
-    if (this.audioCtx && this.audioCtx.state !== 'closed') {
-      this.audioCtx.close();
-      this.audioCtx = null;
+    // 只断开节点，不关上下文：上下文是全局共享的，关掉会影响节拍器
+    if (this.analyserHandle) {
+      this.analyserHandle.dispose();
+      this.analyserHandle = null;
     }
+    this.analyser = null;
   }
 }
 

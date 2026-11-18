@@ -4,38 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Guitar Shell</title>
+
+  <!-- PWA / 移动端体验 -->
+  <meta name="theme-color" content="#0e1014">
+  <meta name="description" content="吉他手的一站式练琴工作站">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- 样式与图标（全部相对路径，Pages 子目录 / 本地根目录都能用） -->
   <link rel="stylesheet" href="./css/layout.css">
-  <!-- 网页标签图标 -->
   <link rel="icon" type="image/png" sizes="32x32" href="./icon-gShell-32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-gShell-192.png">
-  
-  <!-- 苹果手机主屏幕图标 -->
   <link rel="apple-touch-icon" href="./icon-gShell-192.png">
-
-  <!-- PWA 清单 -->
   <link rel="manifest" href="./manifest.json">
-  
 </head>
-
-<!-- 1. 添加 PWA 相关的 Meta 标签，提升移动端体验 -->
-<meta name="theme-color" content="#0e1014">
-<meta name="description" content="吉他手的一站式练琴工作站">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<!-- 2. 确保所有资源引用都使用【相对路径】（以 ./ 开头） -->
-<!-- 这样浏览器会在当前目录（即你的仓库名目录）下寻找文件 -->
-<link rel="icon" type="image/png" sizes="32x32" href="./icon-gShell-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icon-gShell-192.png">
-<link rel="apple-touch-icon" href="./icon-gShell-192.png">
-
-<!-- 3. 清单文件也使用相对路径 -->
-<link rel="manifest" href="./manifest.json">
-
-<!-- 4. 引入你的主样式和脚本（保持相对路径） -->
-<link rel="stylesheet" href="./css/layout.css">
-<script type="module" src="./js/main.js"></script>
 
 <body>
   <!-- 顶部导航栏 -->
@@ -72,6 +55,7 @@
     </section>
   </main>
 
+  <!-- 唯一入口：module 天然 defer，写在 body 末尾即可 -->
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
-Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.9）
+Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.11）
 图例：✅ 完成  🟡 基础版可用待扩展  🚧 待重构/空占位  ⏳ 待创建  📦 本地文件不上传
 
 guitar-shell/
-├── index.html                   ✅ 外壳 + 4 大导航（节拍器/读谱/记录/调音）
+├── index.html                   ✅ 外壳 + 4 大导航（入口已收敛：脚本/图标/manifest 各一份，meta 全在 head）
 ├── manifest.json                ✅ PWA 清单
-├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.9，改代码必升版本，且与 version.js 同步）
+├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.11，改代码必升版本，且与 version.js 同步）
 ├── start-dev.bat                ✅ 一键启动：Python 静态页 :8000 + Node WebDAV 代理 :8081
 ├── .gitignore                   ✅ 忽略 proxy 依赖、*.bat、IDE、*.log
 ├── README.md                    ✅ 项目文档（进度/架构/迭代记录/任务看板/避坑指南）
@@ -25,7 +25,7 @@ guitar-shell/
 │   │   │                           ✅ stat()：PROPFIND 取 getlastmodified/getetag/大小，供冲突检测
 │   │   ├── version.js           ✅ APP_VERSION 与 BACKUP_SCHEMA 单一来源（sw.js 无法 import，两处同步）
 │   │   ├── vault.js             ✅ AES-GCM 加密存应用密码；密钥不可导出，独立库 GuitarShellVault
-│   │   └── audio.js             🚧 空占位(0B)：全局音频引擎待从各组件抽离
+│   │   └── audio.js             ✅ 全局音频引擎：共享 AudioContext + lookahead 调度 + 引擎内互斥 + 麦克风分析
 │   ├── components/
 │   │   ├── metronome.js         🟡 调度/旋钮/TAP/拍号细分/首拍重音/BPM 广播
 │   │   │                           ⏳ Swing、重音模式、变速练习、倒计时、音频跟练
@@ -53,3 +53,5 @@ guitar-shell/
 │   ├── package-lock.json        📦
 │   └── node_modules/            📦 已 git 忽略
 └── android/                     ⏳ 待生成：Capacitor 安卓工程
+
+
