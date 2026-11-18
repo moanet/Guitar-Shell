@@ -1,10 +1,10 @@
-Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.13）
+Guitar Shell · 项目目录速览（与 README.md 同步维护 · 2026-11-18 · v0.0.5.14）
 图例：✅ 完成  🟡 基础版可用待扩展  🚧 待重构/空占位  ⏳ 待创建  📦 本地文件不上传
 
 guitar-shell/
 ├── index.html                   ✅ 外壳 + 4 大导航（入口已收敛：脚本/图标/manifest 各一份，meta 全在 head）
 ├── manifest.json                ✅ PWA 清单
-├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.13，改代码必升版本，且与 version.js 同步）
+├── sw.js                        ✅ 离线缓存（APP_VERSION=0.0.5.14，改代码必升版本，且与 version.js 同步）
 ├── start-dev.bat                ✅ 一键启动：Python 静态页 :8000 + Node WebDAV 代理 :8081
 ├── .gitignore                   ✅ 忽略 proxy 依赖、*.bat、IDE、*.log
 ├── README.md                    ✅ 项目文档（进度/架构/迭代记录/任务看板/避坑指南）
@@ -37,7 +37,7 @@ guitar-shell/
 │   │   │                           ✅ 迷你节拍器：启停可用、悬停实体化虚化、与主节拍器互斥
 │   │   │                           ✅ 备份/恢复（restoreFromPayload 原子恢复 + importBackup）
 │   │   │                           ⏳ 多标签页、拼音搜索、单曲抽取、书签、Wake Lock 常亮
-│   │   ├── practice-log.js      ✅ 打卡(时长/BPM/页码)、累计统计、广播刷新
+│   │   ├── practice-log.js      ✅ 打卡(时长/BPM/页码)、累计统计、趋势图(近7天/近12月 SVG + TOP5)、广播刷新
 │   │   │                           ⏳ 按曲目统计、时长图表
 │   │   └── tuner.js             🟡 麦克风 + 自相关基频 + 指针盘
 │   │                               ⏳ YIN 算法、A4 校准、参考音试听
@@ -54,6 +54,7 @@ guitar-shell/
 │   ├── package-lock.json        📦
 │   └── node_modules/            📦 已 git 忽略
 └── android/                     ⏳ 待生成：Capacitor 安卓工程
+
 
 
 

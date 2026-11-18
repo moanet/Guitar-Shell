@@ -26,12 +26,44 @@ const logCSS = `
   .empty-tip { text-align: center; color: #6a7890; font-size: 14px; margin-top: 40px; }
   .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(56, 189, 248, 0.9); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .trend-box { background: #131922; border-bottom: 1px solid #2a3140; flex-shrink: 0; }
+  .trend-head { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
+  .trend-title { font-size: 13px; font-weight: bold; color: #cbd5e1; flex: 1; }
+  .seg { display: flex; background: #1b222d; border-radius: 8px; padding: 2px; }
+  .seg-btn { border: none; background: transparent; color: #8a93a6; font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+  .seg-btn.active { background: #38bdf8; color: #000; font-weight: bold; }
+  .trend-toggle { border: none; background: transparent; color: #6a7890; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+  .trend-body { padding: 0 12px 12px; overflow: hidden; }
+  .trend-box.collapsed .trend-body { display: none; }
+  .trend-sub { font-size: 11px; color: #7f8ea3; padding: 0 16px 6px; }
+  .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .top-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .top-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .top-name { width: 96px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .top-track { flex: 1; height: 6px; background: #1f2733; border-radius: 3px; overflow: hidden; }
+  .top-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #38bdf8); border-radius: 3px; }
+  .top-min { width: 52px; text-align: right; color: #7fd4ff; font-weight: bold; flex-shrink: 0; }
 `;
 
 const logHTML = `
   <div class="stats-bar">
     <div class="stat-item"><div class="stat-val" id="statCount">0</div><div class="stat-label">累计打卡</div></div>
     <div class="stat-item"><div class="stat-val" id="statTime">0</div><div class="stat-label">累计分钟</div></div>
+  </div>
+  <div class="trend-box" id="trendBox">
+    <div class="trend-head">
+      <div class="trend-title">📊 练习趋势</div>
+      <div class="seg" id="segBtns">
+        <button class="seg-btn active" data-range="week">近 7 天</button>
+        <button class="seg-btn" data-range="month">近 12 月</button>
+      </div>
+      <button class="trend-toggle" id="trendToggle" title="展开 / 收起">▾</button>
+    </div>
+    <div class="trend-sub" id="trendSummary"></div>
+    <div class="trend-body">
+      <div class="chart-wrap" id="chartWrap"></div>
+      <div class="top-list" id="topList"></div>
+    </div>
   </div>
   <div class="form-box">
     <div class="input-row"><input type="text" id="inpName" class="inp" placeholder="练习曲目 / 内容" maxlength="30"></div>
@@ -74,6 +106,107 @@ class GuitarPracticeLog extends HTMLElement {
     const inpName = $('inpName'), inpTime = $('inpTime'), inpBpm = $('inpBpm');
     const btnSubmit = $('btnSubmit'), logList = $('logList');
     const statCount = $('statCount'), statTime = $('statTime'), toastEl = $('toast');
+    const chartWrap = $('chartWrap'), topList = $('topList'), trendSummary = $('trendSummary');
+    const segBtns = $('segBtns'), trendBox = $('trendBox'), trendToggle = $('trendToggle');
+
+    // ==================== 练习趋势（手写 SVG，不引库） ====================
+    const DAY = 86400000;
+    const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const sumMinutes = (logs) => logs.reduce((acc, l) => acc + (parseInt(l.minutes, 10) || 0), 0);
+
+    const svgBars = (items) => {
+      const W = 300, TOP = 16, BASE = 104, H = 128;
+      const slot = W / items.length;
+      const maxVal = Math.max(1, ...items.map(i => i.value));
+      const showValue = items.length <= 7;
+      let body = '';
+      items.forEach((it, i) => {
+        const bw = Math.max(6, Math.min(slot * 0.62, 24));
+        const x = i * slot + (slot - bw) / 2;
+        const h = (it.value / maxVal) * (BASE - TOP);
+        const color = it.current ? '#38bdf8' : '#2f6fd0';
+        body += `<g><title>${it.full}：${it.value} 分钟</title>`
+             + `<rect x="${x.toFixed(1)}" y="${(BASE - Math.max(h, 2)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" rx="3" fill="${color}"/></g>`;
+        if (showValue && it.value > 0) {
+          body += `<text x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9fb3c8">${it.value}</text>`;
+        }
+        body += `<text x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}" fill="#6a7890">${it.label}</text>`;
+      });
+      return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="练习时长柱状图">${body}</svg>`;
+    };
+
+    this.rangeMode = localStorage.getItem('gs_trend_range') === 'month' ? 'month' : 'week';
+    // 窄屏默认收起（图表点开再看），宽屏默认展开；用户手动切换过就按他的选择
+    const storedOpen = localStorage.getItem('gs_trend_open');
+    if (storedOpen === '0' || (storedOpen === null && window.innerWidth < 700)) trendBox.classList.add('collapsed');
+
+    segBtns.querySelectorAll('.seg-btn').forEach(btn => {
+      btn.onclick = () => {
+        this.rangeMode = btn.dataset.range;
+        localStorage.setItem('gs_trend_range', this.rangeMode);
+        if (this.currentLogs) this.renderTrend(this.currentLogs);
+      };
+    });
+    trendToggle.onclick = () => {
+      trendBox.classList.toggle('collapsed');
+      const open = trendBox.classList.contains('collapsed') ? '0' : '1';
+      localStorage.setItem('gs_trend_open', open);
+      trendToggle.textContent = open === '1' ? '▾' : '▸';
+    };
+    trendToggle.textContent = trendBox.classList.contains('collapsed') ? '▸' : '▾';
+
+    this.renderTrend = (logs) => {
+      segBtns.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === this.rangeMode));
+      const items = [];
+
+      if (this.rangeMode === 'week') {
+        const today0 = startOfDay(Date.now());
+        for (let i = 6; i >= 0; i--) {
+          const s = today0 - i * DAY;
+          const d = new Date(s);
+          const value = sumMinutes(logs.filter(l => l.createdAt >= s && l.createdAt < s + DAY));
+          items.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, full: `${d.getMonth() + 1}月${d.getDate()}日`, value, current: i === 0 });
+        }
+        const total = sumMinutes(logs.filter(l => l.createdAt >= today0 - 6 * DAY));
+        const count = logs.filter(l => l.createdAt >= today0 - 6 * DAY).length;
+        trendSummary.textContent = `近 7 天共 ${total} 分钟 · ${count} 次练习`;
+      } else {
+        const now = new Date();
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const s = d.getTime();
+          const e = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+          const value = sumMinutes(logs.filter(l => l.createdAt >= s && l.createdAt < e));
+          items.push({ label: `${d.getMonth() + 1}月`, full: `${d.getFullYear()}年${d.getMonth() + 1}月`, value, current: i === 0 });
+        }
+        const total = sumMinutes(logs.filter(l => l.createdAt >= new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime()));
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        const monthMin = sumMinutes(logs.filter(l => l.createdAt >= monthStart));
+        trendSummary.textContent = `近 12 个月共 ${total} 分钟 · 本月 ${monthMin} 分钟`;
+      }
+
+      chartWrap.innerHTML = logs.length
+        ? svgBars(items)
+        : `<div class="empty-tip" style="margin:14px 0 4px">还没有练习记录，打一次卡就有曲线了</div>`;
+
+      // 按曲目聚合（全部记录，取累计时长前 5）
+      const agg = new Map();
+      logs.forEach(l => {
+        const key = String(l.name || '未命名');
+        agg.set(key, (agg.get(key) || 0) + (parseInt(l.minutes, 10) || 0));
+      });
+      const top = Array.from(agg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const maxMin = top.length ? top[0][1] : 0;
+      topList.innerHTML = top.length
+        ? `<div class="trend-sub" style="padding-left:0">累计 TOP${top.length}（全部记录）</div>`
+          + top.map(([name, min]) => `
+            <div class="top-row">
+              <div class="top-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+              <div class="top-track"><div class="top-fill" style="width:${maxMin ? Math.round(min / maxMin * 100) : 0}%"></div></div>
+              <div class="top-min">${min} 分</div>
+            </div>`).join('')
+        : '';
+    };
 
     const showToast = (msg) => {
       toastEl.textContent = msg;
@@ -85,12 +218,14 @@ class GuitarPracticeLog extends HTMLElement {
     // 将 loadLogs 挂载到 this 上，方便外部广播触发
     this.loadLogs = async () => {
       const logs = await dbService.getAllLogs();
+      this.currentLogs = logs;
       logList.innerHTML = '';
       let totalTime = 0;
       statCount.textContent = logs.length;
       if (logs.length === 0) {
         logList.innerHTML = `<div class="empty-tip">还没有打卡记录，开始你的第一次练习吧！</div>`;
         statTime.textContent = '0';
+        this.renderTrend(logs);
         return;
       }
       logs.forEach(log => {
@@ -113,6 +248,7 @@ class GuitarPracticeLog extends HTMLElement {
         logList.appendChild(card);
       });
       statTime.textContent = totalTime;
+      this.renderTrend(logs);
     };
 
     btnSubmit.onclick = async () => {
