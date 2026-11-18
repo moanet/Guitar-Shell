@@ -1,4 +1,4 @@
-const APP_VERSION = '0.0.2.1';
+const APP_VERSION = '0.0.5.6';
 const CACHE_NAME = 'guitar-shell-v' + APP_VERSION;
 
 const ASSETS_TO_CACHE = [
