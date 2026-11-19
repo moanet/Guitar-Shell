@@ -1,4 +1,5 @@
 import { APP_VERSION } from './services/version.js';
+import { showToast } from './services/toast.js';
 
 const tabBtns = document.querySelectorAll('.tab-btn');
 const sections = document.querySelectorAll('.view-section');
@@ -39,20 +40,6 @@ loadComponents();
 // 目的：一眼看出「现在跑的是哪版」，并区分「线上已有新版」与「本机缓存没换」
 const CACHE_PREFIX = 'guitar-shell-v';
 const badge = document.getElementById('appVersion');
-let toastEl = null;
-let toastTimer = 0;
-
-const showToast = (text) => {
-  if (!toastEl) {
-    toastEl = document.createElement('div');
-    toastEl.className = 'app-toast';
-    document.body.appendChild(toastEl);
-  }
-  toastEl.textContent = text;
-  toastEl.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2800);
-};
 
 // 线上 sw.js 里写的版本号（带时间戳绕开 CDN 缓存，只看内容不看响应头）
 const readLiveVersion = async () => {
@@ -124,7 +111,11 @@ if (badge) {
 }
 
 // 🌟 注册 PWA 离线缓存 (Service Worker)
-if ('serviceWorker' in navigator) {
+// APK / Capacitor 内资源已本地打包，SW 只会多一层缓存风险；壳内跳过，网页端保留
+const isNativeShell = () => Boolean(
+  window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()
+);
+if ('serviceWorker' in navigator && !isNativeShell()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(`${base}sw.js`)
       .then(reg => {

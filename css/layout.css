@@ -14,7 +14,8 @@ body { display: flex; flex-direction: column; }
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 8px;
-  padding: 10px 20px; background: var(--bg-panel); border-bottom: 1px solid var(--line);
+  padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 10px calc(20px + env(safe-area-inset-left));
+  background: var(--bg-panel); border-bottom: 1px solid var(--line);
 }
 .brand { font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
 .version-chip {
@@ -47,7 +48,7 @@ body { display: flex; flex-direction: column; }
 
 /* 视图切换控制 */
 .view-section {
-  position: absolute; inset: 0; display: none; overflow-y: auto;
+  position: absolute; inset: 0; bottom: env(safe-area-inset-bottom); display: none; overflow-y: auto;
 }
 .view-section.active { display: flex; flex-direction: column; }
 

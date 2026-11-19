@@ -1,4 +1,5 @@
 import { audioEngine } from '../services/audio.js';
+import { showToast } from '../services/toast.js';
 import {
   detectYin,
   guitarStringTargets,
@@ -639,8 +640,18 @@ class GuitarTuner extends HTMLElement {
           updatePitch();
         } catch (err) {
           console.error(err);
-          alert('无法获取麦克风权限，请确保在 HTTPS 或 localhost 下运行，并允许麦克风访问。');
+          if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+          }
+          this.isListening = false;
           btnToggle.textContent = '🎤 开启麦克风';
+          btnToggle.className = 'btn-toggle start';
+          statusText.textContent = '麦克风未开启';
+          statusText.style.color = '#f87171';
+          showToast(err && err.name === 'NotAllowedError'
+            ? '麦克风权限被拒绝：请在系统设置中允许 Guitar Shell 使用麦克风'
+            : '无法获取麦克风，请确认在 HTTPS / localhost 下运行并允许麦克风访问');
         }
       }
     };
