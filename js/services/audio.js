@@ -18,6 +18,11 @@ const LOOKAHEAD = 0.1;   // 提前排 100ms 的音，抵消 setInterval 抖动
 const TICK_MS = 25;
 const MASTER_LEVEL = 0.9;
 
+// 自定义调准音效（占位）：
+// 留空 = 使用下面的内置合成“叮”。做好自己的音效后，把音频放进 assets/，
+// 将这里改成 './assets/tuner-ding.mp3'，并把同一路径加入 sw.js 的 ASSETS_TO_CACHE。
+const CUSTOM_CHIME_URL = '';
+
 // 拍点类型 → 发声参数。mute 表示这一拍不出声（仍占拍位，用来做「空拍」练习）
 const ACCENT_STYLES = {
   accent: { freq: 1568, level: 0.8 },
@@ -37,6 +42,8 @@ class AudioEngine {
     this.ctx = null;
     this.master = null;
     this.active = null;   // 当前活跃的节拍句柄，用于互斥
+    this._chimeBuffer = null;
+    this._chimeLoading = null;
   }
 
   isReady() {
@@ -83,6 +90,80 @@ class AudioEngine {
     gain.connect(bus || this.master || ctx.destination);
     osc.start(when);
     osc.stop(when + dur + 0.02);
+  }
+
+  // 预加载自定义调准音效：开麦时调用一次，避免第一次“叮”来不及取文件
+  preloadChime() {
+    if (!CUSTOM_CHIME_URL || !this.ctx || this._chimeBuffer || this._chimeLoading) return;
+    this._chimeLoading = fetch(CUSTOM_CHIME_URL)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then(ab => this.ctx.decodeAudioData(ab))
+      .then(buf => { this._chimeBuffer = buf; })
+      .catch(err => console.warn('自定义调准音效加载失败，先用内置“叮”:', err))
+      .finally(() => { this._chimeLoading = null; });
+  }
+
+  // 调准提示音：两分音（基音 + 高八度泛音）的清脆“叮”，与节拍器 60ms 的“哒”区分明显
+  chime(when, { freq = 2093, level = 0.28, dur = 0.32 } = {}) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = when || ctx.currentTime;
+
+    // 有自定义音效就用自定义；未加载完成时先落回内置“叮”
+    if (CUSTOM_CHIME_URL) {
+      this.preloadChime();
+      if (this._chimeBuffer) {
+        const src = ctx.createBufferSource();
+        src.buffer = this._chimeBuffer;
+        src.connect(this.master || ctx.destination);
+        src.start(t0);
+        return;
+      }
+    }
+
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t0);
+    out.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), t0 + 0.006);
+    out.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    out.connect(this.master || ctx.destination);
+
+    // 高八度泛音让声音更亮、更“叮”，衰减略快
+    [[freq, 1], [freq * 2, 0.32]].forEach(([f, amp]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t0);
+      gain.gain.value = amp;
+      osc.connect(gain);
+      gain.connect(out);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    });
+  }
+
+  // 参考音：持续一段时间的标准音，用于调音器试听（淡入淡出，避免爆音）
+  tone(freq, { dur = 1.2, level = 0.18 } = {}) {
+    const ctx = this.ctx;
+    if (!ctx || !(freq > 0)) return null;
+    const t0 = ctx.currentTime + 0.02;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), t0 + 0.05);
+    gain.gain.setValueAtTime(Math.max(0.0002, level), t0 + Math.max(0.1, dur - 0.25));
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain);
+    gain.connect(this.master || ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+    return {
+      stop() { try { osc.stop(); } catch (err) {} }
+    };
   }
 
   /**

@@ -1,9 +1,30 @@
 import { audioEngine } from '../services/audio.js';
+import {
+  detectYin,
+  guitarStringTargets,
+  clampA4,
+  A4_DEFAULT,
+  A4_MIN,
+  A4_MAX,
+  medianFrequency,
+  foldToGuitarFundamental
+} from '../services/pitch.js';
+
+const readBoolSetting = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : raw === '1';
+  } catch (err) { return fallback; }
+};
+
+const writeBoolSetting = (key, value) => {
+  try { localStorage.setItem(key, value ? '1' : '0'); } catch (err) {}
+};
 
 const tunerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; align-items: center; justify-content: center; }
   
-  .container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; padding: 20px; gap: 30px; }
+  .container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; padding: 16px 20px; gap: 20px; box-sizing: border-box; }
   
   /* 提示与音符显示 */
   .display-area { text-align: center; height: 120px; display: flex; flex-direction: column; justify-content: flex-end; }
@@ -33,6 +54,37 @@ const tunerCSS = `
   
   .string-btn.auto { max-width: 80px; font-size: 14px; }
 
+  /* 音分曲线 */
+  .cents-wrap { position: relative; width: 100%; height: 52px; background: #141922; border-radius: 10px; border: 1px solid #222a37; overflow: hidden; }
+  .cents-wrap svg { width: 100%; height: 100%; display: block; }
+  .cents-zero { stroke: #374151; stroke-width: 1; }
+  .cents-guide { stroke: #232d3b; stroke-width: 1; stroke-dasharray: 3 4; }
+  .cents-line { fill: none; stroke: #38bdf8; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .cents-dot { fill: #38bdf8; }
+  .cents-wrap.in-tune .cents-line, .cents-wrap.in-tune .cents-dot { stroke: #4ade80; fill: #4ade80; }
+  .cents-label { position: absolute; left: 6px; font-size: 9px; color: #4b5668; pointer-events: none; }
+  .cents-label.top { top: 2px; }
+  .cents-label.mid { top: 50%; transform: translateY(-50%); color: #5d6678; }
+  .cents-label.bot { bottom: 2px; }
+  .cents-title { position: absolute; right: 6px; top: 2px; font-size: 9px; color: #4b5668; pointer-events: none; }
+
+  /* A4 校准 + 标准音 */
+  .tools-row { display: flex; gap: 8px; width: 100%; justify-content: center; flex-wrap: wrap; }
+  .a4-box { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 18px; background: #1b2230; border: 1px solid #2a3444; }
+  .a4-label { font-size: 12px; color: #8a93a6; }
+  .step-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #354052; background: #232d3b; color: #c8d3e3; font-size: 15px; line-height: 1; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .a4-val { min-width: 58px; text-align: center; font-size: 13px; color: #e2e9f5; font-variant-numeric: tabular-nums; }
+  .ref-btn { padding: 7px 14px; border-radius: 18px; border: 1px solid #2a3444; background: #1b2230; color: #8a93a6; font-size: 13px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  .ref-btn:not(:disabled) { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+  .ref-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* 反馈开关 */
+  .feedback-row { display: flex; gap: 10px; justify-content: center; width: 100%; }
+  .feedback-btn { padding: 8px 14px; border-radius: 18px; border: 1px solid #2a3444; background: #1b2230; color: #7c879b; font-size: 13px; cursor: pointer; transition: 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
+  .feedback-btn.active { background: rgba(74, 222, 128, 0.12); border-color: #4ade80; color: #4ade80; }
+  .feedback-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
   /* 控制按钮 */
   .btn-toggle { padding: 16px 40px; border-radius: 30px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 10px; margin-top: 20px; outline: none; }
   .btn-toggle.start { background: #38bdf8; color: #000; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4); }
@@ -57,6 +109,20 @@ const tunerHTML = `
       <div class="needle" id="needle"></div>
     </div>
 
+    <div class="cents-wrap" id="centsWrap">
+      <svg viewBox="0 0 300 50" preserveAspectRatio="none" aria-hidden="true">
+        <line class="cents-guide" x1="0" y1="12.5" x2="300" y2="12.5"></line>
+        <line class="cents-zero" x1="0" y1="25" x2="300" y2="25"></line>
+        <line class="cents-guide" x1="0" y1="37.5" x2="300" y2="37.5"></line>
+        <path class="cents-line" id="centsPath" d=""></path>
+        <circle class="cents-dot" id="centsDot" cx="-10" cy="25" r="3"></circle>
+      </svg>
+      <span class="cents-label top">+50¢</span>
+      <span class="cents-label mid">0</span>
+      <span class="cents-label bot">−50¢</span>
+      <span class="cents-title">10s 音分</span>
+    </div>
+
     <div class="strings-row" id="stringsRow">
       <button class="string-btn auto active" data-note="auto">自动</button>
       <button class="string-btn" data-note="E2">E</button>
@@ -65,6 +131,21 @@ const tunerHTML = `
       <button class="string-btn" data-note="G3">G</button>
       <button class="string-btn" data-note="B3">B</button>
       <button class="string-btn" data-note="E4">e</button>
+    </div>
+
+    <div class="tools-row">
+      <div class="a4-box">
+        <span class="a4-label">A4</span>
+        <button class="step-btn" id="a4Minus" type="button" aria-label="A4 降低 1Hz">−</button>
+        <span class="a4-val" id="a4Val">440 Hz</span>
+        <button class="step-btn" id="a4Plus" type="button" aria-label="A4 升高 1Hz">+</button>
+      </div>
+      <button class="ref-btn" id="refTone" type="button" disabled>🔊 标准音</button>
+    </div>
+
+    <div class="feedback-row">
+      <button class="feedback-btn active" id="fbSound" type="button" aria-pressed="true">🔔 提示音</button>
+      <button class="feedback-btn active" id="fbVibrate" type="button" aria-pressed="true">📳 震动</button>
     </div>
 
     <button class="btn-toggle start" id="btnToggle">🎤 开启麦克风</button>
@@ -76,6 +157,7 @@ class GuitarTuner extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.isListening = false;
+    this.stopEpoch = 0;
     this.analyser = null;
     this.analyserHandle = null;
     this.stream = null;
@@ -84,25 +166,238 @@ class GuitarTuner extends HTMLElement {
     // 数据平滑
     this.frequencyHistory = [];
     this.targetNote = 'auto'; // 默认自动识别
+    this.lastAnalysisAt = 0;
+    this.lastValidAt = 0;
 
-    // 吉他标准调弦频率
-    this.stringFreqs = {
-      'E2': 82.41,
-      'A2': 110.00,
-      'D3': 146.83,
-      'G3': 196.00,
-      'B3': 246.94,
-      'E4': 329.63
-    };
+    // 调准反馈：进入 ±5 音分时响一次 / 震一次
+    this.feedbackSound = readBoolSetting('guitar_tuner_feedback_sound', true);
+    this.feedbackVibrate = readBoolSetting('guitar_tuner_feedback_vibrate', true);
+    this.wasInTune = false;
+    this.lastFeedbackAt = -1e9;
+
+    // C5b：A4 校准 / 标准音试听 / 音分曲线
+    this.lastString = null;
+    this.centsHistory = [];
+    this.lastChartAt = 0;
+    this.isPlayingRef = false;
+    this.refToneHandle = null;
+    this.refTimer = null;
+
+    // A4 校准：C5a 先把能力放进检测层，界面留给 C5b
+    let savedA4 = A4_DEFAULT;
+    try {
+      const raw = localStorage.getItem('guitar_tuner_a4');
+      if (raw) savedA4 = Number(raw);
+    } catch (err) {}
+    this.a4 = clampA4(savedA4);
+
+    // 吉他标准调弦频率（随 A4 校准联动，不再写死 440 的数值）
+    this.stringFreqs = {};
+    guitarStringTargets(this.a4).forEach(s => { this.stringFreqs[s.name] = s.frequency; });
+  }
+
+  // A4 校准入口：设置面板 / 未来自定义音效都走这里
+  setA4(value) {
+    this.a4 = clampA4(value);
+    try { localStorage.setItem('guitar_tuner_a4', String(this.a4)); } catch (err) {}
+    this.stringFreqs = {};
+    guitarStringTargets(this.a4).forEach(s => { this.stringFreqs[s.name] = s.frequency; });
+    this.frequencyHistory = [];
+    this.lastValidAt = 0;
+    this.centsHistory = [];
+    this.lastChartAt = 0;
+    if (this.isPlayingRef) {
+      this.stopReferenceTone();
+      this.restoreAfterRef();
+    }
+    this.updateA4UI();
+    this.resetCentsChart();
+    return this.a4;
+  }
+
+  updateA4UI() {
+    if (!this.shadowRoot) return;
+    const val = this.shadowRoot.getElementById('a4Val');
+    const minus = this.shadowRoot.getElementById('a4Minus');
+    const plus = this.shadowRoot.getElementById('a4Plus');
+    if (val) val.textContent = `${this.a4} Hz`;
+    if (minus) minus.disabled = this.a4 <= A4_MIN;
+    if (plus) plus.disabled = this.a4 >= A4_MAX;
+  }
+
+  updateRefButton() {
+    if (!this.shadowRoot) return;
+    const btn = this.shadowRoot.getElementById('refTone');
+    if (!btn) return;
+    const target = this.targetNote === 'auto' ? this.lastString : this.targetNote;
+    btn.disabled = !target;
+    btn.textContent = target
+      ? `🔊 标准音 ${target.replace(/\d/g, '')}`
+      : '🔊 标准音（先选弦）';
+  }
+
+  stopReferenceTone() {
+    if (this.refTimer) { clearTimeout(this.refTimer); this.refTimer = null; }
+    if (this.refToneHandle) {
+      this.refToneHandle.stop();
+      this.refToneHandle = null;
+    }
+    this.isPlayingRef = false;
+  }
+
+  restoreAfterRef() {
+    const statusText = this.shadowRoot && this.shadowRoot.getElementById('statusText');
+    if (statusText) {
+      statusText.textContent = this.isListening ? '拨动琴弦...' : '点击下方按钮开启麦克风';
+      statusText.style.color = this.isListening ? '#38bdf8' : '#8a93a6';
+    }
+    this.lastAnalysisAt = 0;
+    this.lastValidAt = 0;
+    this.frequencyHistory = [];
+    this.centsHistory = [];
+    this.resetCentsChart();
+  }
+
+  // 试听标准音：播放期间暂停检测，避免麦克风把扬声器里的参考音当成琴声
+  playReferenceTone() {
+    const target = this.targetNote === 'auto' ? this.lastString : this.targetNote;
+    if (!target || !this.stringFreqs[target]) return;
+    try { audioEngine.ensure(); } catch (err) { return; }
+
+    this.stopReferenceTone();
+    this.isPlayingRef = true;
+    this.frequencyHistory = [];
+    this.lastValidAt = 0;
+    this.wasInTune = false;
+
+    const statusText = this.shadowRoot.getElementById('statusText');
+    if (statusText) {
+      statusText.textContent = `🔊 标准音 ${target} 播放中...`;
+      statusText.style.color = '#38bdf8';
+    }
+
+    this.refToneHandle = audioEngine.tone(this.stringFreqs[target], { dur: 1.2, level: 0.18 });
+    this.refTimer = setTimeout(() => {
+      this.refToneHandle = null;
+      this.isPlayingRef = false;
+      this.refTimer = null;
+      this.restoreAfterRef();
+    }, 1300);
+  }
+
+  resetCentsChart() {
+    if (!this.shadowRoot) return;
+    const path = this.shadowRoot.getElementById('centsPath');
+    const dot = this.shadowRoot.getElementById('centsDot');
+    const wrap = this.shadowRoot.getElementById('centsWrap');
+    if (path) path.setAttribute('d', '');
+    if (dot) { dot.setAttribute('cx', '-10'); dot.setAttribute('cy', '25'); }
+    if (wrap) wrap.classList.remove('in-tune');
+  }
+
+  pushCents(cents, inTune) {
+    const now = performance.now();
+    this.centsHistory.push({ t: now, cents: Math.max(-50, Math.min(50, cents)) });
+    const cutoff = now - 10000;
+    while (this.centsHistory.length && this.centsHistory[0].t < cutoff) this.centsHistory.shift();
+
+    if (now - this.lastChartAt >= 100) {
+      this.lastChartAt = now;
+      this.renderCentsChart(now, inTune);
+    }
+  }
+
+  renderCentsChart(now, inTune) {
+    if (!this.shadowRoot) return;
+    const path = this.shadowRoot.getElementById('centsPath');
+    const dot = this.shadowRoot.getElementById('centsDot');
+    const wrap = this.shadowRoot.getElementById('centsWrap');
+    if (!path || !dot || !wrap) return;
+
+    const points = this.centsHistory.filter(p => now - p.t <= 10000);
+    if (!points.length) {
+      path.setAttribute('d', '');
+      dot.setAttribute('cx', '-10');
+      return;
+    }
+
+    let d = '';
+    let lastX = 300;
+    let lastY = 25;
+    for (const p of points) {
+      const x = 300 - ((now - p.t) / 10000) * 300;
+      const y = 25 - (p.cents / 50) * 22;
+      d += (d ? ' L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      lastX = x;
+      lastY = y;
+    }
+    path.setAttribute('d', d);
+    dot.setAttribute('cx', lastX.toFixed(1));
+    dot.setAttribute('cy', lastY.toFixed(1));
+    wrap.classList.toggle('in-tune', !!inTune);
   }
 
   connectedCallback() {
     this.shadowRoot.innerHTML = `<style>${tunerCSS}</style>${tunerHTML}`;
     this.initLogic();
+    // 切到别的页面就立刻关麦，回来时按钮已是「开启麦克风」
+    this.handleTabChange = (e) => {
+      if (!e.detail || e.detail.target !== 'view-tuner') this.stopTuner();
+    };
+    window.addEventListener('app-tab-changed', this.handleTabChange);
   }
 
   disconnectedCallback() {
+    window.removeEventListener('app-tab-changed', this.handleTabChange);
     this.stopTuner();
+  }
+
+  // 调准反馈：只在「刚进入音准区」时触发，且 1.2 秒内不重复
+  triggerInTuneFeedback() {
+    const now = performance.now();
+    if (now - this.lastFeedbackAt < 1200) return;
+    this.lastFeedbackAt = now;
+
+    if (this.feedbackSound) {
+      try {
+        audioEngine.ensure();
+        audioEngine.chime(audioEngine.currentTime + 0.01, {
+          freq: 2093, level: 0.26, dur: 0.32
+        });
+      } catch (err) {}
+    }
+
+    if (this.feedbackVibrate && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(50);
+    }
+  }
+
+  resetTunerUI() {
+    const root = this.shadowRoot;
+    if (!root) return;
+    const btnToggle = root.getElementById('btnToggle');
+    const statusText = root.getElementById('statusText');
+    const noteName = root.getElementById('noteName');
+    const freqVal = root.getElementById('freqVal');
+    const needle = root.getElementById('needle');
+
+    if (btnToggle) {
+      btnToggle.textContent = '🎤 开启麦克风';
+      btnToggle.className = 'btn-toggle start';
+    }
+    if (statusText) {
+      statusText.textContent = '点击下方按钮开启麦克风';
+      statusText.style.color = '#8a93a6';
+    }
+    if (noteName) {
+      noteName.textContent = '--';
+      noteName.classList.remove('in-tune');
+    }
+    if (freqVal) freqVal.textContent = '0.0 Hz';
+    if (needle) {
+      needle.style.transform = 'rotate(0deg)';
+      needle.classList.remove('in-tune');
+    }
   }
 
   initLogic() {
@@ -120,66 +415,102 @@ class GuitarTuner extends HTMLElement {
         stringsRow.querySelectorAll('.string-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.targetNote = btn.dataset.note;
+        this.frequencyHistory = [];
+        this.lastValidAt = 0;
+        this.lastString = null;
+        this.wasInTune = false;
+        this.centsHistory = [];
+        this.lastChartAt = 0;
+        this.resetCentsChart();
+        if (this.isPlayingRef) {
+          this.stopReferenceTone();
+          this.restoreAfterRef();
+        }
+        this.updateRefButton();
       };
     });
 
-    // 自相关算法 (提取基频)
-    const autoCorrelate = (buf, sampleRate) => {
-      let SIZE = buf.length;
-      let rms = 0;
-      for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
-      rms = Math.sqrt(rms / SIZE);
-      if (rms < 0.01) return -1; // 声音太小，忽略
+    // A4 校准 + 标准音
+    const a4Minus = $('a4Minus');
+    const a4Plus = $('a4Plus');
+    const refTone = $('refTone');
+    a4Minus.onclick = () => this.setA4(this.a4 - 1);
+    a4Plus.onclick = () => this.setA4(this.a4 + 1);
+    refTone.onclick = () => this.playReferenceTone();
+    this.updateA4UI();
+    this.updateRefButton();
 
-      let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-      for (let i = 0; i < SIZE / 2; i++) {
-        if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-      }
-      for (let i = 1; i < SIZE / 2; i++) {
-        if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-      }
-      buf = buf.slice(r1, r2);
-      SIZE = buf.length;
-
-      let c = new Array(SIZE).fill(0);
-      for (let i = 0; i < SIZE; i++) {
-        for (let j = 0; j < SIZE - i; j++) {
-          c[i] = c[i] + buf[j] * buf[j + i];
-        }
-      }
-
-      let d = 0;
-      while (c[d] > c[d + 1]) d++;
-      let maxval = -1, maxpos = -1;
-      for (let i = d; i < SIZE; i++) {
-        if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-      }
-      let T0 = maxpos;
-      let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
-      let a = (x1 + x3 - 2 * x2) / 2;
-      let b = (x3 - x1) / 2;
-      if (a) T0 = T0 - b / (2 * a);
-      return sampleRate / T0;
+    // 反馈开关
+    const fbSound = $('fbSound');
+    const fbVibrate = $('fbVibrate');
+    const paintFeedback = () => {
+      fbSound.classList.toggle('active', this.feedbackSound);
+      fbSound.setAttribute('aria-pressed', String(this.feedbackSound));
+      const vibrateSupported = typeof navigator.vibrate === 'function';
+      fbVibrate.classList.toggle('active', this.feedbackVibrate && vibrateSupported);
+      fbVibrate.setAttribute('aria-pressed', String(this.feedbackVibrate && vibrateSupported));
+      fbVibrate.disabled = !vibrateSupported;
+      fbVibrate.title = vibrateSupported ? '调准时震动一下' : '当前设备 / 浏览器不支持震动';
+      if (!vibrateSupported) fbVibrate.textContent = '📳 震动（不支持）';
     };
+    fbSound.onclick = () => {
+      this.feedbackSound = !this.feedbackSound;
+      writeBoolSetting('guitar_tuner_feedback_sound', this.feedbackSound);
+      paintFeedback();
+    };
+    fbVibrate.onclick = () => {
+      if (fbVibrate.disabled) return;
+      this.feedbackVibrate = !this.feedbackVibrate;
+      writeBoolSetting('guitar_tuner_feedback_vibrate', this.feedbackVibrate);
+      paintFeedback();
+    };
+    paintFeedback();
 
+    // YIN 基频检测已抽到 services/pitch.js：纯前端 DSP，浏览器与 WebView 共用
     const updatePitch = () => {
       if (!this.isListening || !this.analyser) return;
-      
+
+      // 标准音播放期间暂停检测，避免把扬声器里的参考音当成琴声
+      if (this.isPlayingRef) {
+        this.rafId = requestAnimationFrame(updatePitch);
+        return;
+      }
+      // 30fps 足够跟手，也把低端机的 CPU 留出来
+      const now = performance.now();
+      if (now - this.lastAnalysisAt < 30) {
+        this.rafId = requestAnimationFrame(updatePitch);
+        return;
+      }
+      this.lastAnalysisAt = now;
+
       const bufferLength = this.analyser.fftSize;
       const buffer = new Float32Array(bufferLength);
       this.analyser.getFloatTimeDomainData(buffer);
 
-      let pitch = autoCorrelate(buffer, audioEngine.sampleRate);
-      
-      if (pitch !== -1 && pitch >= 70 && pitch <= 400) {
-        // 滑动平均，让数字稳定
-        this.frequencyHistory.push(pitch);
+      const result = detectYin(buffer, audioEngine.sampleRate, { minFreq: 70, maxFreq: 400 });
+
+      if (result && result.frequency >= 70 && result.frequency <= 400 && result.confidence >= 0.6) {
+        // 谐波折叠：低音弦尾音基频变弱时，164.8Hz 之类会折回 82.4Hz，避免误判成 D3
+        const folded = foldToGuitarFundamental(result.frequency, this.a4, this.targetNote);
+
+        // 超过 250ms 没有有效信号，视为新一次拨弦，允许重新选弦
+        if (now - this.lastValidAt > 250) this.frequencyHistory = [];
+        this.lastValidAt = now;
+
+        // 中值滤波：比滑动平均更能压住拨弦瞬间的毛刺和八度跳变
+        this.frequencyHistory.push(folded);
         if (this.frequencyHistory.length > 5) this.frequencyHistory.shift();
-        
-        let avgPitch = this.frequencyHistory.reduce((a, b) => a + b, 0) / this.frequencyHistory.length;
-        
-        processPitch(avgPitch);
+
+        let stablePitch = medianFrequency(this.frequencyHistory);
+
+        processPitch(stablePitch);
       } else {
+        // 声音已停：清掉尾音，避免指针停在旧读数上
+        if (this.frequencyHistory.length > 0 && now - this.lastValidAt > 500) {
+          this.frequencyHistory = [];
+          this.lastValidAt = 0;
+        }
+
         if (this.frequencyHistory.length === 0) {
           noteName.textContent = '--';
           freqVal.textContent = '0.0 Hz';
@@ -196,6 +527,7 @@ class GuitarTuner extends HTMLElement {
     const processPitch = (freq) => {
       let targetFreq = 0;
       let displayNote = '';
+      let targetName = '';
 
       // 自动识别最近的一根弦
       if (this.targetNote === 'auto') {
@@ -207,11 +539,22 @@ class GuitarTuner extends HTMLElement {
             minDiff = diff;
             targetFreq = f;
             displayNote = note.replace(/\d/, ''); // 去掉数字只留字母
+            targetName = note;
           }
         }
       } else {
         targetFreq = this.stringFreqs[this.targetNote];
         displayNote = this.targetNote.replace(/\d/, '');
+        targetName = this.targetNote;
+      }
+
+      // 换弦（自动模式）或手动选弦：音分曲线重新起一段
+      if (this.lastString !== targetName) {
+        this.lastString = targetName;
+        this.centsHistory = [];
+        this.lastChartAt = 0;
+        this.resetCentsChart();
+        this.updateRefButton();
       }
 
       noteName.textContent = displayNote;
@@ -229,7 +572,17 @@ class GuitarTuner extends HTMLElement {
       // 指针过渡逻辑：低音准往左，高音准往右
       needle.style.transform = `rotate(${angle}deg)`;
 
-      if (Math.abs(cents) <= 5) {
+      const inTune = Math.abs(cents) <= 5;
+      if (inTune) {
+        if (!this.wasInTune) this.triggerInTuneFeedback();
+        this.wasInTune = true;
+      } else {
+        this.wasInTune = false;
+      }
+
+      this.pushCents(cents, inTune);
+
+      if (inTune) {
         // 绿色，音准了
         needle.classList.add('in-tune');
         noteName.classList.add('in-tune');
@@ -251,24 +604,24 @@ class GuitarTuner extends HTMLElement {
     btnToggle.onclick = async () => {
       if (this.isListening) {
         this.stopTuner();
-        btnToggle.textContent = '🎤 开启麦克风';
-        btnToggle.className = 'btn-toggle start';
-        statusText.textContent = '已关闭麦克风';
-        statusText.style.color = '#8a93a6';
-        noteName.textContent = '--';
-        noteName.classList.remove('in-tune');
-        needle.style.transform = 'rotate(0deg)';
-        needle.classList.remove('in-tune');
       } else {
         try {
           btnToggle.textContent = '正在启动...';
+          const epoch = ++this.stopEpoch;
           this.stream = await navigator.mediaDevices.getUserMedia({ 
             audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
           });
+
+          if (epoch !== this.stopEpoch) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+            return;
+          }
           
           // 复用全局上下文，不再为调音器新开一个（也不再 close）
           this.analyserHandle = audioEngine.openAnalyser(this.stream);
           this.analyser = this.analyserHandle.analyser;
+          audioEngine.preloadChime();
           
           this.isListening = true;
           btnToggle.textContent = '⏹ 停止调音';
@@ -276,6 +629,9 @@ class GuitarTuner extends HTMLElement {
           statusText.textContent = '拨动琴弦...';
           statusText.style.color = '#38bdf8';
           this.frequencyHistory = [];
+          this.lastAnalysisAt = 0;
+          this.lastValidAt = 0;
+          this.wasInTune = false;
           
           updatePitch();
         } catch (err) {
@@ -288,7 +644,9 @@ class GuitarTuner extends HTMLElement {
   }
 
   stopTuner() {
+    this.stopEpoch = (this.stopEpoch || 0) + 1;
     this.isListening = false;
+    this.stopReferenceTone();
     if (this.rafId) cancelAnimationFrame(this.rafId);
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
@@ -300,6 +658,16 @@ class GuitarTuner extends HTMLElement {
       this.analyserHandle = null;
     }
     this.analyser = null;
+    this.frequencyHistory = [];
+    this.lastValidAt = 0;
+    this.wasInTune = false;
+    this.lastFeedbackAt = -1e9;
+    this.lastString = null;
+    this.centsHistory = [];
+    this.lastChartAt = 0;
+    this.resetCentsChart();
+    this.updateRefButton();
+    this.resetTunerUI();
   }
 }
 
