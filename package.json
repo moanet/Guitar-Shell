@@ -1,0 +1,19 @@
+{
+  "name": "guitar-shell-spike",
+  "version": "0.0.7.2",
+  "private": true,
+  "description": "Guitar Shell B1-spike Android shell",
+  "scripts": {
+    "www": "node scripts/build-www.mjs",
+    "cap:add": "npm run www && cap add android",
+    "cap:sync": "npm run www && cap sync android",
+    "apk:debug": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.3",
+    "@capacitor/core": "6.2.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.3"
+  }
+}

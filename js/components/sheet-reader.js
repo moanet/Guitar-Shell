@@ -28,10 +28,10 @@ const readerCSS = `
   .pc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   
   .filter-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #151a22; border-bottom: 1px solid #232b38; }
-  .search-row { display: flex; gap: 8px; }
-  .search-inp { flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 14px; }
+  .search-row { display: flex; gap: 8px; align-items: center; }
+  .search-inp { flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 14px; }
   .search-inp:focus { border-color: #38bdf8; }
-  .sort-sel { padding: 8px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 13px; }
+  .sort-sel { flex: 0 0 auto; min-width: 104px; max-width: 42vw; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 13px; }
   .tag-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
   .tag-bar::-webkit-scrollbar { display: none; }
   .tag-chip { padding: 4px 10px; border-radius: 12px; border: 1px solid #2a3444; background: #1b222d; font-size: 12px; cursor: pointer; white-space: nowrap; color: #8a93a6; }
@@ -48,7 +48,7 @@ const readerCSS = `
   
   .card-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
   .score-card:hover .card-actions { opacity: 1; }
-  .action-btn { width: 22px; height: 22px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
+  .card-actions .action-btn { width: 22px; height: 22px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
   .btn-edit { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
   .btn-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 
@@ -85,13 +85,13 @@ const readerCSS = `
 
   .action-sheet-mask, .modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-end; z-index: 200; }
   .action-sheet-mask.show, .modal-mask.show { display: flex; }
-  .action-sheet { width: 100%; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px; display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; }
+  .action-sheet { width: 100%; max-height: 80vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; }
   .action-sheet-mask.show .action-sheet { transform: translateY(0); }
-  .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; cursor: pointer; }
-  .action-btn.cancel { background: transparent; color: #8a93a6; }
+  .action-sheet .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; width: 100%; box-sizing: border-box; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+  .action-sheet .action-btn.cancel { background: transparent; color: #8a93a6; }
 
-  .modal-mask { align-items: center; justify-content: center; padding: 20px; }
-  .modal-box { background: #1b2230; border: 1px solid #2a3140; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-mask { align-items: flex-start; justify-content: center; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(20px, env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .modal-box { box-sizing: border-box; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: auto 0; background: #1b2230; border: 1px solid #2a3140; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
   .modal-box h3 { margin: 0; text-align: center; color: #38bdf8; font-size: 18px; }
   .modal-field { display: flex; flex-direction: column; gap: 6px; }
   .modal-field label { font-size: 12px; color: #8a93a6; }
@@ -1432,9 +1432,22 @@ class SheetReader extends HTMLElement {
         }).catch(() => {});
       }
       cloudModalMask.classList.add('show');
+      cloudModalMask.scrollTop = 0;
     };
     $('btnCloudSync').onclick = openCloudModal;
     $('btnMobileCloud').onclick = openCloudModal;
+
+    // Android WebView 键盘弹出后会把视口压短：输入框获得焦点时把它滚进可视区，
+    // 避免云同步账号 / 密码栏被键盘顶出弹窗。
+    ['cloudUser', 'cloudPass', 'cloudPath', 'cloudBase'].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('focus', () => {
+        setTimeout(() => {
+          try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (err) {}
+        }, 120);
+      });
+    });
 
     $('cloudForget').onclick = async () => {
       await vaultService.clear(PASS_SECRET);

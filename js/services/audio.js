@@ -58,7 +58,7 @@ class AudioEngine {
     return this.ctx ? this.ctx.currentTime : 0;
   }
 
-  // 懒创建上下文；已 suspended 就 resume（iOS 必须发生在用户手势里）
+  // 已 suspended 就 resume（iOS 必须发生在用户手势里）
   ensure() {
     if (!this.ctx) {
       const Ctor = getAcCtor();
@@ -72,6 +72,15 @@ class AudioEngine {
       this.ctx.resume().catch(() => {});
     }
     return this.ctx;
+  }
+
+  // 音频上下文可能因切后台 / 长时间静置被挂起：试听参考音前等它真正 running 再排音
+  async resume() {
+    const ctx = this.ensure();
+    if (ctx.state === 'suspended' && ctx.resume) {
+      try { await ctx.resume(); } catch (err) {}
+    }
+    return ctx;
   }
 
   // 统一发声：短促衰减的“哒”，音色 / 频率 / 音量可控
@@ -145,24 +154,43 @@ class AudioEngine {
   }
 
   // 参考音：持续一段时间的标准音，用于调音器试听（淡入淡出，避免爆音）
-  tone(freq, { dur = 1.2, level = 0.18 } = {}) {
+  // 低频弦（E2 / A2）用纯正弦在手机小喇叭上很容易“听得见电流声、听不见音”，
+  // 因此按频率补入 2 / 3 / 4 次谐音：低音弦让手机喇叭能推出可听的中频泛音，
+  // 高音弦保持原来的轻量谐波，避免整体过响。
+  tone(freq, { dur = 1.2, level = 0.2 } = {}) {
     const ctx = this.ctx;
     if (!ctx || !(freq > 0)) return null;
     const t0 = ctx.currentTime + 0.02;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, t0);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), t0 + 0.05);
-    gain.gain.setValueAtTime(Math.max(0.0002, level), t0 + Math.max(0.1, dur - 0.25));
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(gain);
-    gain.connect(this.master || ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + dur + 0.02);
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t0);
+    out.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), t0 + 0.05);
+    out.gain.setValueAtTime(Math.max(0.0002, level), t0 + Math.max(0.1, dur - 0.25));
+    out.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    out.connect(this.master || ctx.destination);
+
+    const harmonics = freq < 140
+      ? [[1, 1], [2, 0.65], [3, 0.4], [4, 0.22]]
+      : freq < 220
+        ? [[1, 1], [2, 0.5], [3, 0.25]]
+        : [[1, 1], [2, 0.32], [3, 0.14]];
+    const oscillators = [];
+    harmonics.forEach(([multiple, amp]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * multiple, t0);
+      gain.gain.value = amp;
+      osc.connect(gain);
+      gain.connect(out);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+      oscillators.push(osc);
+    });
+
     return {
-      stop() { try { osc.stop(); } catch (err) {} }
+      stop() {
+        oscillators.forEach(osc => { try { osc.stop(); } catch (err) {} });
+      }
     };
   }
 

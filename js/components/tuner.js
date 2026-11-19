@@ -22,6 +22,17 @@ const writeBoolSetting = (key, value) => {
   try { localStorage.setItem(key, value ? '1' : '0'); } catch (err) {}
 };
 
+// 标准音试听响度补偿：手机小喇叭对 82/110Hz 的低音衰减很厉害，
+// 低音 E/A 给更高电平，高音 e 保持原电平，避免六根弦试听响度差太多。
+const REFERENCE_LEVELS = {
+  E2: 0.36,
+  A2: 0.34,
+  D3: 0.3,
+  G3: 0.28,
+  B3: 0.25,
+  E4: 0.22
+};
+
 const tunerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; align-items: center; justify-content: center; }
   
@@ -186,6 +197,7 @@ class GuitarTuner extends HTMLElement {
     this.isPlayingRef = false;
     this.refToneHandle = null;
     this.refTimer = null;
+    this.refEpoch = 0;
 
     // A4 校准：C5a 先把能力放进检测层，界面留给 C5b
     let savedA4 = A4_DEFAULT;
@@ -241,6 +253,7 @@ class GuitarTuner extends HTMLElement {
   }
 
   stopReferenceTone() {
+    this.refEpoch = (this.refEpoch || 0) + 1;
     if (this.refTimer) { clearTimeout(this.refTimer); this.refTimer = null; }
     if (this.refToneHandle) {
       this.refToneHandle.stop();
@@ -263,12 +276,12 @@ class GuitarTuner extends HTMLElement {
   }
 
   // 试听标准音：播放期间暂停检测，避免麦克风把扬声器里的参考音当成琴声
-  playReferenceTone() {
+  async playReferenceTone() {
     const target = this.targetNote === 'auto' ? this.lastString : this.targetNote;
     if (!target || !this.stringFreqs[target]) return;
-    try { audioEngine.ensure(); } catch (err) { return; }
 
     this.stopReferenceTone();
+    const epoch = this.refEpoch;
     this.isPlayingRef = true;
     this.frequencyHistory = [];
     this.lastValidAt = 0;
@@ -276,11 +289,27 @@ class GuitarTuner extends HTMLElement {
 
     const statusText = this.shadowRoot.getElementById('statusText');
     if (statusText) {
-      statusText.textContent = `🔊 标准音 ${target} 播放中...`;
+      statusText.textContent = `🔊 标准音 ${target} 准备中...`;
       statusText.style.color = '#38bdf8';
     }
 
-    this.refToneHandle = audioEngine.tone(this.stringFreqs[target], { dur: 1.2, level: 0.18 });
+    // 切后台后 AudioContext 可能已 suspended：等 resume 完成再排音，避免“看起来在播、实际没声”
+    try {
+      await audioEngine.resume();
+    } catch (err) {
+      if (epoch === this.refEpoch) {
+        this.isPlayingRef = false;
+        this.restoreAfterRef();
+      }
+      return;
+    }
+    if (epoch !== this.refEpoch) return;
+
+    if (statusText) statusText.textContent = `🔊 标准音 ${target} 播放中...`;
+    this.refToneHandle = audioEngine.tone(this.stringFreqs[target], {
+      dur: 1.2,
+      level: REFERENCE_LEVELS[target] || 0.22
+    });
     this.refTimer = setTimeout(() => {
       this.refToneHandle = null;
       this.isPlayingRef = false;

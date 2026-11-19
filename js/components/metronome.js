@@ -100,11 +100,16 @@ const metronomeCSS = `
 
   /* C4 练习工具 */
   .practice-hud {
-    display: none; margin-top: 8px; padding: 6px 10px; border-radius: 9px;
+    /* 永远占住同一块高度：开关 Swing / 变速 / 倒计时时，圆形旋钮不缩放、不位移 */
+    display: flex; align-items: center; justify-content: center;
+    height: 42px; box-sizing: border-box;
+    margin-top: 8px; padding: 4px 8px; border-radius: 9px;
     background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25);
-    color: #7fd4ff; font-size: 11px; line-height: 1.5; text-align: center;
+    color: #7fd4ff; font-size: 10px; line-height: 1.35; text-align: center;
+    overflow: hidden; opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .15s;
   }
-  .practice-hud.show { display: block; }
+  .practice-hud.show { opacity: 1; visibility: visible; }
   .accent-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
   .accent-btn {
     padding: 7px 2px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d;
@@ -489,14 +494,14 @@ class GuitarMetronome extends HTMLElement {
       const parts = [];
       if (this.swing > 0) parts.push(`Swing ${this.swing}%`);
       if (this.ramp.enabled) {
-        let txt = `变速 ${this.ramp.start} → ${this.ramp.target} BPM · 每 ${this.ramp.every} 小节 ${this.ramp.target >= this.ramp.start ? '+' : '-'}${this.ramp.step}`;
+        let txt = `变速 ${this.ramp.start}→${this.ramp.target} · 每${this.ramp.every}小节`;
         if (this.rampHolding && this.bpm === this.ramp.target) {
-          txt += ` · 目标保持 ${this.rampHoldBars}/${Math.max(1, this.ramp.every)} 小节`;
+          txt += ` · 保持 ${this.rampHoldBars}/${Math.max(1, this.ramp.every)}`;
         }
         parts.push(txt);
       }
       if (this.timer.enabled) {
-        parts.push(this.countdownEndAt ? `⏳ ${fmtClock(this.countdownEndAt - Date.now())}` : `⏳ ${this.timer.minutes} 分钟`);
+        parts.push(this.countdownEndAt ? `⏳${fmtClock(this.countdownEndAt - Date.now())}` : `⏳${this.timer.minutes}分`);
       }
       if (parts.length) {
         practiceHud.textContent = parts.join('  ·  ');

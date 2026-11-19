@@ -3,8 +3,9 @@ proxy/node_modules/
 proxy/package-lock.json
 proxy/npm-debug.log
 
-# 本地启动脚本
+# 本地启动脚本（不误伤 Android Gradle wrapper）
 *.bat
+!android/gradlew.bat
 
 # IDE、系统文件
 .DS_Store
@@ -13,3 +14,13 @@ Thumbs.db
 
 # 临时文件
 *.log
+
+# B1-spike / Capacitor
+node_modules/
+www/
+dist/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
