@@ -86,7 +86,10 @@ const tunerCSS = `
   .feedback-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* 控制按钮 */
-  .btn-toggle { padding: 16px 40px; border-radius: 30px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 10px; margin-top: 20px; outline: none; }
+  .btn-toggle { padding: 16px 40px; border-radius: 30px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 10px; margin-top: 20px; outline: none; -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; }
+  .btn-toggle:focus { outline: none !important; }
+  .btn-toggle:focus-visible { outline: none !important; }
+  .btn-toggle:active { outline: none !important; }
   .btn-toggle.start { background: #38bdf8; color: #000; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4); }
   .btn-toggle.stop { background: #ef4444; color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
   .btn-toggle:active { transform: scale(0.95); }
