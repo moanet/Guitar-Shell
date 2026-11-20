@@ -15,6 +15,12 @@ Thumbs.db
 # 临时文件
 *.log
 
+# 正式签名材料（绝不提交）
+android/keystore/
+android/keystore.properties
+*.jks
+*.keystore
+
 # B1-spike / Capacitor
 node_modules/
 www/

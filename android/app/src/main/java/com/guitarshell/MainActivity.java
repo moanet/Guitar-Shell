@@ -1,4 +1,4 @@
-package cc.ccwu.guitarshell.spike;
+package com.guitarshell;
 
 import android.graphics.Color;
 import android.os.Build;

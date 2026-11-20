@@ -1,4 +1,4 @@
-// B1-spike：把零构建的 PWA 源文件收进 www/，供 Capacitor 打包
+// 把零构建的 PWA 源文件收进 www/，供 Capacitor 打包
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 

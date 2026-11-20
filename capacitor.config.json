@@ -1,5 +1,5 @@
 {
-  "appId": "cc.ccwu.guitarshell.spike",
+  "appId": "com.guitarshell",
   "appName": "Guitar Shell",
   "webDir": "www",
   "bundledWebRuntime": false
