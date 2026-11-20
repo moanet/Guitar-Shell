@@ -3,7 +3,7 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.8.10 — 暖纸日光 · 日间模式（浏览器验收通过，Android 构建通过）
+## 0.0.8.10 — 暖纸日光 · 日间模式（已真机验收，UI 终版）
 
 - **新增日间主题**：按用户提供的浅色九色色板新增「暖纸日光 · 日间模式」：背景 `#F3EDE3`、卡片 / 面板 `#FCF8F1`、主品牌 `#8F552C`、辅品牌 `#F3E8D6`、强调 `#C7863F`、常规文字 `#2A2520`、次要文字 `#7C7165`、成功 `#506E1B`、危险 `#A63E36`；边框 `#E5DAC8`。保留深色「复古木质 · 深夜琴房」原值不变。
 - **双主题切换**：新增 `js/services/theme.js`，主题持久化在 `localStorage` 的 `gs_theme`，首次启动仍为深色；设置抽屉「外观」改为两张可点按主题卡，带 `aria-pressed` 与「使用中」标签，点按即切换，不再弹 Toast。
@@ -16,8 +16,8 @@
 - **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 20` / `versionName 0.0.8.10`；`dexdump` 已含 `ThemeBarsPlugin`；APK 内含 `assets/public/js/services/theme.js`、`version.js`、`css/layout.css` 与 `assets/splash.html`。
 - debug APK `5,133,204` 字节；SHA-256 `F1DA1EC0AF3A16C6DBF65251E02BFFD7F87AE422BCA8CD0BEF71071E33FFB29D`；debug 签名 v1 / v2 校验通过。
 - 版本：网页 / SW `APP_VERSION = 0.0.8.10`；`package.json` / `package-lock.json` `0.0.8.10`；Android `versionCode 20` / `versionName 0.0.8.10`。
-- **待真机确认**：当前无连接设备，浅色系统栏颜色与图标明暗尚未在真机观察；已构建 APK 供安装确认，确认后再补「实机验收通过」标记。
-- **发布**：代码与文档提交 `b9a0b17` 并推送 GitHub `main`，GitHub Pages 已上线 `APP_VERSION = 0.0.8.10`；GitHub Pre-release `v0.0.8.10` 已上传 `GuitarShell-B1-spike-0.0.8.10-debug.apk`，重新下载 SHA-256 与本地一致：`https://github.com/moanet/GuitarShell/releases/tag/v0.0.8.10`。
+- **真机验收通过**：用户 2026-11-20 在手机上确认双主题与浅色系统栏效果良好，明确 `0.0.8.10` 作为 UI 终版冻结；Android 构建、APK 签名与浏览器回归一并通过。
+- **发布**：代码与文档提交 `b9a0b17` 并推送 GitHub `main`，GitHub Pages 已上线 `APP_VERSION = 0.0.8.10`；GitHub Release `v0.0.8.10` 已上传 `GuitarShell-B1-spike-0.0.8.10-debug.apk`，重新下载 SHA-256 与本地一致，并已按真机确认转为正式 Release：`https://github.com/moanet/GuitarShell/releases/tag/v0.0.8.10`。
 
 ## 0.0.8.9 — 启动动画提速 + 蜗牛随机起点（已真机验收）
 
