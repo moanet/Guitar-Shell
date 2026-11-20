@@ -7,51 +7,54 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 
 const logCSS = `
   button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
-  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #121110; color: #eae3d9; overflow: hidden; font-family: -apple-system, sans-serif; }
-  .stats-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; margin: 10px 4px 0; padding: 10px 4px 2px; border-top: 1px solid #2c2622; color: #8a8075; font-size: 12px; }
-  .stats-line .stat-val { font-size: 13px; font-weight: 700; color: #d99e6a; }
-  .stats-line .stats-sep { color: #5c5349; margin: 0 3px; }
-  .form-box { padding: 14px 16px 16px; background: #181512; border-bottom: 1px solid #2c2622; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: var(--bg0); color: var(--txt); overflow: hidden; font-family: -apple-system, sans-serif; }
+  .stats-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; margin: 10px 4px 0; padding: 10px 4px 2px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .stats-line .stat-val { font-size: 13px; font-weight: 700; color: var(--accent-text); }
+  .stats-line .stats-sep { color: var(--muted-soft); margin: 0 3px; }
+  .form-box { padding: 14px 16px 16px; background: var(--surface-deep); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
   .form-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .form-title { font-size: 13px; font-weight: 700; color: #f3e8d6; letter-spacing: .3px; }
-  .form-hint { font-size: 11px; color: #8a8075; }
+  .form-title { font-size: 13px; font-weight: 700; color: var(--heading); letter-spacing: .3px; }
+  .form-hint { font-size: 11px; color: var(--muted); }
   .input-row { display: flex; gap: 8px; }
-  .inp { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 14px; outline: none; transition: 0.2s; }
-  .inp:focus { border-color: #b87b4c; box-shadow: 0 0 0 2px rgba(184,123,76,.12); }
-  .btn-submit { width: 100%; padding: 12px; background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 16px rgba(184,123,76,.18); }
-  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px 0; font-size: 13px; font-weight: 700; color: #eae3d9; flex-shrink: 0; }
-  .list-count { font-size: 11px; font-weight: 400; color: #8a8075; }
+  .inp { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--txt); font-size: 14px; outline: none; transition: 0.2s; }
+  .inp:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(var(--primary-rgb),.12); }
+  .btn-submit { width: 100%; padding: 12px; background: linear-gradient(180deg, var(--accent), var(--primary)); color: var(--on-primary); border: 1px solid rgba(var(--secondary-rgb),.10); border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 16px rgba(var(--primary-rgb),.18); }
+  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px 0; font-size: 13px; font-weight: 700; color: var(--txt); flex-shrink: 0; }
+  .list-count { font-size: 11px; font-weight: 400; color: var(--muted); }
   .log-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
-  .log-card { background: #241f1b; border: 1px solid #2c2622; border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .log-card { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
   .log-info { flex: 1; min-width: 0; }
-  .log-title { font-size: 15px; font-weight: bold; color: #f3e8d6; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .log-detail { font-size: 12px; color: #8a8075; display: flex; gap: 12px; }
-  .log-detail span { color: #d99e6a; font-weight: bold; }
-  .btn-del { background: rgba(181, 74, 66, 0.12); color: #b54a42; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
-  .empty-tip { text-align: center; color: #8a8075; font-size: 14px; margin-top: 28px; }
-  .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(217, 158, 106, 0.92); color: #1e1b18; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
+  .log-title { font-size: 15px; font-weight: bold; color: var(--heading); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-detail { font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
+  .log-detail span { color: var(--accent-text); font-weight: bold; }
+  .btn-del { background: rgba(var(--danger-rgb), 0.12); color: var(--danger); border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
+  .empty-tip { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
+  .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(var(--accent-rgb), 0.92); color: var(--on-accent); padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .trend-box { background: #171411; border-bottom: 1px solid #2c2622; flex-shrink: 0; }
-  .trend-toggle-row { width: 100%; border: none; background: transparent; display: flex; align-items: center; gap: 9px; padding: 11px 16px; cursor: pointer; color: #eae3d9; font-family: inherit; text-align: left; }
-  .trend-toggle-row:hover { background: rgba(184,123,76,.06); }
+  .trend-box { background: var(--bg2); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .trend-toggle-row { width: 100%; border: none; background: transparent; display: flex; align-items: center; gap: 9px; padding: 11px 16px; cursor: pointer; color: var(--txt); font-family: inherit; text-align: left; }
+  .trend-toggle-row:hover { background: rgba(var(--primary-rgb),.06); }
   .trend-title { font-size: 13px; font-weight: 700; flex-shrink: 0; }
-  .trend-peek { flex: 1; min-width: 0; font-size: 12px; font-weight: 400; color: #8a8075; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .trend-chevron { font-size: 14px; color: #8a8075; flex-shrink: 0; }
+  .trend-peek { flex: 1; min-width: 0; font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trend-chevron { font-size: 14px; color: var(--muted); flex-shrink: 0; }
   .trend-box:not(.collapsed) .trend-peek { display: none; }
-  .seg { display: flex; background: #241f1b; border: 1px solid #2c2622; border-radius: 10px; padding: 2px; }
-  .seg-btn { border: none; background: transparent; color: #8a8075; font-size: 12px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
-  .seg-btn.active { background: #b87b4c; color: #1e1b18; font-weight: bold; }
+  .seg { display: flex; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 10px; padding: 2px; }
+  .seg-btn { border: none; background: transparent; color: var(--muted); font-size: 12px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
+  .seg-btn.active { background: var(--primary); color: var(--on-primary); font-weight: bold; }
   .trend-body { max-height: 56vh; overflow-y: auto; padding: 0 12px 12px; }
   .trend-box.collapsed .trend-body { display: none; }
   .trend-controls { display: flex; justify-content: flex-end; padding: 0 4px 8px; }
-  .trend-sub { font-size: 12px; color: #8a8075; padding: 0 4px 6px; }
+  .trend-sub { font-size: 12px; color: var(--muted); padding: 0 4px 6px; }
   .chart-wrap svg { display: block; width: 100%; height: auto; }
+  .chart-wrap .bar { fill: var(--chart-bar); }
+  .chart-wrap .bar.current { fill: var(--chart-current); }
+  .chart-wrap .axis-label { fill: var(--muted); }
   .top-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
   .top-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .top-name { width: 96px; color: #eae3d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-  .top-track { flex: 1; height: 6px; background: #2c2622; border-radius: 3px; overflow: hidden; }
-  .top-fill { height: 100%; background: linear-gradient(90deg, #6a4b32, #d99e6a); border-radius: 3px; }
-  .top-min { width: 52px; text-align: right; color: #d99e6a; font-weight: bold; flex-shrink: 0; }
+  .top-name { width: 96px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .top-track { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .top-fill { height: 100%; background: linear-gradient(90deg, var(--line-warm), var(--accent)); border-radius: 3px; }
+  .top-min { width: 52px; text-align: right; color: var(--accent-text); font-weight: bold; flex-shrink: 0; }
 `;
 
 const logHTML = `
@@ -143,13 +146,13 @@ class GuitarPracticeLog extends HTMLElement {
         const bw = Math.max(6, Math.min(slot * 0.62, 24));
         const x = i * slot + (slot - bw) / 2;
         const h = (it.value / maxVal) * (BASE - TOP);
-        const color = it.current ? '#f3e8d6' : '#b87b4c';
+        const barClass = it.current ? 'bar current' : 'bar';
         body += `<g><title>${it.full}：${it.value} 分钟</title>`
-             + `<rect x="${x.toFixed(1)}" y="${(BASE - Math.max(h, 2)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" rx="3" fill="${color}"/></g>`;
+             + `<rect class="${barClass}" x="${x.toFixed(1)}" y="${(BASE - Math.max(h, 2)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" rx="3"/></g>`;
         if (showValue && it.value > 0) {
-          body += `<text x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#8a8075">${it.value}</text>`;
+          body += `<text class="axis-label" x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9">${it.value}</text>`;
         }
-        body += `<text x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}" fill="#8a8075">${it.label}</text>`;
+        body += `<text class="axis-label" x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}">${it.label}</text>`;
       });
       return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="练习时长柱状图">${body}</svg>`;
     };
@@ -257,7 +260,7 @@ class GuitarPracticeLog extends HTMLElement {
         card.innerHTML = `
           <div class="log-info">
             <div class="log-title">${escapeHtml(log.name)}</div>
-            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:#8a8075">${timeStr}</span></div>
+            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:var(--muted)">${timeStr}</span></div>
           </div>
           <button class="btn-del" data-id="${log.id}">删除</button>
         `;

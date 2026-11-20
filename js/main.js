@@ -1,5 +1,9 @@
 import { APP_VERSION } from './services/version.js';
 import { showToast } from './services/toast.js';
+import { initTheme } from './services/theme.js';
+
+// 主题只认 html[data-theme]；冷启动时再同步一次浏览器与原生系统栏
+initTheme();
 
 const tabBtns = document.querySelectorAll('.tab-btn');
 const sections = document.querySelectorAll('.view-section');

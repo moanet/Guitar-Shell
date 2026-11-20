@@ -7,6 +7,7 @@
 import { APP_VERSION } from '../services/version.js';
 import { showToast } from '../services/toast.js';
 import { dbService } from '../services/db.js';
+import { getTheme, setTheme, onThemeChange } from '../services/theme.js';
 import {
   buildBackupPayload, getDataStats, parseBackupFile, restoreBackup, saveBackupFile
 } from '../services/backup.js';
@@ -17,85 +18,111 @@ const settingsCSS = `
   :host {
     position: fixed; inset: 0; z-index: 1000; pointer-events: none;
     font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", -apple-system, sans-serif;
-    color: #eae3d9;
+    color: var(--txt);
   }
   .mask {
     position: absolute; inset: 0; display: flex; justify-content: flex-end;
-    background: rgba(0, 0, 0, .54); backdrop-filter: blur(3px);
+    background: var(--mask); backdrop-filter: blur(3px);
     opacity: 0; pointer-events: none; transition: opacity .24s ease;
   }
   .mask.show { opacity: 1; pointer-events: auto; }
   .drawer {
     width: min(88vw, 380px); height: 100%; display: flex; flex-direction: column;
     background:
-      radial-gradient(560px 260px at 100% -8%, rgba(184,123,76,.13), transparent 66%),
-      linear-gradient(180deg, #1e1b18, #151210);
-    border-left: 1px solid #342c25;
-    box-shadow: -24px 0 60px rgba(0,0,0,.5);
+      radial-gradient(560px 260px at 100% -8%, rgba(var(--primary-rgb), .13), transparent 66%),
+      linear-gradient(180deg, var(--drawer-a), var(--drawer-b));
+    border-left: 1px solid var(--drawer-border);
+    box-shadow: -24px 0 60px var(--shadow-color);
     transform: translateX(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1);
   }
   .mask.show .drawer { transform: translateX(0); }
   .head {
     padding: calc(20px + env(safe-area-inset-top)) 18px 16px;
-    border-bottom: 1px solid #2c2622; display: flex; align-items: flex-start; gap: 12px;
+    border-bottom: 1px solid var(--line); display: flex; align-items: flex-start; gap: 12px;
   }
   .head-copy { flex: 1; min-width: 0; }
-  .eyebrow { font-size: 10px; letter-spacing: 2px; color: #8a8075; text-transform: uppercase; margin-bottom: 5px; }
-  h2 { margin: 0; font-size: 22px; line-height: 1.2; color: #f3e8d6; letter-spacing: .5px; }
-  .head p { margin: 7px 0 0; font-size: 11px; color: #8a8075; }
+  .eyebrow { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+  h2 { margin: 0; font-size: 22px; line-height: 1.2; color: var(--heading); letter-spacing: .5px; }
+  .head p { margin: 7px 0 0; font-size: 11px; color: var(--muted); }
   .close {
-    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #3a2f26;
-    background: #241f1b; color: #eae3d9; font-size: 20px; line-height: 1; cursor: pointer;
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--txt); font-size: 20px; line-height: 1; cursor: pointer;
     display: grid; place-items: center;
   }
-  .close:active { background: #2f2822; }
+  .close:active { background: var(--surface-hover); }
   .body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
-  .card { background: rgba(30,27,24,.72); border: 1px solid #2c2622; border-radius: 18px; padding: 14px; }
+  .card { background: var(--card-bg); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
   .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
-  .card-head .ico { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 8px; background: rgba(184,123,76,.14); color: #d99e6a; font-size: 13px; }
-  h3 { margin: 0; font-size: 13px; font-weight: 700; color: #f3e8d6; letter-spacing: .4px; }
+  .card-head .ico { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 8px; background: rgba(var(--primary-rgb), .14); color: var(--accent-text); font-size: 13px; }
+  h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--heading); letter-spacing: .4px; }
   .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 11px; }
-  .stat { background: #171411; border: 1px solid #2c2622; border-radius: 12px; padding: 10px 11px; display: flex; align-items: baseline; gap: 5px; }
-  .stat b { font-size: 20px; color: #d99e6a; font-variant-numeric: tabular-nums; }
-  .stat span { font-size: 11px; color: #8a8075; }
+  .stat { background: var(--surface-deep); border: 1px solid var(--line); border-radius: 12px; padding: 10px 11px; display: flex; align-items: baseline; gap: 5px; }
+  .stat b { font-size: 20px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; color: var(--muted); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .act {
-    width: 100%; min-height: 42px; border-radius: 12px; border: 1px solid #3a2f26; background: #241f1b;
-    color: #eae3d9; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+    width: 100%; min-height: 42px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface-raised);
+    color: var(--txt); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
   }
-  .act.primary { background: linear-gradient(180deg, #d99e6a, #b87b4c); border-color: rgba(243,232,214,.1); color: #1e1b18; box-shadow: 0 6px 16px rgba(184,123,76,.18); }
+  .act.primary { background: linear-gradient(180deg, var(--accent), var(--primary)); border-color: rgba(var(--secondary-rgb), .1); color: var(--on-primary); box-shadow: 0 6px 16px rgba(var(--primary-rgb), .18); }
   .act:active { filter: brightness(.96); }
   .act:disabled { opacity: .5; cursor: default; }
   .danger {
     width: 100%; min-height: 40px; margin-top: 9px; border-radius: 12px;
-    border: 1px solid rgba(181,74,66,.45); background: rgba(181,74,66,.12);
-    color: #d98d86; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer;
+    border: 1px solid rgba(var(--danger-rgb), .45); background: rgba(var(--danger-rgb), .12);
+    color: var(--danger-text); font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer;
   }
-  .danger:active { background: rgba(181,74,66,.2); }
-  .hint { margin: 9px 2px 0; font-size: 11px; line-height: 1.6; color: #8a8075; }
-  .hint b { color: #c9bfb1; font-weight: 600; }
-  .status { min-height: 16px; margin-top: 8px; font-size: 11px; color: #d99e6a; line-height: 1.5; word-break: break-all; }
-  .cloud-note { margin: 0 2px 10px; font-size: 11px; line-height: 1.65; color: #8a8075; }
-  .cloud-note b { color: #c9bfb1; font-weight: 600; }
-  .theme-row { display: flex; align-items: center; gap: 11px; }
-  .swatch { width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid #3a2f26; }
+  .danger:active { background: rgba(var(--danger-rgb), .2); }
+  .hint { margin: 9px 2px 0; font-size: 11px; line-height: 1.6; color: var(--muted); }
+  .hint b { color: var(--txt-soft); font-weight: 600; }
+  .status { min-height: 16px; margin-top: 8px; font-size: 11px; color: var(--accent-text); line-height: 1.5; word-break: break-all; }
+  .cloud-note { margin: 0 2px 10px; font-size: 11px; line-height: 1.65; color: var(--muted); }
+  .cloud-note b { color: var(--txt-soft); font-weight: 600; }
+
+  /* 主题选择：两张可点按的色板卡，不依赖弹窗 */
+  .theme-choice {
+    width: 100%; display: flex; align-items: center; gap: 11px;
+    margin-top: 8px; padding: 9px 10px; border-radius: 14px;
+    border: 1px solid var(--line); background: rgba(var(--bg1-rgb), .46);
+    color: var(--txt); font-family: inherit; text-align: left; cursor: pointer;
+    transition: border-color .2s, background .2s, transform .2s;
+  }
+  .theme-choice:first-of-type { margin-top: 0; }
+  .theme-choice:hover { border-color: rgba(var(--primary-rgb), .55); background: rgba(var(--primary-rgb), .07); }
+  .theme-choice:active { transform: scale(.985); }
+  .theme-choice.active { border-color: var(--primary); background: rgba(var(--primary-rgb), .11); box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), .18); }
+  .swatch {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: grid; grid-template-columns: 1fr 1fr; overflow: hidden;
+    border: 1px solid var(--line-strong);
+  }
   .swatch i { display: block; }
-  .swatch i:nth-child(1) { background: #121110; }
-  .swatch i:nth-child(2) { background: #b87b4c; }
-  .swatch i:nth-child(3) { background: #f3e8d6; }
-  .swatch i:nth-child(4) { background: #6b8e23; }
+  .swatch-dark i:nth-child(1) { background: #121110; }
+  .swatch-dark i:nth-child(2) { background: #B87B4C; }
+  .swatch-dark i:nth-child(3) { background: #F3E8D6; }
+  .swatch-dark i:nth-child(4) { background: #6B8E23; }
+  .swatch-light i:nth-child(1) { background: #F3EDE3; }
+  .swatch-light i:nth-child(2) { background: #8F552C; }
+  .swatch-light i:nth-child(3) { background: #FCF8F1; }
+  .swatch-light i:nth-child(4) { background: #C7863F; }
   .theme-copy { flex: 1; min-width: 0; }
-  .theme-copy b { display: block; font-size: 13px; color: #f3e8d6; }
-  .theme-copy small { display: block; margin-top: 3px; font-size: 11px; color: #8a8075; }
-  .tag { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(107,142,35,.4); background: rgba(107,142,35,.1); color: #9fb86a; font-size: 10px; }
+  .theme-copy b { display: block; font-size: 13px; color: var(--heading); }
+  .theme-copy small { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); }
+  .tag {
+    flex-shrink: 0; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid rgba(var(--success-rgb), .4); background: rgba(var(--success-rgb), .1);
+    color: var(--success-text); font-size: 10px;
+    opacity: 0; transform: translateX(3px); transition: opacity .18s, transform .18s;
+  }
+  .theme-choice.active .tag { opacity: 1; transform: translateX(0); }
   .about-brand { display: flex; align-items: center; gap: 11px; }
-  .about-brand img { width: 42px; height: 42px; border-radius: 11px; object-fit: contain; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
+  .about-brand img { width: 42px; height: 42px; border-radius: 11px; object-fit: contain; box-shadow: 0 4px 14px rgba(var(--shadow-rgb), .28); }
   .about-copy { flex: 1; min-width: 0; }
-  .about-copy b { display: block; font-size: 15px; color: #f3e8d6; }
-  .about-copy small { display: block; margin-top: 3px; color: #8a8075; font-size: 11px; }
-  .ver { padding: 3px 8px; border: 1px solid #3a2f26; border-radius: 999px; color: #d99e6a; font-size: 10px; font-variant-numeric: tabular-nums; }
-  .about p { margin: 11px 2px 0; font-size: 11px; line-height: 1.7; color: #8a8075; }
-  .about p b { color: #c9bfb1; font-weight: 600; }
+  .about-copy b { display: block; font-size: 15px; color: var(--heading); }
+  .about-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+  .ver { padding: 3px 8px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--accent-text); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .about p { margin: 11px 2px 0; font-size: 11px; line-height: 1.7; color: var(--muted); }
+  .about p b { color: var(--txt-soft); font-weight: 600; }
 `;
 
 const settingsHTML = `
@@ -133,12 +160,17 @@ const settingsHTML = `
 
         <section class="card">
           <div class="card-head"><span class="ico">◐</span><h3>外观</h3></div>
-          <div class="theme-row">
-            <span class="swatch"><i></i><i></i><i></i><i></i></span>
-            <div class="theme-copy"><b>复古木质 · 深夜琴房</b><small>暖木九色 token · 全局统一</small></div>
+          <button class="theme-choice" id="themeDeep" data-theme-choice="deep" type="button" aria-pressed="true">
+            <span class="swatch swatch-dark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="theme-copy"><b>复古木质 · 深夜琴房</b><small>深色 · 低光练琴，保留原有木质暖调</small></span>
             <span class="tag">使用中</span>
-          </div>
-          <p class="hint">当前只保留一套主题，先把视觉与交互冻结；后续新增主题会在这里切换。</p>
+          </button>
+          <button class="theme-choice" id="themeLight" data-theme-choice="light" type="button" aria-pressed="false">
+            <span class="swatch swatch-light" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="theme-copy"><b>暖纸日光 · 日间模式</b><small>浅色 · 暖纸底 / 深暖棕文字</small></span>
+            <span class="tag">使用中</span>
+          </button>
+          <p class="hint">两套主题都使用九色 token，点按即切换并保存在本机；读谱、节拍器、调音与记录会同步换色。</p>
         </section>
 
         <section class="card about">
@@ -168,6 +200,8 @@ class GuitarSettings extends HTMLElement {
     this.$ = (id) => this.shadowRoot.getElementById(id);
     this.$('appVer').textContent = `v${APP_VERSION}`;
     this.bind();
+    this.syncThemeUI();
+    this.offTheme = onThemeChange(() => this.syncThemeUI());
     this.handleOpen = () => this.open();
     window.addEventListener('open-global-settings', this.handleOpen);
   }
@@ -175,6 +209,16 @@ class GuitarSettings extends HTMLElement {
   disconnectedCallback() {
     window.removeEventListener('open-global-settings', this.handleOpen);
     document.removeEventListener('keydown', this.handleKey);
+    if (this.offTheme) { this.offTheme(); this.offTheme = null; }
+  }
+
+  syncThemeUI() {
+    const current = getTheme();
+    this.shadowRoot.querySelectorAll('[data-theme-choice]').forEach((btn) => {
+      const active = btn.dataset.themeChoice === current;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
   }
 
   bind() {
@@ -184,6 +228,13 @@ class GuitarSettings extends HTMLElement {
     });
     this.handleKey = (e) => { if (e.key === 'Escape') this.close(); };
     document.addEventListener('keydown', this.handleKey);
+
+    this.shadowRoot.querySelectorAll('[data-theme-choice]').forEach((btn) => {
+      btn.onclick = () => {
+        setTheme(btn.dataset.themeChoice);
+        this.syncThemeUI();
+      };
+    });
 
     this.$('btnBackup').onclick = () => this.backup();
     this.$('btnCloudEntry').onclick = () => this.openCloud();

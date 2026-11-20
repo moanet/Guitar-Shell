@@ -3,6 +3,7 @@
 // ==========================================
 import { audioEngine } from '../services/audio.js';
 import { wakeLock } from '../services/wakelock.js';
+import { themeColor, onThemeChange } from '../services/theme.js';
 
 const metronomeCSS = `
   :host {
@@ -11,7 +12,7 @@ const metronomeCSS = `
     height: 100%;
     width: 100%;
     overflow: hidden;
-    background: linear-gradient(180deg, var(--bg1), #14110f);
+    background: linear-gradient(180deg, var(--bg1), var(--grad-end));
     position: relative;
   }
 
@@ -37,67 +38,67 @@ const metronomeCSS = `
   }
   .btn-settings:hover { color: var(--cyan); border-color: var(--cyan); }
 
-  .info-bar { flex:0 0 auto;margin-top:8px; display:flex;gap:1px; background:#2c2622;border:1px solid var(--line);border-radius:16px; overflow:hidden; }
-  .info-cell { flex:1 1 0;min-width:0;padding:9px 6px; background:#181512;text-align:center; }
+  .info-bar { flex:0 0 auto;margin-top:8px; display:flex;gap:1px; background:var(--line);border:1px solid var(--line);border-radius:16px; overflow:hidden; }
+  .info-cell { flex:1 1 0;min-width:0;padding:9px 6px; background:var(--surface-deep);text-align:center; }
   .info-k { font-size:10px;color:var(--muted);letter-spacing:1px; margin-bottom:3px; }
-  .info-v { font-size:18px;font-weight:700;color:var(--secondary); font-variant-numeric:tabular-nums; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; line-height:1.1; }
+  .info-v { font-size:18px;font-weight:700;color: var(--heading); font-variant-numeric:tabular-nums; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; line-height:1.1; }
   .info-v small{font-size:10px;font-weight:500;opacity:.55;margin-left:2px}
   .info-v.v-sm{font-size:13.5px;padding-top:2px}
 
   .dots { flex:0 0 auto;display:flex;flex-wrap:wrap;gap:7px; justify-content:center;align-items:center; min-height:26px;margin:14px 0 6px; }
-  .dot { width:var(--dot-size,22px);height:var(--dot-size,22px); border-radius:8px;background:#211d19;border:1px solid #2c2622; transition:background .06s, box-shadow .06s, border-color .06s, transform .1s; }
-  .dot.m-accent{background:#3a2a1c;border-color:#6a4b32}
-  .dot.m-beat{background:#2a221c;border-color:#4a3a2c}
-  .dot.m-sub{background:#3a2f22;border-color:#8a6a2a}
-  .dot.m-mute{background:#181512;border-color:#241f1b;opacity:.55}
-  .dot.on.m-accent{background:#d99e6a;border-color:#d99e6a;box-shadow:0 0 20px rgba(217,158,106,.55)}
-  .dot.on.m-beat{background:#b87b4c;border-color:#b87b4c;box-shadow:0 0 20px rgba(184,123,76,.5)}
-  .dot.on.m-sub{background:#f3e8d6;border-color:#f3e8d6;box-shadow:0 0 20px rgba(243,232,214,.38)}
+  .dot { width:var(--dot-size,22px);height:var(--dot-size,22px); border-radius:8px;background:var(--surface-sunken);border:1px solid var(--line); transition:background .06s, box-shadow .06s, border-color .06s, transform .1s; }
+  .dot.m-accent{background:var(--dot-accent);border-color:var(--line-warm)}
+  .dot.m-beat{background:var(--dot-beat);border-color:var(--scroll)}
+  .dot.m-sub{background:var(--dot-sub);border-color:var(--dot-sub-line)}
+  .dot.m-mute{background:var(--surface-deep);border-color:var(--surface-raised);opacity:.55}
+  .dot.on.m-accent{background:var(--accent);border-color:var(--accent);box-shadow:0 0 20px rgba(var(--accent-rgb),.55)}
+  .dot.on.m-beat{background:var(--primary);border-color:var(--primary);box-shadow:0 0 20px rgba(var(--primary-rgb),.5)}
+  .dot.on.m-sub{background:var(--heading);border-color:var(--heading);box-shadow:0 0 20px rgba(var(--heading-rgb),.30)}
 
   .knob-wrap { flex:1 1 auto;min-height:200px;margin:4px 0 2px; display:flex;align-items:center;justify-content:center; position:relative; touch-action: none; }
   .knob-wrap canvas { display:block;touch-action:none;cursor:grab; }
   .knob-center { position:absolute;inset:0; display:flex;flex-direction:column; align-items:center;justify-content:center; pointer-events:none; gap:2px; }
   .knob-row { display:flex;align-items:center;gap:4px; pointer-events:auto; }
   
-  .knob-step { width:28px;height:28px;border-radius:50%; border:1px solid #3a2f26;background:#241f1b;color:var(--muted); font-size:16px;cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; }
-  .knob-step:active{transform:scale(.9);background:rgba(184,123,76,.18)}
+  .knob-step { width:28px;height:28px;border-radius:50%; border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--muted); font-size:16px;cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; }
+  .knob-step:active{transform:scale(.9);background:rgba(var(--primary-rgb),.18)}
   
-  .knob-num { width:64px;border:none;outline:none;background:transparent; text-align:center; font-size:34px;font-weight:700;color:var(--secondary); font-variant-numeric:tabular-nums;padding:0; caret-color:var(--primary); pointer-events:auto; touch-action: manipulation; }
+  .knob-num { width:64px;border:none;outline:none;background:transparent; text-align:center; font-size:34px;font-weight:700;color: var(--heading); font-variant-numeric:tabular-nums;padding:0; caret-color:var(--primary); pointer-events:auto; touch-action: manipulation; }
   .knob-unit { font-size:9px;letter-spacing:4px;color:var(--muted); margin-top:2px; }
   
-  .play-in-knob { margin-top:10px; padding:0 28px; min-width:140px; height:46px; border-radius:16px; border:1px solid rgba(243,232,214,.10); cursor:pointer; font-size:14px; font-weight:800; letter-spacing:5px; color:#1e1b18; background:linear-gradient(180deg,#d99e6a,#b87b4c); box-shadow:0 6px 18px rgba(184,123,76,.26); pointer-events:auto; }
-  .play-in-knob.running { color:var(--secondary); background:#b54a42; box-shadow:0 6px 18px rgba(181,74,66,.26); }
+  .play-in-knob { margin-top:10px; padding:0 28px; min-width:140px; height:46px; border-radius:16px; border:1px solid rgba(var(--secondary-rgb),.10); cursor:pointer; font-size:14px; font-weight:800; letter-spacing:5px; color:var(--on-primary); background:linear-gradient(180deg,var(--accent),var(--primary)); box-shadow:0 6px 18px rgba(var(--primary-rgb),.26); pointer-events:auto; }
+  .play-in-knob.running { color:var(--on-danger); background:var(--danger); box-shadow:0 6px 18px rgba(var(--danger-rgb),.26); }
 
   .bottom-area { flex:0 0 auto; display:flex; flex-direction:column; gap:5px; padding-top:4px; }
   .bottom-row { position:relative; height:44px; flex:0 0 auto; }
-  .tap-btn { position:absolute; right:0; top:50%; transform:translateY(-50%); width:72px; height:44px; border-radius:14px; border:1px solid #6a4b32; background:linear-gradient(180deg,#2a211a,#1e1813);color:var(--accent); display:flex;flex-direction:column; align-items:center;justify-content:center; cursor:pointer; }
-  .tap-btn:active { transform:translateY(-50%) scale(.95); background:rgba(184,123,76,.28); }
+  .tap-btn { position:absolute; right:0; top:50%; transform:translateY(-50%); width:72px; height:44px; border-radius:14px; border:1px solid var(--line-warm); background:linear-gradient(180deg,var(--tap-a),var(--tap-b));color: var(--accent-text); display:flex;flex-direction:column; align-items:center;justify-content:center; cursor:pointer; }
+  .tap-btn:active { transform:translateY(-50%) scale(.95); background:rgba(var(--primary-rgb),.28); }
 
   .settings-mask {
-    position: absolute; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+    position: absolute; inset: 0; background: rgba(var(--shadow-rgb),.6); backdrop-filter: blur(4px);
     display: none; align-items: center; justify-content: center; z-index: 100;
   }
   .settings-mask.show { display: flex; }
   .settings-panel {
     background: var(--bg1); border: 1px solid var(--line); border-radius: 16px;
     width: 90%; max-width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    box-shadow: 0 10px 30px rgba(var(--shadow-rgb),.5);
   }
-  .settings-panel h3 { margin: 0; font-size: 16px; color: var(--secondary); text-align: center; letter-spacing: .5px; }
+  .settings-panel h3 { margin: 0; font-size: 16px; color: var(--heading); text-align: center; letter-spacing: .5px; }
   .settings-group { display: flex; flex-direction: column; gap: 8px; }
   .settings-label { font-size: 12px; color: var(--muted); }
   
   .ts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .ts-btn { padding: 8px 0; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: var(--muted); cursor: pointer; font-size: 13px; }
-  .ts-btn.on { border-color: var(--primary); color: var(--secondary); background: rgba(184,123,76,.18); }
+  .ts-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 13px; }
+  .ts-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
 
   .sub-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .sub-btn { padding: 8px 0; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: var(--muted); cursor: pointer; font-size: 12px; }
-  .sub-btn.on { border-color: var(--primary); color: var(--secondary); background: rgba(184,123,76,.18); }
+  .sub-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 12px; }
+  .sub-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
 
   .timbre-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .timbre-btn { padding: 8px 0; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: var(--muted); cursor: pointer; font-size: 12px; }
-  .timbre-btn.on { border-color: var(--primary); color: var(--secondary); background: rgba(184,123,76,.18); }
+  .timbre-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 12px; }
+  .timbre-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
 
   /* C4 练习工具 */
   .practice-hud {
@@ -105,39 +106,39 @@ const metronomeCSS = `
     display: flex; align-items: center; justify-content: center;
     height: 42px; box-sizing: border-box;
     margin-top: 8px; padding: 4px 8px; border-radius: 9px;
-    background: rgba(184,123,76,.10); border: 1px solid rgba(217,158,106,.35);
-    color: var(--accent); font-size: 10px; line-height: 1.35; text-align: center;
+    background: rgba(var(--primary-rgb),.10); border: 1px solid rgba(var(--accent-rgb),.35);
+    color: var(--accent-text); font-size: 10px; line-height: 1.35; text-align: center;
     overflow: hidden; opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity .15s;
   }
   .practice-hud.show { opacity: 1; visibility: visible; }
   .accent-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
   .accent-btn {
-    padding: 7px 2px; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b;
+    padding: 7px 2px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised);
     color: var(--muted); font-size: 11px; cursor: pointer; white-space: nowrap;
   }
-  .accent-btn.t-accent { border-color: var(--primary); color: var(--secondary); background: rgba(184,123,76,.20); }
-  .accent-btn.t-sub { border-color: var(--accent); color: var(--accent); background: rgba(217,158,106,.14); }
-  .accent-btn.t-mute { border-color: #3a2f26; color: var(--muted); background: #181512; }
+  .accent-btn.t-accent { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.20); }
+  .accent-btn.t-sub { border-color: var(--accent); color: var(--accent-text); background: rgba(var(--accent-rgb),.14); }
+  .accent-btn.t-mute { border-color: var(--line-strong); color: var(--muted); background: var(--surface-deep); }
   .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
   .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
   .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .num-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: var(--muted); }
   .num-grid input {
-    width: 100%; padding: 6px; border-radius: 8px; border: 1px solid #3a2f26;
-    background: #241f1b; color: var(--secondary); font-size: 12px; outline: none;
+    width: 100%; padding: 6px; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--heading); font-size: 12px; outline: none;
   }
   .num-grid input:focus { border-color: var(--primary); }
   .range { width: 100%; accent-color: var(--primary); }
   .m-toast {
     position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%);
-    background: #241f1b; border: 1px solid #3a2f26; border-radius: 22px;
-    color: var(--secondary); font-size: 12px; padding: 8px 14px; z-index: 30;
+    background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: 22px;
+    color: var(--heading); font-size: 12px; padding: 8px 14px; z-index: 30;
     opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
   }
   .m-toast.show { opacity: 1; }
   
-  .close-btn { padding: 10px; border-radius: 10px; border: none; background: #3a2f26; color: var(--secondary); cursor: pointer; margin-top: 8px; font-weight: bold; }
+  .close-btn { padding: 10px; border-radius: 10px; border: none; background: var(--line-strong); color: var(--heading); cursor: pointer; margin-top: 8px; font-weight: bold; }
 `;
 
 // ==========================================
@@ -288,6 +289,7 @@ class GuitarMetronome extends HTMLElement {
     // 🌟 监听来自其他组件的 BPM 广播
     window.addEventListener('bpm-changed', this.handleGlobalBpmChange);
     window.addEventListener('app-tab-changed', this.handleTabChange);
+    this.offTheme = onThemeChange(() => { if (this.drawKnob) this.drawKnob(); });
   }
 
   disconnectedCallback() {
@@ -295,6 +297,7 @@ class GuitarMetronome extends HTMLElement {
     // 🌟 移除监听
     window.removeEventListener('bpm-changed', this.handleGlobalBpmChange);
     window.removeEventListener('app-tab-changed', this.handleTabChange);
+    if (this.offTheme) { this.offTheme(); this.offTheme = null; }
   }
 
   initLogic() {
@@ -451,30 +454,37 @@ class GuitarMetronome extends HTMLElement {
       const lineW = Math.max(10, r * 0.13);
       const t = (this.bpm - MIN_BPM) / (MAX_BPM - MIN_BPM);
       const curA = START_ANG + t * SWEEP_ANG;
+      const trackColor = themeColor('--line', '#2c2622');
+      const handleColor = themeColor('--heading', '#f3e8d6');
+      const handleEdge = themeColor('--edge-handle', '#8a6a4a');
+      const accentRgb = themeColor('--accent-rgb', '217, 158, 106');
 
       ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, START_ANG + SWEEP_ANG);
-      ctx.strokeStyle = '#2c2622'; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.strokeStyle = trackColor; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
 
       if (t > 0.002) {
         const grad = ctx.createLinearGradient(0, 0, knob.size, knob.size);
-        grad.addColorStop(0, '#f3e8d6'); grad.addColorStop(0.55, '#d99e6a'); grad.addColorStop(1, '#b87b4c');
+        grad.addColorStop(0, handleColor);
+        grad.addColorStop(0.55, themeColor('--accent', '#d99e6a'));
+        grad.addColorStop(1, themeColor('--primary', '#b87b4c'));
         ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, curA);
         ctx.strokeStyle = grad; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
       }
 
       const hx = cx + Math.cos(curA) * r, hy = cy + Math.sin(curA) * r;
       const hr = Math.max(6, lineW * 0.85);
-      
+
       ctx.save();
-      ctx.shadowColor = 'rgba(217, 158, 106, 0.4)'; 
+      ctx.shadowColor = `rgba(${accentRgb}, 0.4)`;
       ctx.shadowBlur = 10;
       ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-      ctx.fillStyle = '#f3e8d6'; ctx.fill();
+      ctx.fillStyle = handleColor; ctx.fill();
       ctx.restore();
 
       ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-      ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = Math.max(2, hr * 0.35); ctx.stroke();
+      ctx.strokeStyle = handleEdge; ctx.lineWidth = Math.max(2, hr * 0.35); ctx.stroke();
     };
+    this.drawKnob = drawKnob;
 
     const buildDots = () => {
       dotsWrap.innerHTML = '';

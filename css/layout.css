@@ -1,17 +1,76 @@
-:root {
-  /* ===== 复古木质 / 深夜琴房 设计 token ===== */
+:root, html[data-theme="deep"] {
+  /* ===== 复古木质 / 深夜琴房（默认主题）===== */
+  color-scheme: dark;
   --bg0: #121110;
   --bg1: #1E1B18;
   --bg2: #171411;
+  --surface-deep: #181512;
+  --surface-raised: #241F1B;
+  --surface-sunken: #211D19;
+  --surface-hover: #2F2822;
+  --surface-active: #33291F;
+  --viewer: #0F0D0B;
+  --grad-end: #14110F;
+  --drawer-a: #1E1B18;
+  --drawer-b: #151210;
+  --drawer-border: #342C25;
+
+  --heading: #F3E8D6;
+  --txt: #EAE3D9;
+  --txt-soft: #C9BFB1;
+  --muted: #8A8075;
+  --muted-soft: #6A5B4D;
+
   --line: #2C2622;
   --line-soft: #241F1B;
+  --line-strong: #3A2F26;
+  --line-warm: #6A4B32;
+  --scroll: #4A3A2C;
+
   --primary: #B87B4C;
   --secondary: #F3E8D6;
   --accent: #D99E6A;
-  --txt: #EAE3D9;
-  --muted: #8A8075;
+  --accent-text: #D99E6A;
   --success: #6B8E23;
+  --success-text: #9FB86A;
   --danger: #B54A42;
+  --danger-text: #D98D86;
+
+  --on-primary: #1E1B18;
+  --on-accent: #1E1B18;
+  --on-success: #1E1B18;
+  --on-danger: #F3E8D6;
+
+  --dot-accent: #3A2A1C;
+  --dot-beat: #2A221C;
+  --dot-sub: #3A2F22;
+  --dot-sub-line: #8A6A2A;
+  --chart-current: #F3E8D6;
+  --chart-bar: #B87B4C;
+  --tap-a: #2A211A;
+  --tap-b: #1E1813;
+  --edge-warm: #8A6A2A;
+  --edge-handle: #8A6A4A;
+
+  --bg1-rgb: 30, 27, 24;
+  --bg2-rgb: 23, 20, 17;
+  --deep-rgb: 24, 21, 18;
+  --primary-rgb: 184, 123, 76;
+  --accent-rgb: 217, 158, 106;
+  --secondary-rgb: 243, 232, 214;
+  --heading-rgb: 243, 232, 214;
+  --txt-rgb: 234, 227, 217;
+  --muted-rgb: 138, 128, 117;
+  --danger-rgb: 181, 74, 66;
+  --success-rgb: 107, 142, 35;
+  --shadow-rgb: 0, 0, 0;
+  --tint-rgb: 255, 255, 255;
+
+  --card-bg: rgba(30, 27, 24, .72);
+  --mask: rgba(0, 0, 0, .56);
+  --shadow-color: rgba(0, 0, 0, .5);
+  --page-glow-primary: .10;
+  --page-glow-success: .05;
 
   /* 旧变量名保留并映射到新色板，避免组件样式断裂 */
   --bg-base: var(--bg0);
@@ -22,12 +81,88 @@
   --green: var(--success);
   --red: var(--danger);
 }
+
+html[data-theme="light"] {
+  /* ===== 暖纸日光 / 日间模式 ===== */
+  color-scheme: light;
+  --bg0: #F3EDE3;
+  --bg1: #FCF8F1;
+  --bg2: #F7F0E4;
+  --surface-deep: #F8F2E8;
+  --surface-raised: #F5ECDD;
+  --surface-sunken: #EADFCE;
+  --surface-hover: #F2E7D6;
+  --surface-active: #EDDFC9;
+  --viewer: #DED2C0;
+  --grad-end: #F3EDE3;
+  --drawer-a: #FCF8F1;
+  --drawer-b: #F2E9DB;
+  --drawer-border: #D8C8B2;
+
+  --heading: #2A2520;
+  --txt: #2A2520;
+  --txt-soft: #5E5348;
+  --muted: #7C7165;
+  --muted-soft: #968878;
+
+  --line: #E5DAC8;
+  --line-soft: #F0E7DA;
+  --line-strong: #D8C8B2;
+  --line-warm: #BFA07B;
+  --scroll: #C7A984;
+
+  --primary: #8F552C;
+  --secondary: #F3E8D6;
+  --accent: #C7863F;
+  --accent-text: #8F552C;
+  --success: #506E1B;
+  --success-text: #506E1B;
+  --danger: #A63E36;
+  --danger-text: #8E332C;
+
+  --on-primary: #F3E8D6;
+  --on-accent: #2A2520;
+  --on-success: #F3E8D6;
+  --on-danger: #F3E8D6;
+
+  --dot-accent: #F0E3CE;
+  --dot-beat: #EEE1CC;
+  --dot-sub: #F1E2C8;
+  --dot-sub-line: #C7863F;
+  --chart-current: #8F552C;
+  --chart-bar: #C7863F;
+  --tap-a: #F6EBDD;
+  --tap-b: #EFE3D3;
+  --edge-warm: #C7863F;
+  --edge-handle: #B88A5D;
+
+  --bg1-rgb: 252, 248, 241;
+  --bg2-rgb: 247, 240, 228;
+  --deep-rgb: 248, 242, 232;
+  --primary-rgb: 143, 85, 44;
+  --accent-rgb: 199, 134, 63;
+  --secondary-rgb: 243, 232, 214;
+  --heading-rgb: 42, 37, 32;
+  --txt-rgb: 42, 37, 32;
+  --muted-rgb: 124, 113, 101;
+  --danger-rgb: 166, 62, 54;
+  --success-rgb: 80, 110, 27;
+  --shadow-rgb: 74, 49, 29;
+  --tint-rgb: 255, 255, 255;
+
+  --card-bg: rgba(252, 248, 241, .84);
+  --mask: rgba(42, 37, 32, .38);
+  --shadow-color: rgba(74, 49, 29, .16);
+  --page-glow-primary: .06;
+  --page-glow-success: .04;
+}
+
 * { box-sizing: border-box; }
 html, body {
   height: 100%; margin: 0;
   background:
-    radial-gradient(1100px 620px at 78% -12%, rgba(184, 123, 76, 0.10), transparent 62%),
-    radial-gradient(900px 540px at 8% 108%, rgba(107, 142, 35, 0.05), transparent 60%),
+    radial-gradient(1100px 620px at 78% -12%, rgba(var(--primary-rgb), var(--page-glow-primary)), transparent 62%),
+    radial-gradient(900px 540px at 8% 108%, rgba(var(--success-rgb), var(--page-glow-success)), transparent 60%),
     var(--bg0);
   color: var(--txt);
   font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", -apple-system, sans-serif;
@@ -41,54 +176,54 @@ body { display: flex; flex-direction: column; }
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 8px;
   padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 10px calc(20px + env(safe-area-inset-left));
-  background: linear-gradient(180deg, rgba(30, 27, 24, 0.98), rgba(23, 20, 17, 0.98));
+  background: linear-gradient(180deg, rgba(var(--bg1-rgb), .98), rgba(var(--bg2-rgb), .98));
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 28px rgba(var(--shadow-rgb), .28);
   backdrop-filter: blur(10px);
   position: relative; z-index: 20;
 }
-.brand { flex: 1 1 100%; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 9px; color: var(--secondary); letter-spacing: .3px; }
-.brand-icon { width: 26px; height: 26px; object-fit: contain; border-radius: 7px; flex-shrink: 0; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, .24); }
+.brand { flex: 1 1 100%; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 9px; color: var(--heading); letter-spacing: .3px; }
+.brand-icon { width: 26px; height: 26px; object-fit: contain; border-radius: 7px; flex-shrink: 0; display: block; box-shadow: 0 3px 10px rgba(var(--shadow-rgb), .24); }
 .version-chip {
   font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .3px;
-  background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line); border-radius: 999px;
+  background: rgba(var(--tint-rgb), 0.02); border: 1px solid var(--line); border-radius: 999px;
   padding: 2px 8px; cursor: pointer; font-family: inherit; line-height: 1.6;
   transition: color .2s, border-color .2s, background .2s;
 }
-.version-chip:hover { color: var(--accent); border-color: rgba(217, 158, 106, 0.55); }
-.version-chip.has-update { color: var(--accent); border-color: var(--accent); }
+.version-chip:hover { color: var(--accent-text); border-color: rgba(var(--accent-rgb), 0.55); }
+.version-chip.has-update { color: var(--accent-text); border-color: var(--accent); }
 .version-chip:disabled { opacity: .6; cursor: default; }
 .settings-chip {
   width: 27px; height: 27px; flex-shrink: 0; border-radius: 50%;
   margin-left: auto;
   display: grid; place-items: center; padding: 0;
-  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line); background: rgba(var(--tint-rgb), 0.02);
   color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer;
   font-family: inherit; transition: color .2s, border-color .2s, background .2s, transform .2s;
 }
-.settings-chip:hover { color: var(--accent); border-color: rgba(217, 158, 106, 0.55); background: rgba(184, 123, 76, 0.08); }
+.settings-chip:hover { color: var(--accent-text); border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--primary-rgb), 0.08); }
 .settings-chip:active { transform: rotate(18deg); }
 
 .app-toast {
   position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(10px);
-  background: rgba(30, 27, 24, 0.97); color: var(--txt); border: 1px solid var(--line);
+  background: rgba(var(--bg1-rgb), .97); color: var(--txt); border: 1px solid var(--line);
   padding: 11px 18px; border-radius: 14px; font-size: 13px; max-width: 86vw;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 30px var(--shadow-color);
   opacity: 0; pointer-events: none; transition: .2s; z-index: 9999; text-align: center;
 }
 .app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 .tabs { display: flex; gap: 8px; }
 .tab-btn {
-  background: rgba(255, 255, 255, 0.015); border: 1px solid var(--line); color: var(--muted);
+  background: rgba(var(--tint-rgb), 0.015); border: 1px solid var(--line); color: var(--muted);
   padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: 0.2s;
   font-family: inherit; letter-spacing: .5px;
 }
-.tab-btn:hover { color: var(--secondary); border-color: rgba(184, 123, 76, 0.55); }
+.tab-btn:hover { color: var(--heading); border-color: rgba(var(--primary-rgb), 0.55); }
 .tab-btn.active {
-  color: var(--secondary); border-color: var(--primary);
-  background: linear-gradient(180deg, rgba(217, 158, 106, 0.20), rgba(184, 123, 76, 0.12));
-  box-shadow: inset 0 1px 0 rgba(243, 232, 214, 0.08), 0 4px 14px rgba(0, 0, 0, 0.22);
+  color: var(--heading); border-color: var(--primary);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(var(--primary-rgb), 0.10));
+  box-shadow: inset 0 1px 0 rgba(var(--secondary-rgb), 0.08), 0 4px 14px rgba(var(--shadow-rgb), 0.22);
 }
 
 .app-main {
@@ -105,13 +240,13 @@ body { display: flex; flex-direction: column; }
 .placeholder {
   flex: 1; display: flex; align-items: center; justify-content: center;
   font-size: 20px; color: var(--muted); border: 1px dashed var(--line); margin: 20px; border-radius: 18px;
-  background: rgba(30, 27, 24, 0.45);
+  background: rgba(var(--bg1-rgb), 0.45);
 }
 
-/* 滚动条跟随木质色板 */
-* { scrollbar-width: thin; scrollbar-color: #4a3a2c transparent; }
+/* 滚动条跟随当前主题色板 */
+* { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: #4a3a2c; border-radius: 999px; }
+*::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 999px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 button:focus, button:focus-visible {
@@ -120,6 +255,6 @@ button:focus, button:focus-visible {
 button { -webkit-tap-highlight-color: transparent; }
 html, body, * { -webkit-tap-highlight-color: transparent; }
 input:focus-visible, select:focus-visible {
-  outline: 2px solid rgba(217, 158, 106, 0.55);
+  outline: 2px solid rgba(var(--accent-rgb), 0.55);
   outline-offset: 2px;
 }

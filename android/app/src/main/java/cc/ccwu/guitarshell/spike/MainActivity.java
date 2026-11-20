@@ -30,21 +30,31 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(KeepAwakePlugin.class);
         registerPlugin(SaveBackupPlugin.class);
+        registerPlugin(ThemeBarsPlugin.class);
         super.onCreate(savedInstanceState);
-        applyDarkSystemBars();
+        applyThemeSystemBars("deep");
         if (savedInstanceState == null) showSplashOverlay();
     }
 
-    private void applyDarkSystemBars() {
-        getWindow().setStatusBarColor(Color.rgb(14, 16, 19));
-        getWindow().setNavigationBarColor(Color.rgb(14, 16, 19));
+    public void applyThemeSystemBars(String theme) {
+        boolean light = "light".equals(theme);
+        int barColor = light ? Color.rgb(243, 237, 227) : Color.rgb(14, 16, 19);
+        getWindow().setStatusBarColor(barColor);
+        getWindow().setNavigationBarColor(barColor);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             getWindow().setNavigationBarContrastEnforced(false);
         }
         int flags = getWindow().getDecorView().getSystemUiVisibility();
-        flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        if (light) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+        } else {
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
         }
         getWindow().getDecorView().setSystemUiVisibility(flags);
     }

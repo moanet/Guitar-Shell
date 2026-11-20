@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="deep">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=resizes-content">
@@ -11,6 +11,20 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- 主题先落到 html 上，避免浅色模式启动时先闪一下深色 -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('gs_theme');
+        var theme = stored === 'light' ? 'light' : 'deep';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'light' ? '#F3EDE3' : '#121110');
+      } catch (err) {}
+    })();
+  </script>
 
   <!-- 样式与图标（全部相对路径，Pages 子目录 / 本地根目录都能用） -->
   <link rel="stylesheet" href="./css/layout.css">

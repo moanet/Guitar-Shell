@@ -3,6 +3,21 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
+## 0.0.8.10 — 暖纸日光 · 日间模式（浏览器验收通过，Android 构建通过）
+
+- **新增日间主题**：按用户提供的浅色九色色板新增「暖纸日光 · 日间模式」：背景 `#F3EDE3`、卡片 / 面板 `#FCF8F1`、主品牌 `#8F552C`、辅品牌 `#F3E8D6`、强调 `#C7863F`、常规文字 `#2A2520`、次要文字 `#7C7165`、成功 `#506E1B`、危险 `#A63E36`；边框 `#E5DAC8`。保留深色「复古木质 · 深夜琴房」原值不变。
+- **双主题切换**：新增 `js/services/theme.js`，主题持久化在 `localStorage` 的 `gs_theme`，首次启动仍为深色；设置抽屉「外观」改为两张可点按主题卡，带 `aria-pressed` 与「使用中」标签，点按即切换，不再弹 Toast。
+- **防启动闪色**：`index.html` 在样式表前内联读取 `gs_theme`，先落 `data-theme`、`color-scheme` 和 `meta[name=theme-color]`；浅色启动不会先闪深色。
+- **全链路 token 化**：`css/layout.css` 重写为深 / 浅双主题 token，页面渐变、Header、Tabs、Toast、滚动条、焦点描边、遮罩、阴影、RGB 辅助色全部主题化；`sheet-reader.js`、`metronome.js`、`practice-log.js`、`tuner.js` 四个 Shadow DOM 组件完成换肤，硬编码色基本清零。
+- **Canvas / SVG 跟随主题**：节拍器主 Canvas 与读谱迷你节拍器 Canvas 改为从 CSS 变量读取颜色，监听 `gs-theme-changed` 后重绘；练琴趋势 SVG 改为 `.bar` / `.bar.current` / `.axis-label` class，颜色走 `--chart-bar` / `--chart-current` / `--muted`，切主题无需重绘。
+- **Android 系统栏**：新增 `ThemeBarsPlugin` 并在 `MainActivity` 注册，公开 `applyThemeSystemBars(String theme)`；深色状态栏 / 导航栏 `#0E1013` + 浅色图标，日间 `#F3EDE3` + 深色图标。`theme.js` 同时支持 `Plugins.ThemeBars` 与 `Capacitor.nativePromise('ThemeBars', 'setTheme')` 两条调用路径，兼容零构建 Capacitor 壳。
+- **修复窄屏遮挡**：读谱「上次读到的位置」提示条改为按工具栏真实高度定位，390px 下工具栏换行时不再盖住「书签」按钮。
+- **浏览器验收**：390×844 / 360×800 浅色均无横向溢出；`theme=light`、`meta=#F3EDE3`、`bg0=#F3EDE3`、`bg1=#FCF8F1`、`primary=#8F552C`、`heading=#2A2520`；设置抽屉 `active=light`、日间卡 `aria-pressed=true`；切回深色 `meta=#121110`、`primary=#B87B4C`、`heading=#F3E8D6`；书架卡片 `rgb(245,236,221)`、读谱工具栏 `rgb(252,248,241)`、记录当前柱 `rgb(143,85,44)`、调音器按钮渐变 `rgb(199,134,63)→rgb(143,85,44)`；`errors: []`。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 20` / `versionName 0.0.8.10`；`dexdump` 已含 `ThemeBarsPlugin`；APK 内含 `assets/public/js/services/theme.js`、`version.js`、`css/layout.css` 与 `assets/splash.html`。
+- debug APK `5,133,204` 字节；SHA-256 `F1DA1EC0AF3A16C6DBF65251E02BFFD7F87AE422BCA8CD0BEF71071E33FFB29D`；debug 签名 v1 / v2 校验通过。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.10`；`package.json` / `package-lock.json` `0.0.8.10`；Android `versionCode 20` / `versionName 0.0.8.10`。
+- **待真机确认**：当前无连接设备，浅色系统栏颜色与图标明暗尚未在真机观察；已构建 APK 供安装确认，确认后再补「实机验收通过」标记。
+
 ## 0.0.8.9 — 启动动画提速 + 蜗牛随机起点（已真机验收）
 
 - **启动时长压缩**：真机反馈 `0.0.8.8` 的启动层 2.3 秒偏慢；`MainActivity` 显示时间改为 `1200ms`，淡出改为 `260ms`，总时长约 `1.46s`，落在 1–1.5 秒目标区间。
