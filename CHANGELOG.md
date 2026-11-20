@@ -3,7 +3,7 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.8.7 — 数据管理归拢 + Android 原生备份（测试包待真机复测）
+## 0.0.8.7 — 数据管理归拢 + Android 原生备份（已真机验收）
 
 - **数据管理全部收进设置抽屉**：本地备份、从文件恢复、清空乐谱与练习记录、云同步入口统一放在右侧全局设置里；读谱页顶部不再保留备份 / 恢复 / 云同步按钮。
 - **云同步入口迁移**：设置抽屉「云同步」卡片点击后自动切到读谱页并打开原有坚果云 WebDAV 弹窗；账号、应用密码、路径、同步通道与冲突检测逻辑保持不变。
@@ -14,10 +14,11 @@
 - **备份文件名**：增加秒级时间戳，改为 `GuitarShell-backup-YYYYMMDD-HHmmss.json`，避免连续备份同名覆盖；备份 schema 仍为 2，恢复格式不变。
 - **Service Worker**：缓存清单补入 `settings.js` 与 `backup.js`，PWA 离线不会漏文件；`APP_VERSION` 与缓存名同步 `0.0.8.7`。
 - **浏览器验收**：390×844 下版本徽标 `v0.0.8.7`；品牌图标左距 20px、齿轮右距 20px、齿轮 27px；书架工具栏 `display:none`，搜索行依次为导入 74px、搜索 164px、排序 104px，标签栏与书架正常；设置抽屉宽 344px，云同步卡片可见；点击云同步后自动切到读谱页且 `cloudModalMask` 为 `modal-mask show`；打开谱面后工具栏恢复，仅返回 / 打卡 / 存进度 / 书签；Android UA 下导入按钮打开 `action-sheet-mask show`，文件夹按钮隐藏；网页端 `saveBackupFile()` 正确回退为 `native:false` / 浏览器下载目录；JS 错误列表为空。
-- **未做真机点击验证**：当前无连接设备，`SaveBackup` 的 MediaStore 实际写盘、文件管理器可见性与 `Download/GuitarShell` 路径需真机确认；网页端下载回退路径已验证。
+- **真机验收通过**：用户确认 `0.0.8.7` 实机验收通过，原生备份实际落盘、`Download/GuitarShell` 路径可见；设置抽屉数据管理 / 云同步入口、读谱书架精简、齿轮右对齐均通过。此前无连接设备时保留的 `SaveBackup` MediaStore 写盘风险已关闭。
 - **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 17` / `versionName 0.0.8.7`，`WRITE_EXTERNAL_STORAGE maxSdkVersion=28`，启动图标仍为 `res/mipmap-*/ic_launcher_gshell.png`；`classes4.dex` 已包含 `SaveBackupPlugin`。
 - debug APK `5,125,523` 字节；SHA-256 `414A360C03210AB4C9345E88DD5D321FF52075A4E2AA8A5244205B3A35577F43`；debug 签名 v1 / v2 校验通过。
 - 版本：网页 / SW `APP_VERSION = 0.0.8.7`；`package.json` / `package-lock.json` `0.0.8.7`；Android `versionCode 17` / `versionName 0.0.8.7`。
+- **发布**：`0.0.8.7` 代码与文档已推送 GitHub `main`，GitHub Pages 已上线 `APP_VERSION = 0.0.8.7`；未创建 tag / Release。
 
 ## 0.0.8.6 — 全局设置抽屉 + 读谱热区缩小（已真机验收）
 
