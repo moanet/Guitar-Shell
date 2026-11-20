@@ -3,6 +3,28 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
+## 0.0.8.9 — 启动动画提速 + 蜗牛随机起点（已真机验收）
+
+- **启动时长压缩**：真机反馈 `0.0.8.8` 的启动层 2.3 秒偏慢；`MainActivity` 显示时间改为 `1200ms`，淡出改为 `260ms`，总时长约 `1.46s`，落在 1–1.5 秒目标区间。
+- **蜗牛随机起点**：`android/app/src/main/assets/splash.html` 的 `A_START` 由固定 `120°`（七点钟）改为 `Math.random() * 2π`，每次启动从轨道随机角度顺时针爬行；10 秒一圈、16 段渐隐拖尾、80° 实体段、0.45 不透明度、品牌文案与三点闪烁全部保持不变。首圈拖尾继续从随机起点裁剪，不会出现整圈亮起。
+- **随机性验收**：浏览器连续重载 4 次，采样起点角度为 `-149.9°` / `91.4°` / `-52.1°` / `18.6°`，确认每次不同；启动页仍无滚动溢出，JS 错误列表为空。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 19` / `versionName 0.0.8.9`；APK 内含 `assets/splash.html` 与最新 `sheet-reader.js`；`classes4.dex` 已含 `MainActivity`。
+- debug APK `5,102,363` 字节；SHA-256 `909EBA4D90F6A3E1993149B08F1DE3E5B46622322C316025E490206DA02E05CA`；debug 签名 v1 / v2 校验通过。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.9`；`package.json` / `package-lock.json` `0.0.8.9`；Android `versionCode 19` / `versionName 0.0.8.9`。
+- **验收与发布**：按用户确认标记 `0.0.8.9` 实机验收通过；代码与文档提交推送 GitHub `main`。
+
+## 0.0.8.8 — UI 终版：书架单行省略 + 附件终稿启动动画（已真机验收，启动时长由 0.0.8.9 修正）
+
+- **书架标题单行省略**：`js/components/sheet-reader.js` 的 `.score-name` 从两行 clamp / `word-break: break-all` 改为 `display: block` + `width: 100%` + `white-space: nowrap` + `overflow: hidden` + `text-overflow: ellipsis`。超长文件名只占一行，尾部显示省略号；完整名称继续放在卡片 `title` 属性里，长按 / 悬浮可看全名。
+- **书架验收**：390×844 下标题宽 `147px`、高 `17px`、`scrollWidth=504`、`clientWidth=147`，`whiteSpace=nowrap` / `textOverflow=ellipsis`；360×800 下宽 `132px`、高 `17px`，同为单行省略；卡片标签与书架布局不变。
+- **启动动画终稿接入**：把 `splash-preview/splash-final.html` 复制为 `android/app/src/main/assets/splash.html`，保留轨道 G（`#A46B40`）、奶白蜗牛、16 段线性渐隐拖尾、10 秒一圈、从七点钟方向顺时针爬行、三点闪烁；布局改成全屏，适配安全区，不再显示 300×540 手机外框。
+- **原生启动层**：`MainActivity` 在 Capacitor 加载应用的同时叠加全屏 WebView 动画层，显示 2.3 秒后以 380ms 淡出并销毁；动画层拦截触摸，加载期间不会误触底层页面；系统状态栏 / 导航栏同步 `#0E1013`，`AppTheme.NoActionBarLaunch` 背景改为深色，原 Capacitor 蓝色 X 启动图不再出现。
+- **启动页验收**：390×844 下 `.phone` 为 390×844、SVG 226×226、`scrollWidth=390` / `scrollHeight=844`，无滚动溢出；蜗牛在 0.9 秒与 1.8 秒的 `transform` 不同，拖尾 16 条 path 正常；360×800 下 SVG 209×209、`scrollWidth=360`，无横向溢出；JS 错误列表为空。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 18` / `versionName 0.0.8.8`；APK 内含 `assets/splash.html`、`assets/public/js/components/sheet-reader.js` 与 `assets/public/sw.js`；`classes4.dex` 已含 `MainActivity` 与 `splash.html` 字符串。
+- debug APK `5,102,350` 字节；SHA-256 `D1DEC29D8A54B7E3418F687358A7335FCD8041AED3E61E9ABDFDD4777DB99614`；debug 签名 v1 / v2 校验通过。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.8`；`package.json` / `package-lock.json` `0.0.8.8`；Android `versionCode 18` / `versionName 0.0.8.8`。
+- **真机反馈**：书架长标题单行省略、启动动画视觉与系统栏衔接通过；唯一问题是启动层 2.3 秒偏慢，由 `0.0.8.9` 缩短到约 1.46 秒并改为随机起点。
+
 ## 0.0.8.7 — 数据管理归拢 + Android 原生备份（已真机验收）
 
 - **数据管理全部收进设置抽屉**：本地备份、从文件恢复、清空乐谱与练习记录、云同步入口统一放在右侧全局设置里；读谱页顶部不再保留备份 / 恢复 / 云同步按钮。

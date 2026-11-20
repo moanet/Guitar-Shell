@@ -63,7 +63,7 @@ const readerCSS = `
   .score-card { background: #241f1b; border: 1px solid #2c2622; border-radius: 16px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; position: relative; transition: 0.2s; overflow: hidden; }
   .score-card:hover { background: #2f2822; border-color: #b87b4c; transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.24); }
   .score-icon { font-size: 36px; margin-bottom: 8px; }
-  .score-name { font-size: 13px; text-align: center; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+  .score-name { font-size: 13px; text-align: center; display: block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
   
   .card-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
   .card-tag { font-size: 9px; padding: 2px 6px; border-radius: 6px; background: rgba(184, 123, 76, 0.14); color: #d99e6a; border: 1px solid rgba(184, 123, 76, 0.3); }

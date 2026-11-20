@@ -1,15 +1,122 @@
 package cc.ccwu.guitarshell.spike;
 
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    private static final long SPLASH_HOLD_MS = 1200;
+    private static final long SPLASH_FADE_MS = 260;
+
+    private WebView splashOverlay;
+    private final Runnable splashFadeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            fadeOutSplash();
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(KeepAwakePlugin.class);
         registerPlugin(SaveBackupPlugin.class);
         super.onCreate(savedInstanceState);
+        applyDarkSystemBars();
+        if (savedInstanceState == null) showSplashOverlay();
+    }
+
+    private void applyDarkSystemBars() {
+        getWindow().setStatusBarColor(Color.rgb(14, 16, 19));
+        getWindow().setNavigationBarColor(Color.rgb(14, 16, 19));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+        int flags = getWindow().getDecorView().getSystemUiVisibility();
+        flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(flags);
+    }
+
+    private void showSplashOverlay() {
+        if (splashOverlay != null) return;
+        FrameLayout root = findViewById(android.R.id.content);
+        if (root == null) return;
+
+        WebView splash = new WebView(this);
+        splash.setBackgroundColor(Color.rgb(14, 16, 19));
+        splash.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        splash.setVerticalScrollBarEnabled(false);
+        splash.setHorizontalScrollBarEnabled(false);
+        splash.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        splash.setFocusable(false);
+        splash.setClickable(false);
+        splash.setOnTouchListener((view, event) -> true);
+        splash.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+
+        WebSettings settings = splash.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setDomStorageEnabled(false);
+        settings.setMediaPlaybackRequiresUserGesture(true);
+
+        splash.setWebViewClient(new WebViewClient());
+        splash.loadUrl("file:///android_asset/splash.html");
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
+        splash.setAlpha(0f);
+        root.addView(splash, params);
+        splashOverlay = splash;
+
+        splash.animate().alpha(1f).setDuration(160).start();
+        splash.postDelayed(splashFadeRunnable, SPLASH_HOLD_MS);
+    }
+
+    private void fadeOutSplash() {
+        final WebView splash = splashOverlay;
+        if (splash == null) return;
+        splash.animate()
+            .alpha(0f)
+            .setDuration(SPLASH_FADE_MS)
+            .withEndAction(new Runnable() {
+                @Override
+                public void run() {
+                    ViewParent parent = splash.getParent();
+                    if (parent instanceof ViewGroup) {
+                        ((ViewGroup) parent).removeView(splash);
+                    }
+                    splash.destroy();
+                    if (splashOverlay == splash) splashOverlay = null;
+                }
+            })
+            .start();
+    }
+
+    @Override
+    public void onDestroy() {
+        if (splashOverlay != null) {
+            splashOverlay.removeCallbacks(splashFadeRunnable);
+            ViewParent parent = splashOverlay.getParent();
+            if (parent instanceof ViewGroup) {
+                ((ViewGroup) parent).removeView(splashOverlay);
+            }
+            splashOverlay.destroy();
+            splashOverlay = null;
+        }
+        super.onDestroy();
     }
 }
