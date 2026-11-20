@@ -17,6 +17,7 @@
 - debug APK `5,133,204` 字节；SHA-256 `F1DA1EC0AF3A16C6DBF65251E02BFFD7F87AE422BCA8CD0BEF71071E33FFB29D`；debug 签名 v1 / v2 校验通过。
 - 版本：网页 / SW `APP_VERSION = 0.0.8.10`；`package.json` / `package-lock.json` `0.0.8.10`；Android `versionCode 20` / `versionName 0.0.8.10`。
 - **待真机确认**：当前无连接设备，浅色系统栏颜色与图标明暗尚未在真机观察；已构建 APK 供安装确认，确认后再补「实机验收通过」标记。
+- **发布**：代码与文档提交 `b9a0b17` 并推送 GitHub `main`，GitHub Pages 已上线 `APP_VERSION = 0.0.8.10`；GitHub Pre-release `v0.0.8.10` 已上传 `GuitarShell-B1-spike-0.0.8.10-debug.apk`，重新下载 SHA-256 与本地一致：`https://github.com/moanet/GuitarShell/releases/tag/v0.0.8.10`。
 
 ## 0.0.8.9 — 启动动画提速 + 蜗牛随机起点（已真机验收）
 
