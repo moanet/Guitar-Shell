@@ -26,6 +26,7 @@ const readerCSS = `
     padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
   button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
+  :host, * { -webkit-tap-highlight-color: transparent !important; }
   
   .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #1e1b18; border-bottom: 1px solid #2c2622; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
   .btn { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); padding: 9px 16px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(184,123,76,.18); }
@@ -125,7 +126,9 @@ const readerCSS = `
     align-items: center; justify-content: center;
     font-size: 30px; color: rgba(255,255,255,0.35); font-weight: bold;
     user-select: none; -webkit-user-select: none;
+    outline: none !important; -webkit-tap-highlight-color: transparent !important;
   }
+  .nav-zone:focus, .nav-zone:focus-visible, .nav-zone:active { outline: none !important; }
   .nav-zone.show { display: flex; }
   .nav-zone:hover, .nav-zone:active { opacity: 1; background: rgba(0,0,0,0.18); }
   .nav-zone.left { left: 20px; }
@@ -1039,7 +1042,7 @@ class SheetReader extends HTMLElement {
         const d = new Date(savedAt);
         when = `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
       }
-      const pageText = (total > 1) ? `第 ${page} 页` : '上次的位置';
+      const pageText = (total > 1) ? `第 ${page} 页` : '的位置';
       text.textContent = when ? `上次读到${pageText} · ${when}` : `上次读到${pageText}`;
       text.onclick = () => { onJump(); hideProgressBanner(); };
 
@@ -1048,6 +1051,8 @@ class SheetReader extends HTMLElement {
       banner.classList.remove('show');
       banner.style.display = 'flex';
       requestAnimationFrame(() => banner.classList.add('show'));
+      // 与底部“已恢复上次练习速度”提示保持一致：停留 2 秒
+      this.bannerTimer = setTimeout(() => hideProgressBanner(), 2000);
     };
 
     $('pbClose').onclick = () => hideProgressBanner();

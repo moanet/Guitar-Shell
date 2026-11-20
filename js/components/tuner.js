@@ -39,6 +39,7 @@ const REFERENCE_LEVELS = {
 };
 
 const tunerCSS = `
+  button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: linear-gradient(180deg, #171411, #121110); color: var(--txt); overflow: hidden; font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", -apple-system, sans-serif; align-items: center; justify-content: center; }
   
   .container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; padding: 16px 20px; gap: 20px; box-sizing: border-box; }

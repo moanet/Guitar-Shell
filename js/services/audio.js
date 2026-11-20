@@ -44,6 +44,7 @@ class AudioEngine {
     this.active = null;   // 当前活跃的节拍句柄，用于互斥
     this._chimeBuffer = null;
     this._chimeLoading = null;
+    this._woodNoise = null;
   }
 
   isReady() {
@@ -86,6 +87,10 @@ class AudioEngine {
   // 统一发声：短促衰减的“哒”，音色 / 频率 / 音量可控
   // bus：该路节拍专属的总线，停止时静音它，就能掐掉已经排进 Web Audio 队列的尾音
   click(when, { freq = 1046, type = 'sine', level = 0.55, dur = 0.06, bus = null } = {}) {
+    if (type === 'woodblock') {
+      this.woodblock(when, { freq, level, bus });
+      return;
+    }
     const ctx = this.ctx;
     if (!ctx) return;
     const osc = ctx.createOscillator();
@@ -99,6 +104,67 @@ class AudioEngine {
     gain.connect(bus || this.master || ctx.destination);
     osc.start(when);
     osc.stop(when + dur + 0.02);
+  }
+
+  // 木鱼音色：低频木腔共鸣 + 高频敲击瞬态，短促、干脆，不是正弦/方波那种电子“哒”
+  woodblock(when, { freq = 1046, level = 0.55, bus = null } = {}) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = when || ctx.currentTime;
+    const peak = Math.max(0.0002, (level != null ? level : 0.55) * 0.95);
+    const base = Math.max(340, Math.min(1050, freq * 0.62));
+
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t0);
+    out.gain.exponentialRampToValueAtTime(peak, t0 + 0.0025);
+    out.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.075);
+    out.connect(bus || this.master || ctx.destination);
+
+    // 木腔的两个共振峰：基频稍微下滑，听感更像“叩”而不是“叮”
+    [[base, 0.92], [base * 2.15, 0.3]].forEach(([f, amp]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t0);
+      osc.frequency.exponentialRampToValueAtTime(f * 0.94, t0 + 0.045);
+      gain.gain.value = amp;
+      osc.connect(gain);
+      gain.connect(out);
+      osc.start(t0);
+      osc.stop(t0 + 0.09);
+    });
+
+    // 敲击瞬间的一小撮带通噪声，补足木头表面的“啪”感
+    const noise = this.getWoodNoise(ctx);
+    if (noise) {
+      const src = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const nGain = ctx.createGain();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(2100, t0);
+      filter.Q.setValueAtTime(0.8, t0);
+      nGain.gain.setValueAtTime(0.0001, t0);
+      nGain.gain.exponentialRampToValueAtTime(peak * 0.18, t0 + 0.0015);
+      nGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.022);
+      src.buffer = noise;
+      src.connect(filter);
+      filter.connect(nGain);
+      nGain.connect(out);
+      src.start(t0);
+      src.stop(t0 + 0.03);
+    }
+  }
+
+  getWoodNoise(ctx) {
+    if (this._woodNoise && this._woodNoise.sampleRate === ctx.sampleRate) return this._woodNoise;
+    const len = Math.ceil(ctx.sampleRate * 0.03);
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    }
+    this._woodNoise = buffer;
+    return buffer;
   }
 
   // 预加载自定义调准音效：开麦时调用一次，避免第一次“叮”来不及取文件
@@ -288,7 +354,8 @@ class AudioEngine {
       },
       // 运行中改音色 / 重音 / Swing：对下一次调度就生效（已排进队列的 100ms 不受影响）
       setTimbre(value) {
-        if (value === 'sine' || value === 'square' || value === 'triangle') state.timbre = value;
+        if (value === 'triangle') state.timbre = 'woodblock';
+        else if (value === 'sine' || value === 'square' || value === 'woodblock') state.timbre = value;
       },
       setAccents(list) {
         if (Array.isArray(list) && list.length) state.accents = list.slice();

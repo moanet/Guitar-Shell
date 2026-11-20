@@ -47,7 +47,8 @@ body { display: flex; flex-direction: column; }
   backdrop-filter: blur(10px);
   position: relative; z-index: 20;
 }
-.brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--secondary); letter-spacing: .3px; }
+.brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 9px; color: var(--secondary); letter-spacing: .3px; }
+.brand-icon { width: 26px; height: 26px; object-fit: contain; border-radius: 7px; flex-shrink: 0; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, .24); }
 .version-chip {
   font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .3px;
   background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line); border-radius: 999px;
@@ -103,7 +104,12 @@ body { display: flex; flex-direction: column; }
 *::-webkit-scrollbar-thumb { background: #4a3a2c; border-radius: 999px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
-button:focus-visible, input:focus-visible, select:focus-visible {
+button:focus, button:focus-visible {
+  outline: none !important;
+}
+button { -webkit-tap-highlight-color: transparent; }
+html, body, * { -webkit-tap-highlight-color: transparent; }
+input:focus-visible, select:focus-visible {
   outline: 2px solid rgba(217, 158, 106, 0.55);
   outline-offset: 2px;
 }

@@ -6,36 +6,45 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 }[ch]));
 
 const logCSS = `
+  button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #121110; color: #eae3d9; overflow: hidden; font-family: -apple-system, sans-serif; }
-  .stats-bar { display: flex; justify-content: space-around; padding: 20px; background: #1e1b18; border-bottom: 1px solid #2c2622; }
-  .stat-item { text-align: center; }
-  .stat-val { font-size: 24px; font-weight: 700; color: #d99e6a; margin-bottom: 4px; }
-  .stat-label { font-size: 12px; color: #8a8075; }
-  .form-box { padding: 16px; background: #181512; border-bottom: 1px solid #2c2622; display: flex; flex-direction: column; gap: 10px; }
+  .stats-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px; margin: 10px 4px 0; padding: 10px 4px 2px; border-top: 1px solid #2c2622; color: #8a8075; font-size: 12px; }
+  .stats-line .stat-val { font-size: 13px; font-weight: 700; color: #d99e6a; }
+  .stats-line .stats-sep { color: #5c5349; margin: 0 3px; }
+  .form-box { padding: 14px 16px 16px; background: #181512; border-bottom: 1px solid #2c2622; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+  .form-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .form-title { font-size: 13px; font-weight: 700; color: #f3e8d6; letter-spacing: .3px; }
+  .form-hint { font-size: 11px; color: #8a8075; }
   .input-row { display: flex; gap: 8px; }
   .inp { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 14px; outline: none; transition: 0.2s; }
   .inp:focus { border-color: #b87b4c; box-shadow: 0 0 0 2px rgba(184,123,76,.12); }
   .btn-submit { width: 100%; padding: 12px; background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 16px rgba(184,123,76,.18); }
-  .log-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .list-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px 0; font-size: 13px; font-weight: 700; color: #eae3d9; flex-shrink: 0; }
+  .list-count { font-size: 11px; font-weight: 400; color: #8a8075; }
+  .log-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
   .log-card { background: #241f1b; border: 1px solid #2c2622; border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
   .log-info { flex: 1; min-width: 0; }
   .log-title { font-size: 15px; font-weight: bold; color: #f3e8d6; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .log-detail { font-size: 12px; color: #8a8075; display: flex; gap: 12px; }
   .log-detail span { color: #d99e6a; font-weight: bold; }
   .btn-del { background: rgba(181, 74, 66, 0.12); color: #b54a42; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
-  .empty-tip { text-align: center; color: #8a8075; font-size: 14px; margin-top: 40px; }
+  .empty-tip { text-align: center; color: #8a8075; font-size: 14px; margin-top: 28px; }
   .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(217, 158, 106, 0.92); color: #1e1b18; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .trend-box { background: #171411; border-bottom: 1px solid #2c2622; flex-shrink: 0; }
-  .trend-head { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
-  .trend-title { font-size: 13px; font-weight: bold; color: #eae3d9; flex: 1; }
+  .trend-toggle-row { width: 100%; border: none; background: transparent; display: flex; align-items: center; gap: 9px; padding: 11px 16px; cursor: pointer; color: #eae3d9; font-family: inherit; text-align: left; }
+  .trend-toggle-row:hover { background: rgba(184,123,76,.06); }
+  .trend-title { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .trend-peek { flex: 1; min-width: 0; font-size: 12px; font-weight: 400; color: #8a8075; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trend-chevron { font-size: 14px; color: #8a8075; flex-shrink: 0; }
+  .trend-box:not(.collapsed) .trend-peek { display: none; }
   .seg { display: flex; background: #241f1b; border: 1px solid #2c2622; border-radius: 10px; padding: 2px; }
   .seg-btn { border: none; background: transparent; color: #8a8075; font-size: 12px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
   .seg-btn.active { background: #b87b4c; color: #1e1b18; font-weight: bold; }
-  .trend-toggle { border: none; background: transparent; color: #8a8075; font-size: 14px; cursor: pointer; padding: 2px 4px; }
-  .trend-body { padding: 0 12px 12px; overflow: hidden; }
+  .trend-body { max-height: 56vh; overflow-y: auto; padding: 0 12px 12px; }
   .trend-box.collapsed .trend-body { display: none; }
-  .trend-sub { font-size: 11px; color: #8a8075; padding: 0 16px 6px; }
+  .trend-controls { display: flex; justify-content: flex-end; padding: 0 4px 8px; }
+  .trend-sub { font-size: 12px; color: #8a8075; padding: 0 4px 6px; }
   .chart-wrap svg { display: block; width: 100%; height: auto; }
   .top-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
   .top-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
@@ -46,33 +55,42 @@ const logCSS = `
 `;
 
 const logHTML = `
-  <div class="stats-bar">
-    <div class="stat-item"><div class="stat-val" id="statCount">0</div><div class="stat-label">累计打卡</div></div>
-    <div class="stat-item"><div class="stat-val" id="statTime">0</div><div class="stat-label">累计分钟</div></div>
-  </div>
-  <div class="trend-box" id="trendBox">
-    <div class="trend-head">
-      <div class="trend-title">📊 练习趋势</div>
-      <div class="seg" id="segBtns">
-        <button class="seg-btn active" data-range="week">近 7 天</button>
-        <button class="seg-btn" data-range="month">近 12 月</button>
-      </div>
-      <button class="trend-toggle" id="trendToggle" title="展开 / 收起">▾</button>
-    </div>
-    <div class="trend-sub" id="trendSummary"></div>
-    <div class="trend-body">
-      <div class="chart-wrap" id="chartWrap"></div>
-      <div class="top-list" id="topList"></div>
-    </div>
-  </div>
   <div class="form-box">
+    <div class="form-head">
+      <span class="form-title">记录本次练习</span>
+      <span class="form-hint">填写后点保存</span>
+    </div>
     <div class="input-row"><input type="text" id="inpName" class="inp" placeholder="练习曲目 / 内容" maxlength="30"></div>
     <div class="input-row">
       <input type="number" id="inpTime" class="inp" placeholder="练习时长 (分钟)" min="1">
       <input type="number" id="inpBpm" class="inp" placeholder="最高 BPM (选填)" min="30" max="250">
     </div>
-    <button class="btn-submit" id="btnSubmit">✓ 记录本次练习</button>
+    <button class="btn-submit" id="btnSubmit">✓ 保存本次练习</button>
   </div>
+  <div class="trend-box collapsed" id="trendBox">
+    <button class="trend-toggle-row" id="trendToggle" type="button" aria-expanded="false">
+      <span class="trend-title">📊 练习趋势</span>
+      <span class="trend-peek" id="trendPeek">近 7 天 · 0 分钟</span>
+      <span class="trend-chevron" id="trendChevron">▸</span>
+    </button>
+    <div class="trend-body">
+      <div class="trend-controls">
+        <div class="seg" id="segBtns">
+          <button class="seg-btn active" data-range="week">近 7 天</button>
+          <button class="seg-btn" data-range="month">近 12 月</button>
+        </div>
+      </div>
+      <div class="trend-sub" id="trendSummary"></div>
+      <div class="chart-wrap" id="chartWrap"></div>
+      <div class="top-list" id="topList"></div>
+      <div class="stats-line">
+        <span>累计打卡</span><span class="stat-val" id="statCount">0</span><span>次</span>
+        <span class="stats-sep">·</span>
+        <span>累计</span><span class="stat-val" id="statTime">0</span><span>分钟</span>
+      </div>
+    </div>
+  </div>
+  <div class="list-head"><span>练习记录列表</span><span class="list-count" id="listCount">0 条</span></div>
   <div class="log-list" id="logList"><div class="empty-tip">还没有打卡记录，开始你的第一次练习吧！</div></div>
   <div class="toast" id="toast"></div>
 `;
@@ -106,8 +124,9 @@ class GuitarPracticeLog extends HTMLElement {
     const inpName = $('inpName'), inpTime = $('inpTime'), inpBpm = $('inpBpm');
     const btnSubmit = $('btnSubmit'), logList = $('logList');
     const statCount = $('statCount'), statTime = $('statTime'), toastEl = $('toast');
+    const listCount = $('listCount'), trendPeek = $('trendPeek');
     const chartWrap = $('chartWrap'), topList = $('topList'), trendSummary = $('trendSummary');
-    const segBtns = $('segBtns'), trendBox = $('trendBox'), trendToggle = $('trendToggle');
+    const segBtns = $('segBtns'), trendBox = $('trendBox'), trendToggle = $('trendToggle'), trendChevron = $('trendChevron');
 
     // ==================== 练习趋势（手写 SVG，不引库） ====================
     const DAY = 86400000;
@@ -136,9 +155,13 @@ class GuitarPracticeLog extends HTMLElement {
     };
 
     this.rangeMode = localStorage.getItem('gs_trend_range') === 'month' ? 'month' : 'week';
-    // 窄屏默认收起（图表点开再看），宽屏默认展开；用户手动切换过就按他的选择
-    const storedOpen = localStorage.getItem('gs_trend_open');
-    if (storedOpen === '0' || (storedOpen === null && window.innerWidth < 700)) trendBox.classList.add('collapsed');
+    const setTrendOpen = (open) => {
+      trendBox.classList.toggle('collapsed', !open);
+      trendToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      trendChevron.textContent = open ? '▾' : '▸';
+    };
+    // 默认收起：先看记录，需要看曲线时再展开
+    setTrendOpen(false);
 
     segBtns.querySelectorAll('.seg-btn').forEach(btn => {
       btn.onclick = () => {
@@ -147,13 +170,7 @@ class GuitarPracticeLog extends HTMLElement {
         if (this.currentLogs) this.renderTrend(this.currentLogs);
       };
     });
-    trendToggle.onclick = () => {
-      trendBox.classList.toggle('collapsed');
-      const open = trendBox.classList.contains('collapsed') ? '0' : '1';
-      localStorage.setItem('gs_trend_open', open);
-      trendToggle.textContent = open === '1' ? '▾' : '▸';
-    };
-    trendToggle.textContent = trendBox.classList.contains('collapsed') ? '▸' : '▾';
+    trendToggle.onclick = () => setTrendOpen(trendBox.classList.contains('collapsed'));
 
     this.renderTrend = (logs) => {
       segBtns.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === this.rangeMode));
@@ -170,6 +187,7 @@ class GuitarPracticeLog extends HTMLElement {
         const total = sumMinutes(logs.filter(l => l.createdAt >= today0 - 6 * DAY));
         const count = logs.filter(l => l.createdAt >= today0 - 6 * DAY).length;
         trendSummary.textContent = `近 7 天共 ${total} 分钟 · ${count} 次练习`;
+        trendPeek.textContent = `近 7 天 · ${total} 分钟`;
       } else {
         const now = new Date();
         for (let i = 11; i >= 0; i--) {
@@ -183,6 +201,7 @@ class GuitarPracticeLog extends HTMLElement {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
         const monthMin = sumMinutes(logs.filter(l => l.createdAt >= monthStart));
         trendSummary.textContent = `近 12 个月共 ${total} 分钟 · 本月 ${monthMin} 分钟`;
+        trendPeek.textContent = `近 12 月 · ${total} 分钟`;
       }
 
       chartWrap.innerHTML = logs.length
@@ -222,6 +241,7 @@ class GuitarPracticeLog extends HTMLElement {
       logList.innerHTML = '';
       let totalTime = 0;
       statCount.textContent = logs.length;
+      listCount.textContent = `${logs.length} 条`;
       if (logs.length === 0) {
         logList.innerHTML = `<div class="empty-tip">还没有打卡记录，开始你的第一次练习吧！</div>`;
         statTime.textContent = '0';

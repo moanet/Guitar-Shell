@@ -3,6 +3,29 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
+## 0.0.8.5 — 启动图标 / 按钮选中框 / 木鱼音色修正（测试包待真机复测）
+
+- **修复 0.0.8.4 未通过项：Android 启动图标**：放弃自适应前景铺满方案（真机上 G 撑满、背景被 MIUI 染棕）；改为独立 legacy 资源 `@mipmap/ic_launcher_gshell` / `ic_launcher_gshell_round`，按截图右侧 `GShell` 比例把源图缩至约 95% 居中，G 约占图标 74%，四周保留近黑 `#0E1014` 留白，圆角半径约 22%；同时覆盖 mdpi / hdpi / xhdpi / xxhdpi / xxxhdpi，避开系统自适应背景着色。
+- **清除按钮蓝色矩形选中框**：全局 `css/layout.css` 去掉按钮 focus-visible 琥珀 outline，改为 `button:focus, button:focus-visible { outline: none !important }` + `-webkit-tap-highlight-color: transparent`，并对 `html / body / *` 统一关闭点按高亮；`metronome.js` / `practice-log.js` / `tuner.js` / `sheet-reader.js` 四个 Shadow DOM 组件各自在样式顶部统一清除按钮、label、input、select 的 outline 与点按高亮。覆盖顶部四页切换、记录页“保存这次练习 / 练习趋势 / 近 7 天 / 近 12 月”、标题右侧版本徽标、读谱左右翻页热区 `div.nav-zone`（`navPrev` / `navNext`）及其他按钮。
+- **节拍器音色**：`TIMBRES` 用“木鱼”替换“三角”；`audio.js` 新增 `woodblock` 独立合成（木腔双正弦共振 + 短带通噪声瞬态 + 75ms 指数衰减），不是仅改标签；`setTimbre` 接受 `woodblock`，旧存档 `triangle` 自动迁移；节拍器与读谱迷你节拍器共用，音色同步生效。
+- **已在 0.0.8.4 真机验收通过并保留**：读谱单页提示“上次读到的位置”+ 2 秒停留；记录页默认“记录本次练习”+“练习记录列表”、“练习趋势”折叠、累计统计移入趋势底部；顶部标题栏 26px 自有品牌图标。
+- **已推送**：`0.0.8.5` 代码、图标资源、README 与 CHANGELOG 已提交并推送 GitHub；测试 APK 继续本地交付，不创建 Release。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.5`；`package.json` / `package-lock.json` `0.0.8.5`；Android `versionCode 15` / `versionName 0.0.8.5`。
+- **浏览器验收**：390×844 下版本徽标 `v0.0.8.5`；顶部四页切换、版本徽标、记录页保存 / 趋势 / 近 7 天 / 近 12 月、节拍器设置面板全部按钮、读谱书架 / 谱面工具栏按钮计算样式 `outline-style = none`、`-webkit-tap-highlight-color = rgba(0,0,0,0)`；读谱左右热区 `navPrev` / `navNext` 同时确认无 outline、点按高亮透明，全页蓝色高亮计数为 0；音色列表为“正弦 / 方波 / 木鱼”，`audioEngine.click({type:'woodblock'})` 无异常。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 15` / `versionName 0.0.8.5`，启动图标为 `res/mipmap-*/ic_launcher_gshell.png`（不再走 `mipmap-anydpi-v26` 自适应 XML）。
+- debug APK `5,110,820` 字节；SHA-256 `4CE1F9B59ADC73C9049974A9E5E7C4994F40062E20B0D1A051FF53D7311BDAAE`；debug 签名 v1 / v2 校验通过；真机复测待确认。
+
+## 0.0.8.4 — UI 细节修正第一版（图标未通过，已被 0.0.8.5 取代）
+
+- **读谱恢复提示**：单页谱由“上次读到上次的位置”改为“上次读到的位置”；提示条显示后停留 2 秒自动收起，与底部“已恢复上次练习速度”提示一致；多页谱仍显示具体页码。
+- **自有品牌图标**：顶部标题栏移除吉他 emoji，改用 `icon-gShell-192.png` 作为 26px 品牌图标；Android 使用 `icon-gShell-512.png` 重新生成 mdpi / hdpi / xhdpi / xxhdpi / xxxhdpi 的 `ic_launcher.png`、`ic_launcher_round.png` 与自适应前景 PNG；自适应背景色统一 `#0E1014`，移除默认白色 / 青色背景。
+- **记录页排版**：默认只展示“记录本次练习”表单 + “练习记录列表”；原“累计打卡 / 累计分钟”大统计栏删除并收进趋势面板底部；“练习趋势”改为一行折叠栏，显示近 7 天 / 近 12 月摘要，点击展开图表、TOP 排行和累计统计；累计值字号 13px，与趋势标题一致。
+- **浏览器验收**：390×844 下记录页默认 `trend-box collapsed`，统计元素高度 0；展开后图表 / TOP / 累计正常，`scrollWidth = 390`；读谱测试数据提示文案为“上次读到的位置 · 11月20日 13:40”，2 秒后 `display:none`；顶部图标 26×26，页面无 JS 异常。
+- **未发布**：本轮只生成测试 APK，未提交、未推送 GitHub，等待真机确认。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.4`；`package.json` / `package-lock.json` `0.0.8.4`；Android `versionCode 14` / `versionName 0.0.8.4`。
+- Android 构建：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 14` / `versionName 0.0.8.4`。
+- debug APK `5,029,116` 字节；SHA-256 `C88C51EBC356CE3E242C094E443FB467A408D161C87A34AED020BDB927BCB274`；真机复测待确认。
+
 ## 0.0.8.3 — UI 复古木质重构（真机验收通过并推送）
 
 - **视觉方向**：从赛博极客青绿风整体切到「复古木质 / 深夜琴房 / 咖啡馆」；取消青蓝、亮绿与霓虹发光，统一暖木、低饱和、大圆角。

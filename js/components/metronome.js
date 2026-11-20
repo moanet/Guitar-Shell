@@ -19,7 +19,7 @@ const metronomeCSS = `
     outline: none !important;
     -webkit-tap-highlight-color: transparent !important;
   }
-  button:focus { outline: none !important; }
+  button:focus, button:focus-visible { outline: none !important; }
   
   .main-inner {
     position: relative;
@@ -353,7 +353,7 @@ class GuitarMetronome extends HTMLElement {
       { id:'s', short:'十六', slots:[1,1,1,1] }
     ];
     const TIMBRES = [
-      { id:'sine', label:'正弦' }, { id:'square', label:'方波' }, { id:'triangle', label:'三角' }
+      { id:'sine', label:'正弦' }, { id:'square', label:'方波' }, { id:'woodblock', label:'木鱼' }
     ];
 
     const saveSettings = () => {
@@ -386,7 +386,11 @@ class GuitarMetronome extends HTMLElement {
           if (d.tsNum) this.timeSigNum = d.tsNum;
           if (d.tsDen) this.timeSigDen = d.tsDen;
           if (d.subId) this.currentSubId = d.subId;
-          if (d.timbre) this.currentTimbre = d.timbre;
+          if (d.timbre) {
+            this.currentTimbre = d.timbre === 'triangle'
+              ? 'woodblock'
+              : (['sine', 'square', 'woodblock'].includes(d.timbre) ? d.timbre : 'sine');
+          }
           if (Number.isFinite(d.swing)) this.swing = Math.min(100, Math.max(0, d.swing));
           if (Array.isArray(d.accents) && d.accents.length === this.timeSigNum) {
             this.accents = d.accents.map(a => ['accent', 'sub', 'beat', 'mute'].includes(a) ? a : 'beat');
