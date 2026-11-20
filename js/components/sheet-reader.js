@@ -3,6 +3,7 @@ import { webdavService } from '../services/webdav.js';
 import { vaultService } from '../services/vault.js';
 import { APP_VERSION, BACKUP_SCHEMA } from '../services/version.js';
 import { audioEngine } from '../services/audio.js';
+import { wakeLock } from '../services/wakelock.js';
 import { matchPinyin } from '../lib/pinyin.js';
 
 let pdfjsLib = null;
@@ -397,9 +398,15 @@ class SheetReader extends HTMLElement {
       if (!e.detail || e.detail.target !== 'view-reader') {
         if (this.stopMiniMetronome) this.stopMiniMetronome();
         if (this.fullscreen && this.setReaderFullscreen) this.setReaderFullscreen(false);
-      } else if (this.updatePdfWindow) {
-        // 回到读谱页：隐藏期间容器尺寸为 0，窗口可能被算歪，按当前尺寸重建一次
-        requestAnimationFrame(() => this.updatePdfWindow());
+        wakeLock.release('reader');
+      } else {
+        // 回到读谱页且仍有打开的谱面时，重新申请常亮
+        const viewer = this.shadowRoot.getElementById('viewer');
+        if (this.currentScoreId && viewer && viewer.style.display !== 'none') wakeLock.acquire('reader');
+        if (this.updatePdfWindow) {
+          // 回到读谱页：隐藏期间容器尺寸为 0，窗口可能被算歪，按当前尺寸重建一次
+          requestAnimationFrame(() => this.updatePdfWindow());
+        }
       }
     };
     window.addEventListener('app-tab-changed', this.handleTabChange);
@@ -429,6 +436,7 @@ class SheetReader extends HTMLElement {
   }
 
   disconnectedCallback() {
+    wakeLock.release('reader');
     if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
     if (this.observer) this.observer.disconnect();
     if (this.destroyPdf) this.destroyPdf();
@@ -1144,6 +1152,8 @@ class SheetReader extends HTMLElement {
       // 🌟 阅读模式收尾：热区对齐 + 启动 5 分钟兜底自动保存
       positionNavZones();
       startAutoSave();
+      // 读谱期间保持屏幕常亮，直到返回书架 / 切走读谱页
+      wakeLock.acquire('reader');
     };
 
     btnBack.onclick = async () => {
@@ -1152,6 +1162,7 @@ class SheetReader extends HTMLElement {
         try { await saveReadingProgress(false); } catch (e) { console.warn('返回时保存进度失败', e); }
       }
       stopAutoSave();
+      wakeLock.release('reader');
       hideProgressBanner();
       this.lastKnownPosition = null;
 

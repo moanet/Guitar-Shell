@@ -2,6 +2,7 @@
 // 1. 样式区域
 // ==========================================
 import { audioEngine } from '../services/audio.js';
+import { wakeLock } from '../services/wakelock.js';
 
 const metronomeCSS = `
   :host {
@@ -637,6 +638,7 @@ class GuitarMetronome extends HTMLElement {
         onStop: () => {
           if (!this.isRunning) return;
           this.isRunning = false;
+          wakeLock.release('metronome');
           stopCountdown();
           cancelAnimationFrame(this.rafId);
           this.queue = [];
@@ -646,12 +648,14 @@ class GuitarMetronome extends HTMLElement {
       });
       this.rafId = requestAnimationFrame(this.drawLoop);
       startCountdown();
+      wakeLock.acquire('metronome');
       playBtn.textContent = '停 止';
       playBtn.classList.add('running');
     };
 
     this.stop = () => {
       this.isRunning = false;
+      wakeLock.release('metronome');
       if (this.metronomeHandle) {
         const handle = this.metronomeHandle;
         this.metronomeHandle = null;

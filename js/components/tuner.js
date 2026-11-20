@@ -1,4 +1,5 @@
 import { audioEngine } from '../services/audio.js';
+import { wakeLock } from '../services/wakelock.js';
 import { showToast } from '../services/toast.js';
 import {
   detectYin,
@@ -670,6 +671,7 @@ class GuitarTuner extends HTMLElement {
           audioEngine.preloadChime();
           
           this.isListening = true;
+          wakeLock.acquire('tuner');
           btnToggle.textContent = '⏹ 停止调音';
           btnToggle.className = 'btn-toggle stop';
           statusText.textContent = '拨动琴弦...';
@@ -702,6 +704,7 @@ class GuitarTuner extends HTMLElement {
   stopTuner() {
     this.stopEpoch = (this.stopEpoch || 0) + 1;
     this.isListening = false;
+    wakeLock.release('tuner');
     this.stopReferenceTone();
     if (this.rafId) cancelAnimationFrame(this.rafId);
     if (this.stream) {

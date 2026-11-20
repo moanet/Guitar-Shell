@@ -3,7 +3,20 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.7.3 — B1-spike 体验修复（待真机复测）
+## 0.0.8.0 — C1b 屏幕常亮（待真机复测）
+
+- **新增常亮服务**：`js/services/wakelock.js` 统一管理屏幕常亮，按 reason 引用计数，允许节拍器 / 读谱 / 调音同时持有；`acquire` / `release` 幂等，`wakeLockState()` 供调试。
+- **双路径**：壳内优先调用 Capacitor 原生插件 `KeepAwake`（Android `FLAG_KEEP_SCREEN_ON`）；原生不可用时回退 `navigator.wakeLock.request('screen')`。原生插件调用失败会标记并自动回退，不阻塞页面。
+- **接入点**：节拍器 `start()` 申请 / `stop()` 与 `onStop` 释放；读谱 `openScore()` 申请 / `返回书架`、切走读谱页、组件卸载释放；调音 `isListening = true` 后申请 / `stopTuner()` 释放。
+- **可见性恢复**：`visibilitychange` 时页不可见则释放，回到前台仍有 reason 则自动补申请；`pagehide` 清空 reason，避免冷启动残留。
+- **原生层**：新增 `KeepAwakePlugin.java`（`enable` / `disable` / `isEnabled`），`MainActivity.onCreate()` 在 `super.onCreate()` 前注册；Manifest 补 `WAKE_LOCK`，用于 WebView 内 Web Wake Lock 回退路径。
+- **未引入前台服务**：后台 / 锁屏节拍器已由 `0.0.7.2` 真机验证续响；本轮不再叠加 Android 14 前台服务类型 / 通知权限复杂度。`FLAG_KEEP_SCREEN_ON` 只作用于窗口，切后台不会继续耗电。
+- 版本：网页 `APP_VERSION = 0.0.8.0`；`sw.js APP_VERSION = 0.0.8.0` 并补缓存 `js/services/wakelock.js`；`package.json` / `package-lock.json` `0.0.8.0`；Android `versionCode 11` / `versionName 0.0.8.0`。
+- 浏览器验证：节拍器启动 `active=true / mode=web / reasons=['metronome']`，停止后 `active=false`；打开谱面 `reasons=['reader']`，返回书架清空；用合成音频流启动调音 `reasons=['tuner']`，停止 / 切页后清空；同时申请两个 reason 后只释放一个，常亮仍保持。
+- Android 构建：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 11` / `versionName 0.0.8.0` 与 `WAKE_LOCK`；`dexdump` 在 `classes4.dex` 找到 `KeepAwakePlugin`。
+- debug APK `4,981,896` 字节；SHA-256 `DAB9E4467D72F222B18FD71A01D241BED75C30F28DD14380CE5AB64A6167CD14`；真机常亮效果待复测。
+
+## 0.0.7.3 — B1-spike 体验修复（真机验收通过）
 
 - **mini 节拍器步进**：`mmMinus` / `mmPlus` 此前只有按钮、没有事件绑定；现按 `±1 BPM` 步进，调用 `updateMmBpm()`，播放中同步 `mmHandle.setBpm()`，并广播 `bpm-changed` 给主节拍器。
 - **提示音干扰**：调准“叮”触发后设 420ms 检测保护窗（覆盖 0.32s 音效尾音 + 扬声器/采集延迟）；窗口内 `updatePitch()` 直接跳帧，不采样、不清历史，指针和音分读数保持上一帧。
@@ -11,7 +24,8 @@
 - **控件渐隐**：`＋ / − / 全屏` 与 mini 节拍器共用“谱面交互即 0.15 透明度、指针进入控件即实体化”的状态机；刚打开谱面保持实体化。
 - 版本：网页 `APP_VERSION = 0.0.7.3`；Android `versionCode 10` / `versionName 0.0.7.3`；debug APK 5,009,621 字节，SHA-256 `1D863853C4FE5E7C712C1D1C5B3FDDD1AB9F64BADC00B049D5BCBC8B536A55F9`。
 - 本地验证：mini 步进 `120 → 121 → 119`，播放中 handle 同步 `119 → 120 → 119`；合成麦克风采样确认提示音窗口内 `lastAnalysisAt` 冻结约 420ms 后恢复；594×891 全屏下工具栏 `display:none`、host 覆盖 `594×891`。
-- B1-spike `0.0.7.2` 已在真机验收，后台 / 锁屏节拍器可持续发声；C1b 仍保留常亮 Wake Lock、长时 Doze 与音频焦点兜底。
+- B1-spike `0.0.7.2` 已在真机验收，后台 / 锁屏节拍器可持续发声；C1b 继续补常亮、长时 Doze 与音频焦点兜底。
+- `0.0.7.3` 三项修复已真机复测通过。
 
 ## 0.0.7.2 — 标准音低音弦响度补偿（真机验收通过）
 
