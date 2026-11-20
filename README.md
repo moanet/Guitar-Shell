@@ -271,6 +271,7 @@ start-dev.bat
     - 蜗牛起点由固定七点钟改为每次启动随机角度，轨道速度、16 段渐隐拖尾、文案和视觉参数保持不变。
     - 浏览器连续重载 4 次，起点角度分别为 -149.9° / 91.4° / -52.1° / 18.6°，确认随机生效；JS 错误列表为空。
     - 验收包 `GuitarShell-B1-spike-0.0.8.9-debug.apk`（5,102,363 字节，SHA-256 `909EBA4D90F6A3E1993149B08F1DE3E5B46622322C316025E490206DA02E05CA`，`versionCode 19`，debug 签名 v1 / v2 校验通过）。
+    - GitHub Release `v0.0.8.9` 已上传 APK：`https://github.com/moanet/GuitarShell/releases/tag/v0.0.8.9`。
 - **下一步**：正式签名包。
 - **详细记录**：B0 清单、壳层风险表、`0.0.7.1～0.0.8.9` 修复细节与测试用例都在根目录 `CHANGELOG.md`。
 

@@ -11,7 +11,7 @@
 - **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 19` / `versionName 0.0.8.9`；APK 内含 `assets/splash.html` 与最新 `sheet-reader.js`；`classes4.dex` 已含 `MainActivity`。
 - debug APK `5,102,363` 字节；SHA-256 `909EBA4D90F6A3E1993149B08F1DE3E5B46622322C316025E490206DA02E05CA`；debug 签名 v1 / v2 校验通过。
 - 版本：网页 / SW `APP_VERSION = 0.0.8.9`；`package.json` / `package-lock.json` `0.0.8.9`；Android `versionCode 19` / `versionName 0.0.8.9`。
-- **验收与发布**：按用户确认标记 `0.0.8.9` 实机验收通过；代码与文档提交推送 GitHub `main`。
+- **验收与发布**：按用户确认标记 `0.0.8.9` 实机验收通过；代码与文档提交推送 GitHub `main`。GitHub Release `v0.0.8.9`（Pre-release）已上传 `GuitarShell-B1-spike-0.0.8.9-debug.apk`，下载后 SHA-256 与构建产物一致：`https://github.com/moanet/GuitarShell/releases/tag/v0.0.8.9`。
 
 ## 0.0.8.8 — UI 终版：书架单行省略 + 附件终稿启动动画（已真机验收，启动时长由 0.0.8.9 修正）
 
