@@ -14,6 +14,16 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 
 const readerCSS = `
   :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; position: relative; }
+  :host(.reader-fullscreen) {
+    position: fixed; inset: 0; z-index: 1000;
+    width: 100vw; height: 100vh; height: 100dvh;
+    background: #000;
+  }
+  :host(.reader-fullscreen) .toolbar { display: none !important; }
+  :host(.reader-fullscreen) .content-container {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
   button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   
   .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #191e27; border-bottom: 1px solid #2a3140; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
@@ -61,7 +71,8 @@ const readerCSS = `
   .content-container img, .content-container canvas { display: block; width: 100%; height: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
 
   .empty-tip { text-align: center; color: #6a7890; margin-top: 50px; grid-column: 1 / -1; }
-  .zoom-controls { position: absolute; bottom: 30px; right: 20px; display: none; flex-direction: column; gap: 8px; z-index: 20; }
+  .zoom-controls { position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); display: none; flex-direction: column; gap: 8px; z-index: 20; transition: opacity 0.25s ease; }
+  .zoom-controls.faded { opacity: 0.15; }
   .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   
   .mini-metronome { position: absolute; bottom: 30px; left: 20px; display: none; flex-direction: column; align-items: center; z-index: 20; }
@@ -233,8 +244,9 @@ const readerHTML = `
   </div>
 
   <div class="zoom-controls" id="zoomControls">
-    <button class="zoom-btn" id="zoomIn">＋</button>
-    <button class="zoom-btn" id="zoomOut">−</button>
+    <button class="zoom-btn" id="zoomIn" aria-label="放大">＋</button>
+    <button class="zoom-btn" id="zoomOut" aria-label="缩小">−</button>
+    <button class="zoom-btn" id="btnFullscreen" aria-label="进入全屏" title="全屏">⤢</button>
   </div>
 
   <div class="mini-metronome" id="miniMetronome">
@@ -371,6 +383,8 @@ class SheetReader extends HTMLElement {
     this.lastKnownPosition = null;   // 缓存的 { page, ratio, scrollY, total }
     this.bannerTimer = null;
     this.bookmarks = [];             // 🔖 当前谱的页级书签 [{ page, at }]
+    this.fullscreen = false;
+    this.nativeFullscreenActive = false;
   }
 
   connectedCallback() {
@@ -382,6 +396,7 @@ class SheetReader extends HTMLElement {
     this.handleTabChange = (e) => {
       if (!e.detail || e.detail.target !== 'view-reader') {
         if (this.stopMiniMetronome) this.stopMiniMetronome();
+        if (this.fullscreen && this.setReaderFullscreen) this.setReaderFullscreen(false);
       } else if (this.updatePdfWindow) {
         // 回到读谱页：隐藏期间容器尺寸为 0，窗口可能被算歪，按当前尺寸重建一次
         requestAnimationFrame(() => this.updatePdfWindow());
@@ -397,6 +412,20 @@ class SheetReader extends HTMLElement {
       if (e.detail.swing != null) this.mmHandle.setSwing(e.detail.swing);
     };
     window.addEventListener('metronome-settings', this.handleMetronomeSettings);
+
+    // 浏览器原生全屏被 Esc / 系统手势退出时，同步收回 CSS 全屏状态
+    // 只有「确实进过原生全屏」才响应退出，避免 requestFullscreen 失败时误判
+    this.handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        if (document.fullscreenElement === this) this.nativeFullscreenActive = true;
+        return;
+      }
+      if (!this.nativeFullscreenActive) return;
+      this.nativeFullscreenActive = false;
+      if (this.fullscreen) this.setReaderFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', this.handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', this.handleFullscreenChange);
   }
 
   disconnectedCallback() {
@@ -407,6 +436,14 @@ class SheetReader extends HTMLElement {
     if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
     if (this.handleTabChange) window.removeEventListener('app-tab-changed', this.handleTabChange);
     if (this.handleMetronomeSettings) window.removeEventListener('metronome-settings', this.handleMetronomeSettings);
+    if (this.handleFullscreenChange) document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
+    if (this.handleFullscreenChange) document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange);
+    if (document.fullscreenElement && document.exitFullscreen) {
+      try {
+        const p = document.exitFullscreen();
+        if (p && p.catch) p.catch(() => {});
+      } catch (err) {}
+    }
     if (this.handlePdfResize) window.removeEventListener('resize', this.handlePdfResize);
     if (this.positionNavZones) window.removeEventListener('resize', this.positionNavZones);
     clearTimeout(this.mmAutoCollapseTimer);
@@ -1039,6 +1076,7 @@ class SheetReader extends HTMLElement {
       
       if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
       miniMetronome.classList.remove('faded'); // 刚打开文件时保持实体化
+      zoomControls.classList.remove('faded');
       clearTimeout(this.mmAutoCollapseTimer);
 
       if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
@@ -1122,10 +1160,12 @@ class SheetReader extends HTMLElement {
       $('bookmarkMask').classList.remove('show');
       $('navPrev').classList.remove('show'); $('navNext').classList.remove('show');
 
-      viewer.style.display = 'none'; zoomControls.style.display = 'none'; btnLog.style.display = 'none'; miniMetronome.style.display = 'none'; 
+      viewer.style.display = 'none'; zoomControls.style.display = 'none'; btnLog.style.display = 'none'; miniMetronome.style.display = 'none';
+      if (this.setReaderFullscreen) this.setReaderFullscreen(false);
       if (this.stopMiniMetronome) this.stopMiniMetronome();
       if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
       miniMetronome.classList.remove('faded');
+      zoomControls.classList.remove('faded');
       clearTimeout(this.mmAutoCollapseTimer);
       
       btnBack.style.display = 'none'; shelfView.style.display = 'grid'; filterBar.style.display = 'flex';
@@ -1587,30 +1627,83 @@ class SheetReader extends HTMLElement {
       }
     };
 
-    // 🌟 沉浸式虚化状态机：谱面交互 → 虚化；鼠标移入节拍器 → 实体化（无自动恢复定时器）
+    // 🌟 沉浸式虚化状态机：谱面交互 → 虚化；鼠标移入控件 → 实体化（无自动恢复定时器）
     const setMmFaded = (faded) => {
       if (faded) miniMetronome.classList.add('faded');
       else miniMetronome.classList.remove('faded');
     };
+    const setZoomFaded = (faded) => {
+      if (faded) zoomControls.classList.add('faded');
+      else zoomControls.classList.remove('faded');
+    };
+    const fadeReaderChrome = () => {
+      if (!miniMetronome.classList.contains('faded')) setMmFaded(true);
+      if (!zoomControls.classList.contains('faded')) setZoomFaded(true);
+    };
+
+    // 🌟 全屏：CSS 先覆盖整个视口（兼容 WebView），再尽量申请浏览器原生全屏隐藏地址栏 / 状态栏
+    this.setReaderFullscreen = (on) => {
+      const next = !!on;
+      if (this.fullscreen === next) return;
+      this.fullscreen = next;
+      this.classList.toggle('reader-fullscreen', next);
+
+      const btn = $('btnFullscreen');
+      if (btn) {
+        btn.textContent = next ? '⤡' : '⤢';
+        btn.title = next ? '退出全屏' : '全屏';
+        btn.setAttribute('aria-label', next ? '退出全屏' : '进入全屏');
+      }
+      setMmFaded(false);
+      setZoomFaded(false);
+
+      if (next) {
+        // 壳内 WebView 不折腾原生 fullscreen：CSS 固定层已覆盖整个应用视口，
+        // 原生 API 在部分 WebView 会直接 reject / 闪退，反而打断阅读。
+        const isNativeShell = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+        const request = isNativeShell ? null : (this.requestFullscreen || this.webkitRequestFullscreen);
+        if (request) {
+          try {
+            const p = request.call(this);
+            if (p && p.catch) p.catch(() => {}); // 不支持就留在 CSS 全屏，不影响阅读
+          } catch (err) {}
+        }
+      } else if (document.fullscreenElement && document.exitFullscreen) {
+        this.nativeFullscreenActive = false;
+        try {
+          const p = document.exitFullscreen();
+          if (p && p.catch) p.catch(() => {});
+        } catch (err) {}
+      }
+    };
+
+    $('btnFullscreen').onclick = (e) => {
+      e.stopPropagation();
+      setZoomFaded(false);
+      this.setReaderFullscreen(!this.fullscreen);
+    };
 
     // 鼠标在谱面上移动即虚化（只在状态不同时写 DOM，避免每帧重排）
     viewer.addEventListener('pointermove', () => {
-      if (!miniMetronome.classList.contains('faded')) setMmFaded(true);
+      fadeReaderChrome();
     }, { passive: true });
 
-    // 鼠标移到节拍器上 / 手指按在节拍器上 → 立刻实体化
+    // 鼠标移到控件上 / 手指按在控件上 → 立刻实体化
     miniMetronome.addEventListener('pointerenter', () => setMmFaded(false));
     miniMetronome.addEventListener('pointerdown', () => setMmFaded(false));
     miniMetronome.addEventListener('touchstart', () => setMmFaded(false), { passive: true });
+    zoomControls.addEventListener('pointerenter', () => setZoomFaded(false));
+    zoomControls.addEventListener('pointerdown', () => setZoomFaded(false));
+    zoomControls.addEventListener('touchstart', () => setZoomFaded(false), { passive: true });
 
     viewer.addEventListener('wheel', (e) => {
-      setMmFaded(true); // 滚动谱面时虚化
+      fadeReaderChrome(); // 滚动谱面时虚化
       if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
       if (e.ctrlKey || e.metaKey) { e.preventDefault(); const delta = e.deltaY > 0 ? -0.15 : 0.15; this.scale = Math.max(1, Math.min(6, this.scale + delta)); applyScale(); }
     }, { passive: false });
     
     viewer.addEventListener('pointerdown', (e) => {
-      setMmFaded(true); // 触摸/拖拽谱面时虚化
+      fadeReaderChrome(); // 触摸/拖拽谱面时虚化
       if (miniMetronome.classList.contains('advanced')) miniMetronome.classList.remove('advanced');
       if (e.target.closest('.zoom-controls') || e.target.closest('.toolbar') || e.target.closest('.mini-metronome') || e.target.closest('.nav-zone')) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -1619,7 +1712,7 @@ class SheetReader extends HTMLElement {
 
     // 触屏按下谱面同样虚化
     viewer.addEventListener('touchstart', (e) => {
-      setMmFaded(true);
+      fadeReaderChrome();
       if (e.touches.length === 2) {
         this.isDragging = false;
         const t1 = e.touches[0], t2 = e.touches[1];
@@ -1635,6 +1728,7 @@ class SheetReader extends HTMLElement {
     $('zoomOut').onclick = () => { this.scale = Math.max(1, this.scale / 1.25); applyScale(); };
 
     const mmPlay = $('mmPlay'), mmBpmDisplay = $('mmBpmDisplay'), mmKnobCanvas = $('mmKnobCanvas'), mmKnobWrap = $('mmKnobWrap');
+    const mmMinus = $('mmMinus'), mmPlus = $('mmPlus');
     this.mmKnob.ctx = mmKnobCanvas.getContext('2d');
     const initMmKnob = () => {
       const size = 120, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -1730,6 +1824,14 @@ class SheetReader extends HTMLElement {
       if (this.mmPlaying) this.stopMiniMetronome();
       else startMiniMetronome();
     };
+
+    // mini 节拍器的步进按钮：与主节拍器一致，每次 ±1 BPM；播放中实时变速
+    const nudgeMmBpm = (delta) => (e) => {
+      e.stopPropagation();
+      updateMmBpm(this.mmBpm + delta, false);
+    };
+    mmMinus.onclick = nudgeMmBpm(-1);
+    mmPlus.onclick = nudgeMmBpm(1);
 
     // 🌟 左右翻页逻辑：切换前先保存当前进度，切换后直接回到目标谱的上次位置
     const openAdjacentScore = async (direction) => {

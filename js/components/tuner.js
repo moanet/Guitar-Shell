@@ -11,6 +11,10 @@ import {
   foldToGuitarFundamental
 } from '../services/pitch.js';
 
+// 提示音本身会被麦克风收进去：叮响的 0.32s 加上扬声器/采集尾音，
+// 这期间暂停 YIN，避免把提示音的低阶谐波当成琴声，把指针拽向右侧。
+const CHIME_DETECT_GUARD_MS = 420;
+
 const readBoolSetting = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key);
@@ -189,6 +193,7 @@ class GuitarTuner extends HTMLElement {
     this.feedbackVibrate = readBoolSetting('guitar_tuner_feedback_vibrate', true);
     this.wasInTune = false;
     this.lastFeedbackAt = -1e9;
+    this.chimeGuardUntil = 0;
 
     // C5b：A4 校准 / 标准音试听 / 音分曲线
     this.lastString = null;
@@ -397,6 +402,8 @@ class GuitarTuner extends HTMLElement {
         audioEngine.chime(audioEngine.currentTime + 0.01, {
           freq: 2093, level: 0.26, dur: 0.32
         });
+        // 叮的尾音还在空气里 / 麦克风里时不要继续测音，否则会被自己的提示音带偏
+        this.chimeGuardUntil = now + CHIME_DETECT_GUARD_MS;
       } catch (err) {}
     }
 
@@ -503,13 +510,19 @@ class GuitarTuner extends HTMLElement {
     const updatePitch = () => {
       if (!this.isListening || !this.analyser) return;
 
+      const now = performance.now();
+
       // 标准音播放期间暂停检测，避免把扬声器里的参考音当成琴声
       if (this.isPlayingRef) {
         this.rafId = requestAnimationFrame(updatePitch);
         return;
       }
+      // 调准提示音的保护窗口：保持上一帧读数，不采提示音，也不清空历史
+      if (now < this.chimeGuardUntil) {
+        this.rafId = requestAnimationFrame(updatePitch);
+        return;
+      }
       // 30fps 足够跟手，也把低端机的 CPU 留出来
-      const now = performance.now();
       if (now - this.lastAnalysisAt < 30) {
         this.rafId = requestAnimationFrame(updatePitch);
         return;
@@ -705,6 +718,7 @@ class GuitarTuner extends HTMLElement {
     this.lastValidAt = 0;
     this.wasInTune = false;
     this.lastFeedbackAt = -1e9;
+    this.chimeGuardUntil = 0;
     this.lastString = null;
     this.centsHistory = [];
     this.lastChartAt = 0;
