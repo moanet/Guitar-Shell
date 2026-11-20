@@ -1,6 +1,6 @@
 {
   "name": "guitar-shell-spike",
-  "version": "0.0.8.1",
+  "version": "0.0.8.3",
   "private": true,
   "description": "Guitar Shell B1-spike Android shell",
   "scripts": {
@@ -17,3 +17,4 @@
     "@capacitor/cli": "6.2.3"
   }
 }
+

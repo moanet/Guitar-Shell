@@ -14,11 +14,11 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 }[ch]));
 
 const readerCSS = `
-  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; position: relative; }
+  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #121110; color: #eae3d9; overflow: hidden; position: relative; }
   :host(.reader-fullscreen) {
     position: fixed; inset: 0; z-index: 1000;
     width: 100vw; height: 100vh; height: 100dvh;
-    background: #000;
+    background: #0f0d0b;
   }
   :host(.reader-fullscreen) .toolbar { display: none !important; }
   :host(.reader-fullscreen) .content-container {
@@ -27,92 +27,92 @@ const readerCSS = `
   }
   button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   
-  .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #191e27; border-bottom: 1px solid #2a3140; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
-  .btn { background: #38bdf8; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
-  .btn.outline { background: transparent; color: #38bdf8; border: 1px solid #38bdf8; }
-  .btn.outline:hover { background: rgba(56, 189, 248, 0.1); }
-  .btn-back { background: #2a3444; color: #fff; display: none; }
-  .btn-backup { background: #2a3444; color: #cfd8e6; font-size: 13px; padding: 8px 12px; }
-  .btn-log { background: #4ade80; color: #000; display: none; }
-  .btn-cloud { background: #c9a8f5; color: #000; padding: 8px 12px; }
+  .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #1e1b18; border-bottom: 1px solid #2c2622; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
+  .btn { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); padding: 9px 16px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(184,123,76,.18); }
+  .btn.outline { background: transparent; color: #d99e6a; border: 1px solid #6a4b32; box-shadow: none; }
+  .btn.outline:hover { background: rgba(184, 123, 76, 0.12); }
+  .btn-back { background: #3a2f26; color: #eae3d9; display: none; }
+  .btn-backup { background: #3a2f26; color: #eae3d9; font-size: 13px; padding: 8px 12px; }
+  .btn-log { background: #6b8e23; color: #1e1b18; display: none; }
+  .btn-cloud { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; padding: 8px 12px; }
   
   .pc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   
-  .filter-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #151a22; border-bottom: 1px solid #232b38; }
+  .filter-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #181512; border-bottom: 1px solid #2c2622; }
   .search-row { display: flex; gap: 8px; align-items: center; }
-  .search-inp { flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 14px; }
-  .search-inp:focus { border-color: #38bdf8; }
-  .sort-sel { flex: 0 0 auto; min-width: 104px; max-width: 42vw; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 13px; }
+  .search-inp { flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 14px; }
+  .search-inp:focus { border-color: #b87b4c; }
+  .sort-sel { flex: 0 0 auto; min-width: 104px; max-width: 42vw; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 13px; }
   .tag-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
   .tag-bar::-webkit-scrollbar { display: none; }
-  .tag-chip { padding: 4px 10px; border-radius: 12px; border: 1px solid #2a3444; background: #1b222d; font-size: 12px; cursor: pointer; white-space: nowrap; color: #8a93a6; }
-  .tag-chip.active { background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8; }
+  .tag-chip { padding: 4px 10px; border-radius: 12px; border: 1px solid #3a2f26; background: #241f1b; font-size: 12px; cursor: pointer; white-space: nowrap; color: #8a8075; }
+  .tag-chip.active { background: rgba(184, 123, 76, 0.20); border-color: #b87b4c; color: #f3e8d6; }
 
   .shelf-view { flex: 1; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; align-content: start; }
-  .score-card { background: #1b2230; border: 1px solid #2a3140; border-radius: 12px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; position: relative; transition: 0.2s; overflow: hidden; }
-  .score-card:hover { background: #252e3c; border-color: #38bdf8; transform: translateY(-2px); }
+  .score-card { background: #241f1b; border: 1px solid #2c2622; border-radius: 16px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; position: relative; transition: 0.2s; overflow: hidden; }
+  .score-card:hover { background: #2f2822; border-color: #b87b4c; transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.24); }
   .score-icon { font-size: 36px; margin-bottom: 8px; }
   .score-name { font-size: 13px; text-align: center; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
   
   .card-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
-  .card-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(201, 168, 245, 0.15); color: #c9a8f5; border: 1px solid rgba(201, 168, 245, 0.3); }
+  .card-tag { font-size: 9px; padding: 2px 6px; border-radius: 6px; background: rgba(184, 123, 76, 0.14); color: #d99e6a; border: 1px solid rgba(184, 123, 76, 0.3); }
   
   .card-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: 0.2s; }
   .score-card:hover .card-actions { opacity: 1; }
   .card-actions .action-btn { width: 22px; height: 22px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; }
-  .btn-edit { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-  .btn-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+  .btn-edit { background: rgba(184, 123, 76, 0.2); color: #b87b4c; }
+  .btn-delete { background: rgba(181, 74, 66, 0.2); color: #b54a42; }
 
-  .viewer { flex: 1; overflow: auto; position: relative; background: #121212; cursor: grab; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; display: none; }
+  .viewer { flex: 1; overflow: auto; position: relative; background: #0f0d0b; cursor: grab; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; display: none; }
   .viewer:active { cursor: grabbing; }
   .content-container { display: flex; flex-direction: column; align-items: center; min-width: 100%; width: 100%; padding: 20px 0; box-sizing: border-box; }
-  .page-box { width: 100%; margin-bottom: 15px; background: #1a1a1a; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-  .page-box::after { content: '加载中...'; color: #555; font-size: 12px; position: absolute; }
+  .page-box { width: 100%; margin-bottom: 15px; background: #181512; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+  .page-box::after { content: '加载中...'; color: #8a8075; font-size: 12px; position: absolute; }
   .page-box.loaded::after { display: none; }
   .content-container img, .content-container canvas { display: block; width: 100%; height: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
 
-  .empty-tip { text-align: center; color: #6a7890; margin-top: 50px; grid-column: 1 / -1; }
+  .empty-tip { text-align: center; color: #8a8075; margin-top: 50px; grid-column: 1 / -1; }
   .zoom-controls { position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); display: none; flex-direction: column; gap: 8px; z-index: 20; transition: opacity 0.25s ease; }
   .zoom-controls.faded { opacity: 0.15; }
-  .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 42, 58, 0.9); border: 1px solid #2f6f9e; color: #7fd4ff; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(30, 27, 24, 0.92); border: 1px solid #6a4b32; color: #d99e6a; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   
   .mini-metronome { position: absolute; bottom: 30px; left: 20px; display: none; flex-direction: column; align-items: center; z-index: 20; }
-  .mm-panel { background: rgba(30, 42, 58, 0.95); backdrop-filter: blur(8px); border: 1px solid #2f6f9e; border-radius: 16px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.3s ease; }
+  .mm-panel { background: rgba(30, 27, 24, 0.95); backdrop-filter: blur(8px); border: 1px solid #6a4b32; border-radius: 16px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.3s ease; }
   .mm-main-row { display: flex; align-items: center; gap: 12px; }
-  .mm-btn { background: #38bdf8; color: #000; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .mm-btn.playing { background: #ef4444; color: #fff; }
-  .mm-bpm-display { font-size: 20px; font-weight: bold; color: #fff; cursor: pointer; min-width: 50px; text-align: center; }
-  .mm-bpm-display::after { content: ' BPM'; font-size: 10px; color: #8a93a6; font-weight: normal; }
-  .mm-advanced-area { display: none; flex-direction: column; align-items: center; gap: 8px; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+  .mm-btn { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.12); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(184,123,76,.22); }
+  .mm-btn.playing { background: #b54a42; color: #f3e8d6; box-shadow: 0 4px 12px rgba(181,74,66,.2); }
+  .mm-bpm-display { font-size: 20px; font-weight: bold; color: #eae3d9; cursor: pointer; min-width: 50px; text-align: center; }
+  .mm-bpm-display::after { content: ' BPM'; font-size: 10px; color: #8a8075; font-weight: normal; }
+  .mm-advanced-area { display: none; flex-direction: column; align-items: center; gap: 8px; width: 100%; border-top: 1px solid #3a2f26; padding-top: 10px; }
   .mini-metronome.advanced .mm-advanced-area { display: flex; }
   .mm-knob-wrap { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
   .mm-knob-wrap canvas { position: absolute; top: 0; left: 0; touch-action: none; cursor: grab; }
   .mm-adv-controls { display: flex; align-items: center; gap: 16px; }
-  .mm-step { background: rgba(255,255,255,0.1); color: #fff; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; cursor: pointer; }
+  .mm-step { background: #241f1b; color: #eae3d9; border: 1px solid #3a2f26; width: 32px; height: 32px; border-radius: 10px; font-size: 20px; cursor: pointer; }
 
-  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); color: #38bdf8; font-size: 16px; z-index: 300; display: none; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); color: #b87b4c; font-size: 16px; z-index: 300; display: none; }
   .loading.show { display: flex; }
-  .toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 10px); background: rgba(56, 189, 248, 0.9); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 400; opacity: 0; pointer-events: none; transition: 0.3s; }
+  .toast { position: absolute; left: 50%; bottom: 100px; transform: translate(-50%, 10px); background: rgba(217, 158, 106, 0.92); color: #1e1b18; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 400; opacity: 0; pointer-events: none; transition: 0.3s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   .action-sheet-mask, .modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: flex-end; z-index: 200; }
   .action-sheet-mask.show, .modal-mask.show { display: flex; }
-  .action-sheet { width: 100%; max-height: 80vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #1b2230; border-radius: 16px 16px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; }
+  .action-sheet { width: 100%; max-height: 80vh; box-sizing: border-box; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #241f1b; border-radius: 16px 16px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; transform: translateY(100%); transition: transform 0.2s; }
   .action-sheet-mask.show .action-sheet { transform: translateY(0); }
-  .action-sheet .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; width: 100%; box-sizing: border-box; background: #252e3c; color: #e2e9f5; border: none; padding: 16px; border-radius: 10px; font-size: 16px; cursor: pointer; }
-  .action-sheet .action-btn.cancel { background: transparent; color: #8a93a6; }
+  .action-sheet .action-btn { display: flex; align-items: center; gap: 12px; justify-content: center; width: 100%; box-sizing: border-box; background: #2f2822; color: #eae3d9; border: none; padding: 16px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+  .action-sheet .action-btn.cancel { background: transparent; color: #8a8075; }
 
   .modal-mask { align-items: flex-start; justify-content: center; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: max(20px, env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
-  .modal-box { box-sizing: border-box; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: auto 0; background: #1b2230; border: 1px solid #2a3140; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
-  .modal-box h3 { margin: 0; text-align: center; color: #38bdf8; font-size: 18px; }
+  .modal-box { box-sizing: border-box; max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: auto 0; background: #241f1b; border: 1px solid #2c2622; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-box h3 { margin: 0; text-align: center; color: #d99e6a; font-size: 18px; }
   .modal-field { display: flex; flex-direction: column; gap: 6px; }
-  .modal-field label { font-size: 12px; color: #8a93a6; }
-  .modal-inp { padding: 12px; border-radius: 8px; border: 1px solid #2a3444; background: #151a22; color: #fff; font-size: 14px; outline: none; }
+  .modal-field label { font-size: 12px; color: #8a8075; }
+  .modal-inp { padding: 12px; border-radius: 8px; border: 1px solid #3a2f26; background: #181512; color: #eae3d9; font-size: 14px; outline: none; }
   .modal-footer { display: flex; gap: 10px; margin-top: 8px; }
   .modal-btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
-  .modal-btn.cancel { background: #2a3444; color: #fff; }
-  .modal-btn.confirm { background: #38bdf8; color: #000; }
-  .modal-btn.danger { background: #ef4444; color: #fff; }
+  .modal-btn.cancel { background: #3a2f26; color: #eae3d9; }
+  .modal-btn.confirm { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; }
+  .modal-btn.danger { background: #b54a42; color: #eae3d9; }
   
   /* 🌟 沉浸式虚化：只降透明度，不禁用指针事件，否则鼠标永远移不上去、无法实体化 */
   .mini-metronome { transition: opacity 0.25s ease; }
@@ -135,7 +135,7 @@ const readerCSS = `
   #progressBanner {
     position: absolute; top: 70px; left: 50%; transform: translate(-50%, -6px);
     display: none; align-items: center; gap: 10px;
-    z-index: 60; background: rgba(56, 189, 248, 0.95); color: #000;
+    z-index: 60; background: rgba(217, 158, 106, 0.95); color: #1e1b18;
     padding: 8px 10px 8px 16px; border-radius: 22px; font-size: 13px; font-weight: bold;
     box-shadow: 0 6px 18px rgba(0,0,0,0.45); white-space: nowrap;
     opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
@@ -143,14 +143,14 @@ const readerCSS = `
   #progressBanner.show { display: flex; opacity: 1; transform: translate(-50%, 0); }
   #progressBanner .pb-text { cursor: pointer; }
   #progressBanner .pb-close {
-    background: rgba(0,0,0,0.18); border: none; color: #000; width: 22px; height: 22px;
+    background: rgba(0,0,0,0.18); border: none; color: #1e1b18; width: 22px; height: 22px;
     border-radius: 50%; font-size: 13px; font-weight: bold; cursor: pointer; line-height: 1;
   }
 
   /* 🌟 打卡弹窗内的「阅读进度」区 */
-  .progress-readout { font-size: 13px; color: #7fd4ff; font-weight: bold; }
-  .modal-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a93a6; cursor: pointer; }
-  .modal-check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer; }
+  .progress-readout { font-size: 13px; color: #d99e6a; font-weight: bold; }
+  .modal-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a8075; cursor: pointer; }
+  .modal-check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #b87b4c; cursor: pointer; }
   .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* 🔖 页级书签面板 */
@@ -161,28 +161,28 @@ const readerCSS = `
   #bookmarkMask.show { display: block; }
   .bm-panel {
     position: absolute; left: 0; right: 0; bottom: 0; max-height: 72%;
-    background: #121821; border-top: 1px solid #2a3444; border-radius: 16px 16px 0 0;
+    background: #1a1613; border-top: 1px solid #3a2f26; border-radius: 16px 16px 0 0;
     display: flex; flex-direction: column; padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -10px 30px rgba(0,0,0,.5);
   }
   .bm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .bm-title { font-size: 14px; font-weight: bold; color: #e2e9f5; }
-  .bm-close { background: transparent; border: none; color: #8a93a6; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .bm-title { font-size: 14px; font-weight: bold; color: #eae3d9; }
+  .bm-close { background: transparent; border: none; color: #8a8075; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 4px; }
   .bm-add {
     width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; cursor: pointer;
-    border: 1px solid #2f6f9e; background: rgba(56,189,248,.1); color: #7fd4ff; font-size: 13px; font-weight: bold;
+    border: 1px solid #6a4b32; background: rgba(184,123,76,.12); color: #d99e6a; font-size: 13px; font-weight: bold;
   }
   .bm-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
-  .bm-empty { color: #6a7890; font-size: 13px; text-align: center; padding: 18px 0; }
+  .bm-empty { color: #8a8075; font-size: 13px; text-align: center; padding: 18px 0; }
   .bm-row {
     display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-    background: #1b2230; border: 1px solid #2a3140; border-radius: 10px; cursor: pointer;
+    background: #241f1b; border: 1px solid #2c2622; border-radius: 10px; cursor: pointer;
   }
-  .bm-row:active { background: #223049; }
-  .bm-page { font-size: 14px; font-weight: bold; color: #38bdf8; flex-shrink: 0; min-width: 58px; }
-  .bm-time { flex: 1; min-width: 0; font-size: 11px; color: #8a93a6; }
+  .bm-row:active { background: #33291f; }
+  .bm-page { font-size: 14px; font-weight: bold; color: #d99e6a; flex-shrink: 0; min-width: 58px; }
+  .bm-time { flex: 1; min-width: 0; font-size: 11px; color: #8a8075; }
   .bm-del {
-    background: rgba(239,68,68,.1); color: #ef4444; border: none; border-radius: 6px;
+    background: rgba(181, 74, 66, 0.12); color: #b54a42; border: none; border-radius: 6px;
     padding: 5px 9px; font-size: 12px; cursor: pointer; flex-shrink: 0;
   }
 `;
@@ -327,19 +327,19 @@ const readerHTML = `
       <div class="modal-field"><label>应用密码</label><input type="password" class="modal-inp" id="cloudPass" placeholder="在坚果云安全选项申请"></div>
       <div class="modal-field" id="cloudRememberRow" style="flex-direction:row;align-items:center;gap:8px;">
         <input type="checkbox" id="cloudRemember" style="width:16px;height:16px;flex:none;margin:0;">
-        <label for="cloudRemember" style="flex:none;margin:0;font-size:13px;color:#9fb2c8;cursor:pointer;">记住应用密码（仅本机）</label>
-        <button type="button" id="cloudForget" style="margin-left:auto;background:none;border:none;color:#5d6678;font-size:12px;cursor:pointer;padding:0;">清除已保存</button>
+        <label for="cloudRemember" style="flex:none;margin:0;font-size:13px;color:#d99e6a;cursor:pointer;">记住应用密码（仅本机）</label>
+        <button type="button" id="cloudForget" style="margin-left:auto;background:none;border:none;color:#8a8075;font-size:12px;cursor:pointer;padding:0;">清除已保存</button>
       </div>
-      <div class="modal-field" id="cloudRememberHint" style="font-size:12px;color:#5d6678;line-height:1.6;margin-top:-4px;">
+      <div class="modal-field" id="cloudRememberHint" style="font-size:12px;color:#8a8075;line-height:1.6;margin-top:-4px;">
         密码以 AES-GCM 加密存进本机 IndexedDB，密钥不可导出，也不会写进备份文件；换设备需重新填。
       </div>
       <div class="modal-field"><label>路径</label><input type="text" class="modal-inp" id="cloudPath" value="GuitarShell/backup.json"></div>
       <div class="modal-field"><label>同步通道（留空自动选）</label><input type="text" class="modal-inp" id="cloudBase" placeholder="https://你的域名/dav/"></div>
-      <button class="modal-btn cancel" id="cloudTest" style="background:#232b38;color:#9fb2c8;font-size:13px;font-weight:normal;">测试连接</button>
+      <button class="modal-btn cancel" id="cloudTest" style="background:#2c2622;color:#d99e6a;font-size:13px;font-weight:normal;">测试连接</button>
       <div class="modal-footer">
         <button class="modal-btn cancel" id="cloudCancel">取消</button>
         <button class="modal-btn confirm" id="cloudDownload">📥 覆盖本地</button>
-        <button class="modal-btn confirm" id="cloudUpload" style="background:#c9a8f5;">📤 上传备份</button>
+        <button class="modal-btn confirm" id="cloudUpload" style="background:#b87b4c;">📤 上传备份</button>
       </div>
     </div>
   </div>
@@ -1754,13 +1754,13 @@ class SheetReader extends HTMLElement {
       const { cx, cy, r } = this.mmKnob; ctx.clearRect(0, 0, this.mmKnob.size, this.mmKnob.size);
       const MIN_BPM = 30, MAX_BPM = 250, START_ANG = 0.75 * Math.PI, SWEEP_ANG = 1.5 * Math.PI;
       const lineW = Math.max(8, r * 0.15), t = (this.mmBpm - MIN_BPM) / (MAX_BPM - MIN_BPM), curA = START_ANG + t * SWEEP_ANG;
-      ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, START_ANG + SWEEP_ANG); ctx.strokeStyle = '#232b38'; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, START_ANG + SWEEP_ANG); ctx.strokeStyle = '#2c2622'; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
       if (t > 0.002) {
-        const grad = ctx.createLinearGradient(0, 0, this.mmKnob.size, this.mmKnob.size); grad.addColorStop(0, '#38bdf8'); grad.addColorStop(1, '#4ade80');
+        const grad = ctx.createLinearGradient(0, 0, this.mmKnob.size, this.mmKnob.size); grad.addColorStop(0, '#f3e8d6'); grad.addColorStop(0.55, '#d99e6a'); grad.addColorStop(1, '#b87b4c');
         ctx.beginPath(); ctx.arc(cx, cy, r, START_ANG, curA); ctx.strokeStyle = grad; ctx.lineWidth = lineW; ctx.lineCap = 'round'; ctx.stroke();
       }
       const hx = cx + Math.cos(curA) * r, hy = cy + Math.sin(curA) * r;
-      ctx.beginPath(); ctx.arc(hx, hy, Math.max(5, lineW * 0.8), 0, Math.PI * 2); ctx.fillStyle = '#eaf2ff'; ctx.fill(); ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(hx, hy, Math.max(5, lineW * 0.8), 0, Math.PI * 2); ctx.fillStyle = '#f3e8d6'; ctx.fill(); ctx.strokeStyle = '#6a5b4d'; ctx.lineWidth = 2; ctx.stroke();
     };
     const drawMmKnob = this.drawMmKnob; 
     const updateMmBpm = (v, isSync) => {

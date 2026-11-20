@@ -39,67 +39,67 @@ const REFERENCE_LEVELS = {
 };
 
 const tunerCSS = `
-  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; align-items: center; justify-content: center; }
+  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: linear-gradient(180deg, #171411, #121110); color: var(--txt); overflow: hidden; font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", -apple-system, sans-serif; align-items: center; justify-content: center; }
   
   .container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; padding: 16px 20px; gap: 20px; box-sizing: border-box; }
   
   /* 提示与音符显示 */
   .display-area { text-align: center; height: 120px; display: flex; flex-direction: column; justify-content: flex-end; }
-  .note-name { font-size: 72px; font-weight: bold; color: #e2e9f5; line-height: 1; transition: color 0.2s; }
-  .note-name.in-tune { color: #4ade80; text-shadow: 0 0 20px rgba(74, 222, 128, 0.5); }
-  .freq-val { font-size: 14px; color: #8a93a6; margin-top: 8px; letter-spacing: 2px; }
-  .status-text { font-size: 16px; color: #38bdf8; margin-top: 10px; height: 20px; font-weight: bold; }
+  .note-name { font-size: 72px; font-weight: bold; color: var(--secondary); line-height: 1; transition: color 0.2s; text-shadow: 0 8px 28px rgba(0,0,0,.35); }
+  .note-name.in-tune { color: var(--success); text-shadow: 0 0 24px rgba(107, 142, 35, 0.48); }
+  .freq-val { font-size: 14px; color: var(--muted); margin-top: 8px; letter-spacing: 2px; }
+  .status-text { font-size: 16px; color: var(--accent); margin-top: 10px; height: 20px; font-weight: bold; }
 
   /* 仪表盘 */
-  .meter-wrap { position: relative; width: 100%; height: 80px; background: #191e27; border-radius: 12px; border: 1px solid #2a3140; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .meter-wrap { position: relative; width: 100%; height: 80px; background: linear-gradient(180deg, #1e1b18, #181512); border-radius: 18px; border: 1px solid var(--line); overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(243,232,214,.04); }
   
   /* 刻度线 */
   .ticks { position: absolute; inset: 0; display: flex; justify-content: space-between; padding: 0 20px; align-items: center; pointer-events: none; }
-  .tick { width: 2px; height: 20px; background: #2a3444; border-radius: 2px; }
-  .tick.center { height: 40px; background: #4ade80; box-shadow: 0 0 10px #4ade80; width: 3px; }
-  .tick.half { height: 30px; background: #5d6678; }
+  .tick { width: 2px; height: 20px; background: #3a2f26; border-radius: 2px; }
+  .tick.center { height: 40px; background: var(--success); box-shadow: 0 0 12px rgba(107,142,35,.55); width: 3px; }
+  .tick.half { height: 30px; background: var(--muted); }
 
   /* 指针 */
-  .needle { position: absolute; width: 4px; height: 60px; background: #f87171; border-radius: 4px; transition: transform 0.1s cubic-bezier(0.1, 0.7, 1, 0.1), background 0.2s; box-shadow: 0 0 10px rgba(248, 113, 113, 0.6); transform-origin: bottom center; left: calc(50% - 2px); bottom: 10px; z-index: 10; }
-  .needle.in-tune { background: #4ade80; box-shadow: 0 0 15px rgba(74, 222, 128, 0.8); }
+  .needle { position: absolute; width: 4px; height: 60px; background: var(--danger); border-radius: 4px; transition: transform 0.1s cubic-bezier(0.1, 0.7, 1, 0.1), background 0.2s; box-shadow: 0 0 10px rgba(181, 74, 66, 0.5); transform-origin: bottom center; left: calc(50% - 2px); bottom: 10px; z-index: 10; }
+  .needle.in-tune { background: var(--success); box-shadow: 0 0 16px rgba(107, 142, 35, 0.7); }
 
   /* 目标弦选择 */
   .strings-row { display: flex; gap: 10px; width: 100%; justify-content: center; }
-  .string-btn { flex: 1; max-width: 60px; padding: 12px 0; border-radius: 8px; background: #1b2230; border: 1px solid #2a3444; color: #8a93a6; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
-  .string-btn:hover { background: #252e3c; }
-  .string-btn.active { background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
+  .string-btn { flex: 1; max-width: 60px; padding: 12px 0; border-radius: 12px; background: #241f1b; border: 1px solid #3a2f26; color: var(--muted); font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
+  .string-btn:hover { background: #2f2822; color: var(--secondary); }
+  .string-btn.active { background: rgba(184, 123, 76, 0.18); border-color: var(--accent); color: var(--secondary); box-shadow: 0 0 12px rgba(217,158,106,0.18); }
   
   .string-btn.auto { max-width: 80px; font-size: 14px; }
 
   /* 音分曲线 */
-  .cents-wrap { position: relative; width: 100%; height: 52px; background: #141922; border-radius: 10px; border: 1px solid #222a37; overflow: hidden; }
+  .cents-wrap { position: relative; width: 100%; height: 52px; background: #181512; border-radius: 12px; border: 1px solid var(--line); overflow: hidden; }
   .cents-wrap svg { width: 100%; height: 100%; display: block; }
-  .cents-zero { stroke: #374151; stroke-width: 1; }
-  .cents-guide { stroke: #232d3b; stroke-width: 1; stroke-dasharray: 3 4; }
-  .cents-line { fill: none; stroke: #38bdf8; stroke-width: 2; vector-effect: non-scaling-stroke; }
-  .cents-dot { fill: #38bdf8; }
-  .cents-wrap.in-tune .cents-line, .cents-wrap.in-tune .cents-dot { stroke: #4ade80; fill: #4ade80; }
-  .cents-label { position: absolute; left: 6px; font-size: 9px; color: #4b5668; pointer-events: none; }
+  .cents-zero { stroke: #4a3a2c; stroke-width: 1; }
+  .cents-guide { stroke: #2c2622; stroke-width: 1; stroke-dasharray: 3 4; }
+  .cents-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .cents-dot { fill: var(--accent); }
+  .cents-wrap.in-tune .cents-line, .cents-wrap.in-tune .cents-dot { stroke: var(--success); fill: var(--success); }
+  .cents-label { position: absolute; left: 6px; font-size: 9px; color: #6a5b4d; pointer-events: none; }
   .cents-label.top { top: 2px; }
-  .cents-label.mid { top: 50%; transform: translateY(-50%); color: #5d6678; }
+  .cents-label.mid { top: 50%; transform: translateY(-50%); color: var(--muted); }
   .cents-label.bot { bottom: 2px; }
-  .cents-title { position: absolute; right: 6px; top: 2px; font-size: 9px; color: #4b5668; pointer-events: none; }
+  .cents-title { position: absolute; right: 6px; top: 2px; font-size: 9px; color: #6a5b4d; pointer-events: none; }
 
   /* A4 校准 + 标准音 */
   .tools-row { display: flex; gap: 8px; width: 100%; justify-content: center; flex-wrap: wrap; }
-  .a4-box { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 18px; background: #1b2230; border: 1px solid #2a3444; }
-  .a4-label { font-size: 12px; color: #8a93a6; }
-  .step-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #354052; background: #232d3b; color: #c8d3e3; font-size: 15px; line-height: 1; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  .a4-box { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 18px; background: #241f1b; border: 1px solid #3a2f26; }
+  .a4-label { font-size: 12px; color: var(--muted); }
+  .step-btn { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #4a3a2c; background: #2f2822; color: var(--secondary); font-size: 15px; line-height: 1; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
   .step-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .a4-val { min-width: 58px; text-align: center; font-size: 13px; color: #e2e9f5; font-variant-numeric: tabular-nums; }
-  .ref-btn { padding: 7px 14px; border-radius: 18px; border: 1px solid #2a3444; background: #1b2230; color: #8a93a6; font-size: 13px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
-  .ref-btn:not(:disabled) { color: #38bdf8; border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+  .a4-val { min-width: 58px; text-align: center; font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
+  .ref-btn { padding: 7px 14px; border-radius: 18px; border: 1px solid #3a2f26; background: #241f1b; color: var(--muted); font-size: 13px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+  .ref-btn:not(:disabled) { color: var(--accent); border-color: #6a4b32; background: rgba(184, 123, 76, 0.12); }
   .ref-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* 反馈开关 */
   .feedback-row { display: flex; gap: 10px; justify-content: center; width: 100%; }
-  .feedback-btn { padding: 8px 14px; border-radius: 18px; border: 1px solid #2a3444; background: #1b2230; color: #7c879b; font-size: 13px; cursor: pointer; transition: 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
-  .feedback-btn.active { background: rgba(74, 222, 128, 0.12); border-color: #4ade80; color: #4ade80; }
+  .feedback-btn { padding: 8px 14px; border-radius: 18px; border: 1px solid #3a2f26; background: #241f1b; color: var(--muted); font-size: 13px; cursor: pointer; transition: 0.2s; outline: none; -webkit-tap-highlight-color: transparent; }
+  .feedback-btn.active { background: rgba(107, 142, 35, 0.16); border-color: var(--success); color: var(--success); }
   .feedback-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* 控制按钮 */
@@ -107,8 +107,8 @@ const tunerCSS = `
   .btn-toggle:focus { outline: none !important; }
   .btn-toggle:focus-visible { outline: none !important; }
   .btn-toggle:active { outline: none !important; }
-  .btn-toggle.start { background: #38bdf8; color: #000; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4); }
-  .btn-toggle.stop { background: #ef4444; color: #fff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+  .btn-toggle.start { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; box-shadow: 0 6px 20px rgba(184, 123, 76, 0.3); }
+  .btn-toggle.stop { background: #b54a42; color: var(--secondary); box-shadow: 0 6px 20px rgba(181, 74, 66, 0.28); }
   .btn-toggle:active { transform: scale(0.95); }
 `;
 
@@ -272,7 +272,7 @@ class GuitarTuner extends HTMLElement {
     const statusText = this.shadowRoot && this.shadowRoot.getElementById('statusText');
     if (statusText) {
       statusText.textContent = this.isListening ? '拨动琴弦...' : '点击下方按钮开启麦克风';
-      statusText.style.color = this.isListening ? '#38bdf8' : '#8a93a6';
+      statusText.style.color = this.isListening ? '#d99e6a' : '#8a8075';
     }
     this.lastAnalysisAt = 0;
     this.lastValidAt = 0;
@@ -296,7 +296,7 @@ class GuitarTuner extends HTMLElement {
     const statusText = this.shadowRoot.getElementById('statusText');
     if (statusText) {
       statusText.textContent = `🔊 标准音 ${target} 准备中...`;
-      statusText.style.color = '#38bdf8';
+      statusText.style.color = '#d99e6a';
     }
 
     // 切后台后 AudioContext 可能已 suspended：等 resume 完成再排音，避免“看起来在播、实际没声”
@@ -428,7 +428,7 @@ class GuitarTuner extends HTMLElement {
     }
     if (statusText) {
       statusText.textContent = '点击下方按钮开启麦克风';
-      statusText.style.color = '#8a93a6';
+      statusText.style.color = '#8a8075';
     }
     if (noteName) {
       noteName.textContent = '--';
@@ -634,16 +634,16 @@ class GuitarTuner extends HTMLElement {
         needle.classList.add('in-tune');
         noteName.classList.add('in-tune');
         statusText.textContent = '🎯 音准完美！';
-        statusText.style.color = '#4ade80';
+        statusText.style.color = '#6b8e23';
       } else {
         needle.classList.remove('in-tune');
         noteName.classList.remove('in-tune');
         if (cents < 0) {
           statusText.textContent = '偏低 ↓ 请稍微拧紧';
-          statusText.style.color = '#fbbf24';
+          statusText.style.color = '#d99e6a';
         } else {
           statusText.textContent = '偏高 ↑ 请稍微拧松';
-          statusText.style.color = '#f87171';
+          statusText.style.color = '#b54a42';
         }
       }
     };
@@ -675,7 +675,7 @@ class GuitarTuner extends HTMLElement {
           btnToggle.textContent = '⏹ 停止调音';
           btnToggle.className = 'btn-toggle stop';
           statusText.textContent = '拨动琴弦...';
-          statusText.style.color = '#38bdf8';
+          statusText.style.color = '#d99e6a';
           this.frequencyHistory = [];
           this.lastAnalysisAt = 0;
           this.lastValidAt = 0;
@@ -692,7 +692,7 @@ class GuitarTuner extends HTMLElement {
           btnToggle.textContent = '🎤 开启麦克风';
           btnToggle.className = 'btn-toggle start';
           statusText.textContent = '麦克风未开启';
-          statusText.style.color = '#f87171';
+          statusText.style.color = '#b54a42';
           showToast(err && err.name === 'NotAllowedError'
             ? '麦克风权限被拒绝：请在系统设置中允许 Guitar Shell 使用麦克风'
             : '无法获取麦克风，请确认在 HTTPS / localhost 下运行并允许麦克风访问');

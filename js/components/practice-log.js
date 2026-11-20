@@ -6,43 +6,43 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
 }[ch]));
 
 const logCSS = `
-  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #0e1014; color: #fff; overflow: hidden; font-family: -apple-system, sans-serif; }
-  .stats-bar { display: flex; justify-content: space-around; padding: 20px; background: #191e27; border-bottom: 1px solid #2a3140; }
+  :host { display: flex; flex-direction: column; height: 100%; width: 100%; background: #121110; color: #eae3d9; overflow: hidden; font-family: -apple-system, sans-serif; }
+  .stats-bar { display: flex; justify-content: space-around; padding: 20px; background: #1e1b18; border-bottom: 1px solid #2c2622; }
   .stat-item { text-align: center; }
-  .stat-val { font-size: 24px; font-weight: bold; color: #38bdf8; margin-bottom: 4px; }
-  .stat-label { font-size: 12px; color: #8a93a6; }
-  .form-box { padding: 16px; background: #151a22; border-bottom: 1px solid #2a3140; display: flex; flex-direction: column; gap: 10px; }
+  .stat-val { font-size: 24px; font-weight: 700; color: #d99e6a; margin-bottom: 4px; }
+  .stat-label { font-size: 12px; color: #8a8075; }
+  .form-box { padding: 16px; background: #181512; border-bottom: 1px solid #2c2622; display: flex; flex-direction: column; gap: 10px; }
   .input-row { display: flex; gap: 8px; }
-  .inp { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a3444; background: #1b222d; color: #fff; font-size: 14px; outline: none; transition: 0.2s; }
-  .inp:focus { border-color: #38bdf8; }
-  .btn-submit { width: 100%; padding: 12px; background: #38bdf8; color: #000; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  .inp { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 14px; outline: none; transition: 0.2s; }
+  .inp:focus { border-color: #b87b4c; box-shadow: 0 0 0 2px rgba(184,123,76,.12); }
+  .btn-submit { width: 100%; padding: 12px; background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 6px 16px rgba(184,123,76,.18); }
   .log-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-  .log-card { background: #1b2230; border: 1px solid #2a3140; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .log-card { background: #241f1b; border: 1px solid #2c2622; border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
   .log-info { flex: 1; min-width: 0; }
-  .log-title { font-size: 15px; font-weight: bold; color: #e2e9f5; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .log-detail { font-size: 12px; color: #8a93a6; display: flex; gap: 12px; }
-  .log-detail span { color: #7fd4ff; font-weight: bold; }
-  .btn-del { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
-  .empty-tip { text-align: center; color: #6a7890; font-size: 14px; margin-top: 40px; }
-  .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(56, 189, 248, 0.9); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
+  .log-title { font-size: 15px; font-weight: bold; color: #f3e8d6; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log-detail { font-size: 12px; color: #8a8075; display: flex; gap: 12px; }
+  .log-detail span { color: #d99e6a; font-weight: bold; }
+  .btn-del { background: rgba(181, 74, 66, 0.12); color: #b54a42; border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
+  .empty-tip { text-align: center; color: #8a8075; font-size: 14px; margin-top: 40px; }
+  .toast { position: absolute; left: 50%; bottom: 30px; transform: translate(-50%, 10px); background: rgba(217, 158, 106, 0.92); color: #1e1b18; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: bold; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 100; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .trend-box { background: #131922; border-bottom: 1px solid #2a3140; flex-shrink: 0; }
+  .trend-box { background: #171411; border-bottom: 1px solid #2c2622; flex-shrink: 0; }
   .trend-head { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
-  .trend-title { font-size: 13px; font-weight: bold; color: #cbd5e1; flex: 1; }
-  .seg { display: flex; background: #1b222d; border-radius: 8px; padding: 2px; }
-  .seg-btn { border: none; background: transparent; color: #8a93a6; font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
-  .seg-btn.active { background: #38bdf8; color: #000; font-weight: bold; }
-  .trend-toggle { border: none; background: transparent; color: #6a7890; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+  .trend-title { font-size: 13px; font-weight: bold; color: #eae3d9; flex: 1; }
+  .seg { display: flex; background: #241f1b; border: 1px solid #2c2622; border-radius: 10px; padding: 2px; }
+  .seg-btn { border: none; background: transparent; color: #8a8075; font-size: 12px; padding: 4px 10px; border-radius: 7px; cursor: pointer; }
+  .seg-btn.active { background: #b87b4c; color: #1e1b18; font-weight: bold; }
+  .trend-toggle { border: none; background: transparent; color: #8a8075; font-size: 14px; cursor: pointer; padding: 2px 4px; }
   .trend-body { padding: 0 12px 12px; overflow: hidden; }
   .trend-box.collapsed .trend-body { display: none; }
-  .trend-sub { font-size: 11px; color: #7f8ea3; padding: 0 16px 6px; }
+  .trend-sub { font-size: 11px; color: #8a8075; padding: 0 16px 6px; }
   .chart-wrap svg { display: block; width: 100%; height: auto; }
   .top-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
   .top-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .top-name { width: 96px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
-  .top-track { flex: 1; height: 6px; background: #1f2733; border-radius: 3px; overflow: hidden; }
-  .top-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #38bdf8); border-radius: 3px; }
-  .top-min { width: 52px; text-align: right; color: #7fd4ff; font-weight: bold; flex-shrink: 0; }
+  .top-name { width: 96px; color: #eae3d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .top-track { flex: 1; height: 6px; background: #2c2622; border-radius: 3px; overflow: hidden; }
+  .top-fill { height: 100%; background: linear-gradient(90deg, #6a4b32, #d99e6a); border-radius: 3px; }
+  .top-min { width: 52px; text-align: right; color: #d99e6a; font-weight: bold; flex-shrink: 0; }
 `;
 
 const logHTML = `
@@ -124,13 +124,13 @@ class GuitarPracticeLog extends HTMLElement {
         const bw = Math.max(6, Math.min(slot * 0.62, 24));
         const x = i * slot + (slot - bw) / 2;
         const h = (it.value / maxVal) * (BASE - TOP);
-        const color = it.current ? '#38bdf8' : '#2f6fd0';
+        const color = it.current ? '#f3e8d6' : '#b87b4c';
         body += `<g><title>${it.full}：${it.value} 分钟</title>`
              + `<rect x="${x.toFixed(1)}" y="${(BASE - Math.max(h, 2)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" rx="3" fill="${color}"/></g>`;
         if (showValue && it.value > 0) {
-          body += `<text x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#9fb3c8">${it.value}</text>`;
+          body += `<text x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9" fill="#8a8075">${it.value}</text>`;
         }
-        body += `<text x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}" fill="#6a7890">${it.label}</text>`;
+        body += `<text x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}" fill="#8a8075">${it.label}</text>`;
       });
       return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="练习时长柱状图">${body}</svg>`;
     };
@@ -237,7 +237,7 @@ class GuitarPracticeLog extends HTMLElement {
         card.innerHTML = `
           <div class="log-info">
             <div class="log-title">${escapeHtml(log.name)}</div>
-            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:#5d6678">${timeStr}</span></div>
+            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:#8a8075">${timeStr}</span></div>
           </div>
           <button class="btn-del" data-id="${log.id}">删除</button>
         `;

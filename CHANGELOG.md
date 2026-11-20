@@ -3,7 +3,22 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.8.1 — C1b 原生插件通道修正（待真机复测）
+## 0.0.8.3 — UI 复古木质重构（真机验收通过并推送）
+
+- **视觉方向**：从赛博极客青绿风整体切到「复古木质 / 深夜琴房 / 咖啡馆」；取消青蓝、亮绿与霓虹发光，统一暖木、低饱和、大圆角。
+- **9 色 token**：`--bg0 #121110`、`--bg1 #1E1B18`、`--line #2C2622`、`--primary #B87B4C`、`--secondary #F3E8D6`、`--accent #D99E6A`、`--txt #EAE3D9`、`--muted #8A8075`、`--success #6B8E23`、`--danger #B54A42`；`css/layout.css` 保留 `--cyan / --amber / --green / --red` 旧变量别名，避免组件样式断裂。
+- **全局外壳**：深黑棕底 + 极淡木棕 / 橄榄径向光晕；header 深木棕渐变、暖色阴影；tabs 胶囊圆角、active 半透明木棕；toast、版本徽标、placeholder、滚动条、focus-visible 同步暖化；`theme-color` / manifest 背景改 `#121110`。
+- **节拍器**：播放按钮木棕渐变、运行中铁锈红；拍点方块木棕 / 琥珀 / 奶白；旋钮轨道深木色，进度奶白 → 琥珀 → 木棕，手柄奶白光晕；设置面板、细分 / 拍号 / 音色、range、数字输入全部暖化。
+- **调音器**：仪表深木面板；命中音名 / 指针 / 中心刻度橄榄绿；音分曲线琥珀；弦按钮、A4 校准、标准音、反馈按钮木棕 / 橄榄；开始按钮木棕渐变、停止铁锈红渐变。
+- **读谱**：工具栏 / 筛选 / 卡片 / 弹窗全部木质化；主按钮与云同步木棕渐变；标签高亮半透明木棕 + 奶白文字；卡片 hover 木棕边框 + 暖阴影；迷你节拍器播放木棕渐变、圆环奶白 → 木棕、停止铁锈红。
+- **练琴记录**：统计数字琥珀；打卡按钮木棕渐变；柱状图木棕、今日奶白；TOP 进度条深木 → 琥珀；输入框、分段切换、卡片、删除按钮统一木质调。
+- **浏览器验收**：390×844 视口依次检查节拍器 / 读谱 / 记录 / 调音四页；版本徽标 `v0.0.8.3`，`body` 计算色 `rgb(18,17,16)`，四页 `scrollWidth = 390` 无横向溢出；打卡按钮、调音开始按钮均为木棕渐变。
+- **真机验收**：用户确认 UI 复古木质重构通过；代码与 README 推送 GitHub。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.3`；`package.json` / `package-lock.json` `0.0.8.3`；Android `versionCode 13` / `versionName 0.0.8.3`。
+- Android 构建：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 13` / `versionName 0.0.8.3`。
+- debug APK `4,983,212` 字节；SHA-256 `0D8A8B8D0BC6A1C3307E5E90840351486750AA3AEFF590D29E6A73F5AE6175C1`；真机视觉效果待复测。
+
+## 0.0.8.1 — C1b 原生插件通道修正（真机验收通过）
 
 - **问题**：`0.0.8.0` 的 `wakelock.js` 只读取 `window.Capacitor.Plugins.KeepAwake`。零构建壳只注入 `native-bridge.js`，没有 `Plugins` 命名空间，原生路径会静默落空并回退 Web，原生 `FLAG_KEEP_SCREEN_ON` 实际不会生效。
 - **修正**：`getNativePlugin()` 改为优先使用 `Capacitor.Plugins.KeepAwake`（若未来引入 `@capacitor/core`），否则使用 `Capacitor.nativePromise('KeepAwake', 'enable' / 'disable' / 'isEnabled', {})` 直连原生桥。
