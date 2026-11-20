@@ -33,8 +33,20 @@ async function loadComponents() {
   try { await import(`${base}js/components/practice-log.js`); } catch (e) { console.error('记录组件加载失败', e); }
   // 🌟 新增调音器
   try { await import(`${base}js/components/tuner.js`); } catch (e) { console.error('调音器加载失败', e); }
+  // 🌟 全局设置抽屉
+  try { await import(`${base}js/components/settings.js`); } catch (e) { console.error('全局设置加载失败', e); }
 }
 loadComponents();
+
+// ==================== ⚙ 全局设置入口 ====================
+const settingsBtn = document.getElementById('btnGlobalSettings');
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    const panel = document.querySelector('guitar-settings');
+    if (panel) panel.open();
+    else showToast('全局设置正在加载…');
+  });
+}
 
 // ==================== 🏷️ 版本徽标 ====================
 // 目的：一眼看出「现在跑的是哪版」，并区分「线上已有新版」与「本机缓存没换」

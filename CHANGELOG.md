@@ -3,7 +3,38 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.8.5 — 启动图标 / 按钮选中框 / 木鱼音色修正（测试包待真机复测）
+## 0.0.8.7 — 数据管理归拢 + Android 原生备份（测试包待真机复测）
+
+- **数据管理全部收进设置抽屉**：本地备份、从文件恢复、清空乐谱与练习记录、云同步入口统一放在右侧全局设置里；读谱页顶部不再保留备份 / 恢复 / 云同步按钮。
+- **云同步入口迁移**：设置抽屉「云同步」卡片点击后自动切到读谱页并打开原有坚果云 WebDAV 弹窗；账号、应用密码、路径、同步通道与冲突检测逻辑保持不变。
+- **读谱书架精简**：书架态隐藏读谱工具栏，只保留「导入 + 搜索 + 排序 + 标签 + 书架」；导入按钮放在搜索行最左侧，移动端仍打开拍照 / 相册 / 文件选择，桌面端保留文件夹导入图标；打开谱面后工具栏只显示返回、打卡、存进度、书签。
+- **顶部齿轮右对齐**：品牌行改为整行布局，齿轮固定在右上角，左右留白与 26px 品牌图标对称（390px 宽下均为 20px）；版本徽标留在标题旁。
+- **Android 原生备份**：新增 `SaveBackupPlugin` 与 `MainActivity` 注册；API 29+ 用 MediaStore 写入 `Download/GuitarShell/`，API 22–28 申请 `WRITE_EXTERNAL_STORAGE` 后写入公共 Download；返回真实文件名、路径与 content URI。
+- **修复「提示成功但没有文件」**：Android WebView 不处理 `<a download>` + blob，旧实现只有 toast。现在 `js/services/backup.js` 新增 `saveBackupFile()`，壳内走 `Capacitor.nativePromise('SaveBackup', 'save')`，网页端继续浏览器下载；设置抽屉成功后显示实际保存路径。
+- **备份文件名**：增加秒级时间戳，改为 `GuitarShell-backup-YYYYMMDD-HHmmss.json`，避免连续备份同名覆盖；备份 schema 仍为 2，恢复格式不变。
+- **Service Worker**：缓存清单补入 `settings.js` 与 `backup.js`，PWA 离线不会漏文件；`APP_VERSION` 与缓存名同步 `0.0.8.7`。
+- **浏览器验收**：390×844 下版本徽标 `v0.0.8.7`；品牌图标左距 20px、齿轮右距 20px、齿轮 27px；书架工具栏 `display:none`，搜索行依次为导入 74px、搜索 164px、排序 104px，标签栏与书架正常；设置抽屉宽 344px，云同步卡片可见；点击云同步后自动切到读谱页且 `cloudModalMask` 为 `modal-mask show`；打开谱面后工具栏恢复，仅返回 / 打卡 / 存进度 / 书签；Android UA 下导入按钮打开 `action-sheet-mask show`，文件夹按钮隐藏；网页端 `saveBackupFile()` 正确回退为 `native:false` / 浏览器下载目录；JS 错误列表为空。
+- **未做真机点击验证**：当前无连接设备，`SaveBackup` 的 MediaStore 实际写盘、文件管理器可见性与 `Download/GuitarShell` 路径需真机确认；网页端下载回退路径已验证。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 17` / `versionName 0.0.8.7`，`WRITE_EXTERNAL_STORAGE maxSdkVersion=28`，启动图标仍为 `res/mipmap-*/ic_launcher_gshell.png`；`classes4.dex` 已包含 `SaveBackupPlugin`。
+- debug APK `5,125,523` 字节；SHA-256 `414A360C03210AB4C9345E88DD5D321FF52075A4E2AA8A5244205B3A35577F43`；debug 签名 v1 / v2 校验通过。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.7`；`package.json` / `package-lock.json` `0.0.8.7`；Android `versionCode 17` / `versionName 0.0.8.7`。
+
+## 0.0.8.6 — 全局设置抽屉 + 读谱热区缩小（已真机验收）
+
+- **读谱翻页热区缩小**：`navPrev` / `navNext` 从原来的整屏高度（`top:56px; bottom:120px`）改为谱面中线附近 `170px` 高、`7%` 宽的短条，JS 按 viewer 高度居中定位；保留左右翻页点击，不再用大片灰色区域盖住谱面。左右热区继续 `outline:none` + 点按高亮透明。
+- **全局设置抽屉**：顶部标题栏版本徽标右侧新增齿轮入口，打开右侧抽屉。抽屉含：
+    - **数据管理**：本机乐谱 / 练习记录条数、当前存储占用；本地备份 JSON、从备份文件恢复、清空乐谱与练习记录（二次确认）。恢复 / 清空后广播 `gs-data-changed` 与 `log-updated`，读谱书架和练习记录页即时刷新。
+    - **外观**：展示当前唯一的「复古木质 · 深夜琴房」主题与九色 token，为后续多主题切换预留位置。
+    - **关于**：自有图标、产品定位、当前版本 `v0.0.8.6`，明确无账号、默认不上传云端。
+- **备份服务抽离**：新增 `js/services/backup.js`，统一打包 / 下载 / 解析 / 恢复；保留既有备份格式（`APP_VERSION`、`BACKUP_SCHEMA=2`、scores base64 + logs），与读谱页旧备份完全兼容。
+- **继承 0.0.8.5**：启动图标 G 已真机确认「非常完美」；木鱼音色、全局按钮 / 读谱箭头无蓝色选中框继续保留。
+- **浏览器验收**：390×844 下版本徽标 `v0.0.8.6`；齿轮 27px、无 outline / 点按高亮；设置抽屉宽约 344px，读到 1 份乐谱 / 4 条练习，`v0.0.8.6`，页面无横向溢出；备份载荷 scores=1 / logs=4 且恢复往返成功，非法 JSON 正确报「备份文件不是有效 JSON」；读谱箭头热区实测 `170×27px`、垂直居中，`outline-style=none`、`-webkit-tap-highlight-color=rgba(0,0,0,0)`。
+- **验收与发布**：用户已确认 0.0.8.6 实机验收通过；代码与文档随 `0.0.8.7` 一起提交推送 GitHub，未单独创建 tag / Release。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.6`；`package.json` / `package-lock.json` `0.0.8.6`；Android `versionCode 16` / `versionName 0.0.8.6`。
+- **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 16` / `versionName 0.0.8.6`，启动图标仍为 `res/mipmap-*/ic_launcher_gshell.png`。
+- debug APK `5,091,753` 字节；SHA-256 `A5B276B56256B6BF264E9C1E1F5DF34E5C9F20596325F234559C11114F1A1BE9`；debug 签名 v1 / v2 校验通过；真机已验收。
+
+## 0.0.8.5 — 启动图标 / 按钮选中框 / 木鱼音色修正（图标已真机验收）
 
 - **修复 0.0.8.4 未通过项：Android 启动图标**：放弃自适应前景铺满方案（真机上 G 撑满、背景被 MIUI 染棕）；改为独立 legacy 资源 `@mipmap/ic_launcher_gshell` / `ic_launcher_gshell_round`，按截图右侧 `GShell` 比例把源图缩至约 95% 居中，G 约占图标 74%，四周保留近黑 `#0E1014` 留白，圆角半径约 22%；同时覆盖 mdpi / hdpi / xhdpi / xxhdpi / xxxhdpi，避开系统自适应背景着色。
 - **清除按钮蓝色矩形选中框**：全局 `css/layout.css` 去掉按钮 focus-visible 琥珀 outline，改为 `button:focus, button:focus-visible { outline: none !important }` + `-webkit-tap-highlight-color: transparent`，并对 `html / body / *` 统一关闭点按高亮；`metronome.js` / `practice-log.js` / `tuner.js` / `sheet-reader.js` 四个 Shadow DOM 组件各自在样式顶部统一清除按钮、label、input、select 的 outline 与点按高亮。覆盖顶部四页切换、记录页“保存这次练习 / 练习趋势 / 近 7 天 / 近 12 月”、标题右侧版本徽标、读谱左右翻页热区 `div.nav-zone`（`navPrev` / `navNext`）及其他按钮。
@@ -13,7 +44,7 @@
 - 版本：网页 / SW `APP_VERSION = 0.0.8.5`；`package.json` / `package-lock.json` `0.0.8.5`；Android `versionCode 15` / `versionName 0.0.8.5`。
 - **浏览器验收**：390×844 下版本徽标 `v0.0.8.5`；顶部四页切换、版本徽标、记录页保存 / 趋势 / 近 7 天 / 近 12 月、节拍器设置面板全部按钮、读谱书架 / 谱面工具栏按钮计算样式 `outline-style = none`、`-webkit-tap-highlight-color = rgba(0,0,0,0)`；读谱左右热区 `navPrev` / `navNext` 同时确认无 outline、点按高亮透明，全页蓝色高亮计数为 0；音色列表为“正弦 / 方波 / 木鱼”，`audioEngine.click({type:'woodblock'})` 无异常。
 - **Android 构建**：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 15` / `versionName 0.0.8.5`，启动图标为 `res/mipmap-*/ic_launcher_gshell.png`（不再走 `mipmap-anydpi-v26` 自适应 XML）。
-- debug APK `5,110,820` 字节；SHA-256 `4CE1F9B59ADC73C9049974A9E5E7C4994F40062E20B0D1A051FF53D7311BDAAE`；debug 签名 v1 / v2 校验通过；真机复测待确认。
+- debug APK `5,110,820` 字节；SHA-256 `4CE1F9B59ADC73C9049974A9E5E7C4994F40062E20B0D1A051FF53D7311BDAAE`；debug 签名 v1 / v2 校验通过；启动图标已真机确认通过。读谱左右箭头热区偏大，转 `0.0.8.6` 缩小。
 
 ## 0.0.8.4 — UI 细节修正第一版（图标未通过，已被 0.0.8.5 取代）
 

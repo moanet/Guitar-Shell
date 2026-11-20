@@ -47,7 +47,7 @@ body { display: flex; flex-direction: column; }
   backdrop-filter: blur(10px);
   position: relative; z-index: 20;
 }
-.brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 9px; color: var(--secondary); letter-spacing: .3px; }
+.brand { flex: 1 1 100%; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 9px; color: var(--secondary); letter-spacing: .3px; }
 .brand-icon { width: 26px; height: 26px; object-fit: contain; border-radius: 7px; flex-shrink: 0; display: block; box-shadow: 0 3px 10px rgba(0, 0, 0, .24); }
 .version-chip {
   font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .3px;
@@ -58,6 +58,16 @@ body { display: flex; flex-direction: column; }
 .version-chip:hover { color: var(--accent); border-color: rgba(217, 158, 106, 0.55); }
 .version-chip.has-update { color: var(--accent); border-color: var(--accent); }
 .version-chip:disabled { opacity: .6; cursor: default; }
+.settings-chip {
+  width: 27px; height: 27px; flex-shrink: 0; border-radius: 50%;
+  margin-left: auto;
+  display: grid; place-items: center; padding: 0;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02);
+  color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer;
+  font-family: inherit; transition: color .2s, border-color .2s, background .2s, transform .2s;
+}
+.settings-chip:hover { color: var(--accent); border-color: rgba(217, 158, 106, 0.55); background: rgba(184, 123, 76, 0.08); }
+.settings-chip:active { transform: rotate(18deg); }
 
 .app-toast {
   position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(10px);

@@ -28,19 +28,29 @@ const readerCSS = `
   button, label, input, select { outline: none !important; -webkit-tap-highlight-color: transparent !important; }
   :host, * { -webkit-tap-highlight-color: transparent !important; }
   
-  .toolbar { display: flex; gap: 10px; padding: 10px 16px; background: #1e1b18; border-bottom: 1px solid #2c2622; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
+  .toolbar { display: none; gap: 10px; padding: 10px 16px; background: #1e1b18; border-bottom: 1px solid #2c2622; align-items: center; z-index: 10; flex-wrap: wrap; min-height: 54px; }
+  :host(.reading) .toolbar { display: flex; }
   .btn { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; border: 1px solid rgba(243,232,214,.10); padding: 9px 16px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(184,123,76,.18); }
   .btn.outline { background: transparent; color: #d99e6a; border: 1px solid #6a4b32; box-shadow: none; }
   .btn.outline:hover { background: rgba(184, 123, 76, 0.12); }
   .btn-back { background: #3a2f26; color: #eae3d9; display: none; }
-  .btn-backup { background: #3a2f26; color: #eae3d9; font-size: 13px; padding: 8px 12px; }
   .btn-log { background: #6b8e23; color: #1e1b18; display: none; }
-  .btn-cloud { background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18; padding: 8px 12px; }
-  
-  .pc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-  
+
   .filter-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: #181512; border-bottom: 1px solid #2c2622; }
   .search-row { display: flex; gap: 8px; align-items: center; }
+  .import-btn {
+    flex: 0 0 auto; height: 36px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid rgba(243,232,214,.10);
+    background: linear-gradient(180deg, #d99e6a, #b87b4c); color: #1e1b18;
+    font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; box-shadow: 0 3px 10px rgba(184,123,76,.16);
+  }
+  .import-folder {
+    flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border-radius: 8px;
+    border: 1px solid #6a4b32; background: #241f1b; color: #d99e6a;
+    font-family: inherit; font-size: 15px; cursor: pointer;
+  }
+  @media (max-width: 640px) { .import-folder { display: none; } }
   .search-inp { flex: 1; min-width: 0; box-sizing: border-box; padding: 8px 12px; border-radius: 8px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 14px; }
   .search-inp:focus { border-color: #b87b4c; }
   .sort-sel { flex: 0 0 auto; min-width: 104px; max-width: 42vw; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid #3a2f26; background: #241f1b; color: #eae3d9; font-size: 13px; }
@@ -121,7 +131,7 @@ const readerCSS = `
 
   /* 🌟 左右点击翻页热区：内缩安全距离，避免压住滚动条 / 手机边缘返回手势 */
   .nav-zone {
-    position: absolute; top: 56px; bottom: 120px; width: 7%; z-index: 15;
+    position: absolute; top: 56px; height: 170px; width: 7%; z-index: 15;
     cursor: pointer; opacity: 0; transition: opacity 0.2s; display: none;
     align-items: center; justify-content: center;
     font-size: 30px; color: rgba(255,255,255,0.35); font-weight: bold;
@@ -199,28 +209,18 @@ const readerHTML = `
     <button class="btn btn-log" id="btnLog">📝 打卡</button>
     <button class="btn btn-save-pos" id="btnSavePos" style="display:none;">📍 存进度</button>
     <button class="btn btn-bookmark" id="btnBookmarks" style="display:none;">🔖 书签</button>
-    <div class="pc-actions" id="pcActions">
-      <button class="btn" id="btnSingleFile">📂 导入单文件</button>
-      <button class="btn outline" id="btnFolder">📁 导入整个文件夹</button>
-      <button class="btn btn-backup" id="btnExport">📤 备份</button>
-      <button class="btn btn-backup" id="btnImport">📥 恢复</button>
-      <button class="btn btn-cloud" id="btnCloudSync">☁️ 云同步</button>
-    </div>
-    <button class="btn" id="btnMobileUpload" style="display:none;">📂 导入</button>
-    <button class="btn btn-backup" id="btnMobileExport" style="display:none;">📤 备份</button>
-    <button class="btn btn-backup" id="btnMobileImport" style="display:none;">📥 恢复</button>
-    <button class="btn btn-cloud" id="btnMobileCloud" style="display:none;">☁️ 云同步</button>
   </div>
   
   <input type="file" id="inputSingleFile" accept="image/*,application/pdf" multiple style="display:none">
   <input type="file" id="inputFolder" webkitdirectory multiple style="display:none">
-  <input type="file" id="inputBackup" accept=".json" style="display:none">
   <input type="file" id="inputCamera" accept="image/*" capture="environment" style="display:none">
   <input type="file" id="inputGallery" accept="image/*" multiple style="display:none">
   <input type="file" id="inputMobileFile" accept=".pdf,application/pdf,image/*" multiple style="display:none">
 
   <div class="filter-bar" id="filterBar">
     <div class="search-row">
+      <button class="import-btn" id="btnImportMain" type="button">📂 导入</button>
+      <button class="import-folder" id="btnFolderMain" type="button" title="导入整个文件夹" aria-label="导入整个文件夹">📁</button>
       <input type="text" id="searchInp" class="search-inp" placeholder="搜索谱名、标签或拼音首字母（如 gbq）">
       <select id="sortSel" class="sort-sel">
         <option value="newest">最新添加</option>
@@ -423,6 +423,10 @@ class SheetReader extends HTMLElement {
     };
     window.addEventListener('metronome-settings', this.handleMetronomeSettings);
 
+    // 🌟 全局设置里恢复 / 清空数据后，书架立即重读 IndexedDB
+    this.handleDataChanged = () => this.loadShelf();
+    window.addEventListener('gs-data-changed', this.handleDataChanged);
+
     // 浏览器原生全屏被 Esc / 系统手势退出时，同步收回 CSS 全屏状态
     // 只有「确实进过原生全屏」才响应退出，避免 requestFullscreen 失败时误判
     this.handleFullscreenChange = () => {
@@ -447,6 +451,8 @@ class SheetReader extends HTMLElement {
     if (this.autoSaveTimer) { clearInterval(this.autoSaveTimer); this.autoSaveTimer = null; }
     if (this.handleTabChange) window.removeEventListener('app-tab-changed', this.handleTabChange);
     if (this.handleMetronomeSettings) window.removeEventListener('metronome-settings', this.handleMetronomeSettings);
+    if (this.handleDataChanged) window.removeEventListener('gs-data-changed', this.handleDataChanged);
+    if (this.handleOpenCloudSync) window.removeEventListener('open-cloud-sync', this.handleOpenCloudSync);
     if (this.handleFullscreenChange) document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
     if (this.handleFullscreenChange) document.removeEventListener('webkitfullscreenchange', this.handleFullscreenChange);
     if (document.fullscreenElement && document.exitFullscreen) {
@@ -465,8 +471,7 @@ class SheetReader extends HTMLElement {
     
     const btnBack = $('btnBack');
     const btnLog = $('btnLog');
-    const pcActions = $('pcActions');
-    const btnMobileUpload = $('btnMobileUpload');
+    const btnImportMain = $('btnImportMain');
     const shelfView = $('shelfView');
     const filterBar = $('filterBar');
     const viewer = $('viewer');
@@ -492,13 +497,7 @@ class SheetReader extends HTMLElement {
     };
 
     if (this.isMobile) {
-      btnMobileUpload.style.display = 'block'; 
-      $('btnMobileExport').style.display = 'block'; 
-      $('btnMobileImport').style.display = 'block';
-      $('btnMobileCloud').style.display = 'block'; 
-      pcActions.style.display = 'none';
-    } else {
-      pcActions.style.display = 'flex';
+      $('btnFolderMain').style.display = 'none';
     }
 
     // ==================== 搜索：曲名 / 标签 / 拼音首字母 ====================
@@ -1014,12 +1013,15 @@ class SheetReader extends HTMLElement {
       }, 5 * 60 * 1000);
     };
 
-    // 🌟 翻页热区定位：随 viewer 顶部对齐（热区已移出滚动容器，不随内容滚动）
+    // 🌟 翻页热区定位：随 viewer 顶部对齐，只在谱面中线附近保留一小段可点区域
     const positionNavZones = () => {
       const hostTop = this.getBoundingClientRect().top;
-      const top = Math.max(0, Math.round(viewer.getBoundingClientRect().top - hostTop));
-      $('navPrev').style.top = top + 'px';
-      $('navNext').style.top = top + 'px';
+      const viewerRect = viewer.getBoundingClientRect();
+      const top = Math.max(0, Math.round(viewerRect.top - hostTop));
+      const zoneH = 170;
+      const centered = top + Math.max(0, Math.round((viewerRect.height - zoneH) / 2));
+      $('navPrev').style.top = centered + 'px';
+      $('navNext').style.top = centered + 'px';
     };
     window.addEventListener('resize', positionNavZones);
     this.positionNavZones = positionNavZones;
@@ -1078,9 +1080,7 @@ class SheetReader extends HTMLElement {
       
       shelfView.style.display = 'none';
       filterBar.style.display = 'none';
-      
-      if (this.isMobile) { btnMobileUpload.style.display = 'none'; $('btnMobileExport').style.display = 'none'; $('btnMobileImport').style.display = 'none'; $('btnMobileCloud').style.display = 'none'; } 
-      else pcActions.style.display = 'none';
+      this.classList.add('reading');
       
       btnBack.style.display = 'block'; btnLog.style.display = 'block'; viewer.style.display = 'block'; miniMetronome.style.display = 'flex'; 
       $('btnSavePos').style.display = 'block';
@@ -1185,8 +1185,7 @@ class SheetReader extends HTMLElement {
       clearTimeout(this.mmAutoCollapseTimer);
       
       btnBack.style.display = 'none'; shelfView.style.display = 'grid'; filterBar.style.display = 'flex';
-      if (this.isMobile) { btnMobileUpload.style.display = 'block'; $('btnMobileExport').style.display = 'block'; $('btnMobileImport').style.display = 'block'; $('btnMobileCloud').style.display = 'block'; } 
-      else pcActions.style.display = 'flex';
+      this.classList.remove('reading');
       if (this.observer) this.observer.disconnect();
       if (this.destroyPdf) this.destroyPdf();
     };
@@ -1329,14 +1328,12 @@ class SheetReader extends HTMLElement {
     $('inputGallery').onchange = handleInputChange;
     $('inputMobileFile').onchange = handleInputChange;
     
-    $('btnSingleFile').onclick = () => $('inputSingleFile').click();
-    $('btnFolder').onclick = () => $('inputFolder').click();
-    btnMobileUpload.onclick = () => $('actionSheetMask').classList.add('show');
+    btnImportMain.onclick = () => {
+      if (this.isMobile) $('actionSheetMask').classList.add('show');
+      else $('inputSingleFile').click();
+    };
+    $('btnFolderMain').onclick = () => $('inputFolder').click();
     $('btnCancel').onclick = () => $('actionSheetMask').classList.remove('show');
-
-    $('btnImport').onclick = () => $('inputBackup').click();
-    $('btnMobileImport').onclick = () => $('inputBackup').click();
-    $('inputBackup').onchange = (e) => { importBackup(e.target.files[0]); e.target.value = ''; };
 
     // 🌟 打包：本地导出与云端上传共用同一份数据（含阅读进度与打卡记录）
     const buildBackupPayload = async () => {
@@ -1411,38 +1408,7 @@ class SheetReader extends HTMLElement {
       } finally { loading.classList.remove('show'); }
     };
 
-    // 🌟 修复：此前 importBackup 未定义，点「📥 恢复」直接 ReferenceError
-    const importBackup = async (file) => {
-      if (!file) return;
-      try {
-        const payload = JSON.parse(await file.text());
-        await restoreFromPayload(payload);
-      } catch (err) {
-        console.error(err);
-        showToast(`恢复失败：${err.message}`);
-      }
-    };
-
-    const exportBackup = async () => {
-      try {
-        const payload = await buildBackupPayload();
-        if (!payload) return;
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `GuitarShell_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('备份已下载');
-      } catch (err) {
-        console.error(err);
-        showToast(`备份失败：${err.message}`);
-      }
-    };
-    $('btnExport').onclick = exportBackup;
-    $('btnMobileExport').onclick = exportBackup;
-
+    // 本地备份 / 恢复 / 清空已统一收进全局设置抽屉；这里只保留云同步所需的数据打包与恢复。
     // ==================== ☁️ 云同步（坚果云 WebDAV） ====================
     const REMEMBER_KEY = 'gs_cloud_remember';
     const PASS_SECRET = 'webdav-pass';
@@ -1490,8 +1456,8 @@ class SheetReader extends HTMLElement {
       cloudModalMask.classList.add('show');
       cloudModalMask.scrollTop = 0;
     };
-    $('btnCloudSync').onclick = openCloudModal;
-    $('btnMobileCloud').onclick = openCloudModal;
+    this.handleOpenCloudSync = () => openCloudModal();
+    window.addEventListener('open-cloud-sync', this.handleOpenCloudSync);
 
     // Android WebView 键盘弹出后会把视口压短：输入框获得焦点时把它滚进可视区，
     // 避免云同步账号 / 密码栏被键盘顶出弹窗。
