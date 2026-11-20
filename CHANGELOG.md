@@ -3,7 +3,16 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.0.8.0 — C1b 屏幕常亮（待真机复测）
+## 0.0.8.1 — C1b 原生插件通道修正（待真机复测）
+
+- **问题**：`0.0.8.0` 的 `wakelock.js` 只读取 `window.Capacitor.Plugins.KeepAwake`。零构建壳只注入 `native-bridge.js`，没有 `Plugins` 命名空间，原生路径会静默落空并回退 Web，原生 `FLAG_KEEP_SCREEN_ON` 实际不会生效。
+- **修正**：`getNativePlugin()` 改为优先使用 `Capacitor.Plugins.KeepAwake`（若未来引入 `@capacitor/core`），否则使用 `Capacitor.nativePromise('KeepAwake', 'enable' / 'disable' / 'isEnabled', {})` 直连原生桥。
+- **模拟壳验证**：临时把 `window.Capacitor` 设为 `isNativePlatform: () => true` 并提供 `nativePromise`，`acquire` 后 `mode=native / active=true`，调用记录为 `KeepAwake:enable`；`release` 后 `active=false`，调用记录追加 `KeepAwake:disable`。
+- 版本：网页 / SW `APP_VERSION = 0.0.8.1`；`package.json` / `package-lock.json` `0.0.8.1`；Android `versionCode 12` / `versionName 0.0.8.1`。
+- Android 构建：`cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 12` / `versionName 0.0.8.1`。
+- debug APK `4,982,163` 字节；SHA-256 `DD20784171785CEA6710FBA913CB70C92E90488D0A7053AEFDA7608E83A098A0`；真机常亮效果待复测。
+
+## 0.0.8.0 — C1b 屏幕常亮首包（已被 0.0.8.1 取代）
 
 - **新增常亮服务**：`js/services/wakelock.js` 统一管理屏幕常亮，按 reason 引用计数，允许节拍器 / 读谱 / 调音同时持有；`acquire` / `release` 幂等，`wakeLockState()` 供调试。
 - **双路径**：壳内优先调用 Capacitor 原生插件 `KeepAwake`（Android `FLAG_KEEP_SCREEN_ON`）；原生不可用时回退 `navigator.wakeLock.request('screen')`。原生插件调用失败会标记并自动回退，不阻塞页面。
@@ -15,6 +24,7 @@
 - 浏览器验证：节拍器启动 `active=true / mode=web / reasons=['metronome']`，停止后 `active=false`；打开谱面 `reasons=['reader']`，返回书架清空；用合成音频流启动调音 `reasons=['tuner']`，停止 / 切页后清空；同时申请两个 reason 后只释放一个，常亮仍保持。
 - Android 构建：`npm run cap:sync` → `gradlew assembleDebug` BUILD SUCCESSFUL；`aapt` 确认 `versionCode 11` / `versionName 0.0.8.0` 与 `WAKE_LOCK`；`dexdump` 在 `classes4.dex` 找到 `KeepAwakePlugin`。
 - debug APK `4,981,896` 字节；SHA-256 `DAB9E4467D72F222B18FD71A01D241BED75C30F28DD14380CE5AB64A6167CD14`；真机常亮效果待复测。
+- 已知问题：零构建壳没有 `Capacitor.Plugins` 命名空间，原生路径未真正生效；由 `0.0.8.1` 修正。
 
 ## 0.0.7.3 — B1-spike 体验修复（真机验收通过）
 

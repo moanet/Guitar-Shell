@@ -28,7 +28,22 @@ const isNativePlatform = () => {
 const getNativePlugin = () => {
   if (!isNativePlatform()) return null;
   try {
-    return window.Capacitor.Plugins ? window.Capacitor.Plugins.KeepAwake : null;
+    const cap = window.Capacitor;
+    if (!cap) return null;
+
+    // 若未来引入了 @capacitor/core 的 registerPlugin，这里可直接拿到代理
+    if (cap.Plugins && cap.Plugins.KeepAwake) return cap.Plugins.KeepAwake;
+
+    // 当前零构建壳只注入了 native-bridge.js：Plugins 命名空间不存在，
+    // 必须走 nativePromise(pluginId, methodName) 才到得了原生层。
+    if (typeof cap.nativePromise === 'function') {
+      return {
+        enable: () => cap.nativePromise('KeepAwake', 'enable', {}),
+        disable: () => cap.nativePromise('KeepAwake', 'disable', {}),
+        isEnabled: () => cap.nativePromise('KeepAwake', 'isEnabled', {})
+      };
+    }
+    return null;
   } catch (err) {
     return null;
   }

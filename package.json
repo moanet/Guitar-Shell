@@ -1,6 +1,6 @@
 {
   "name": "guitar-shell-spike",
-  "version": "0.0.8.0",
+  "version": "0.0.8.1",
   "private": true,
   "description": "Guitar Shell B1-spike Android shell",
   "scripts": {
