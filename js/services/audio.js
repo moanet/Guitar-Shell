@@ -357,7 +357,7 @@ class AudioEngine {
    * 启动节拍调度（同一时刻只允许一路，新的自动抢占旧的）
    * @returns {{ stop(reason?: string): void, setBpm(v: number): void, get bpm(): number }}
    */
-  startMetronome({ bpm = 120, slots = [1], accents = [], timbre = 'sine', level, swing = 0, onBeat = null, onStop = null } = {}) {
+  startMetronome({ bpm = 120, slots = [1], accents = [], timbre = 'sine', level, swing = 0, onBeat = null, onSlot = null, onStop = null } = {}) {
     this.ensure();
 
     // 互斥：先停掉上一路（它自己的 onStop 会把按钮复位）
@@ -403,10 +403,10 @@ class AudioEngine {
         const beatIdx = Math.floor(state.absoluteSlot / slotCount) % (state.accents.length || 1);
         const slotIdx = state.absoluteSlot % slotCount;
         const offsets = slotOffsets();
+        const styleName = slotIdx === 0 ? (state.accents[beatIdx] || 'beat') : 'beat';
 
         if (state.slots[slotIdx]) {
           // 首拍按用户设定的「重音 / 次重音 / 普通 / 静音」，其余 slot 用普通拍
-          const styleName = slotIdx === 0 ? (state.accents[beatIdx] || 'beat') : 'beat';
           const style = ACCENT_STYLES[styleName];
           if (style) {
             this.click(state.nextTime, {
@@ -418,6 +418,14 @@ class AudioEngine {
           }
         }
 
+        if (onSlot) onSlot({
+          time: state.nextTime,
+          beat: beatIdx,
+          slot: slotIdx,
+          slotCount,
+          style: styleName,
+          active: !!state.slots[slotIdx]
+        });
         if (slotIdx === 0 && onBeat) onBeat({ time: state.nextTime, beat: beatIdx });
 
         // 按「当前 slot → 下一个 slot」的拍内距离推进，Swing 的时值差自然生效

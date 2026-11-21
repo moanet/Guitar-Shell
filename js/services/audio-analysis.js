@@ -42,9 +42,12 @@ export function analyzeAudioBuffer(audioBuffer) {
     mono[i] = sum / channels;
   }
 
+  const bpm = detectBPM(mono, dsRate);
+
   return {
-    bpm: detectBPM(mono, dsRate),
-    key: detectKey(mono, dsRate)
+    bpm,
+    key: detectKey(mono, dsRate),
+    meter: detectMeter(mono, dsRate, bpm)
   };
 }
 
@@ -91,6 +94,104 @@ function detectBPM(samples, rate) {
   while (bpm < 50) bpm *= 2;
   while (bpm > 200) bpm /= 2;
   return Math.round(bpm);
+}
+
+function detectMeter(samples, rate, bpm) {
+  if (!bpm || bpm < 40) return null;
+
+  const skip = Math.floor(rate * 5);
+  const end = Math.min(samples.length, skip + Math.floor(rate * 30));
+  const seg = samples.subarray(skip, end);
+  if (seg.length < rate * 6) return null;
+
+  const envRate = 100;
+  const winSize = Math.max(1, Math.floor(rate / envRate));
+  const envLen = Math.floor(seg.length / winSize);
+  if (envLen < envRate * 4) return null;
+
+  const env = new Float32Array(envLen);
+  for (let i = 0; i < envLen; i++) {
+    let sum = 0;
+    for (let j = 0; j < winSize; j++) {
+      const v = seg[i * winSize + j];
+      sum += v * v;
+    }
+    env[i] = Math.sqrt(sum / winSize);
+  }
+
+  const diff = new Float32Array(envLen);
+  for (let i = 1; i < envLen; i++) diff[i] = Math.max(0, env[i] - env[i - 1]);
+
+  const beatLag = envRate * 60 / bpm;
+  if (beatLag < 4) return null;
+
+  const corrAt = (lag) => {
+    const l = Math.round(lag);
+    if (l < 2 || l >= diff.length - 2) return 0;
+    let num = 0, e1 = 0, e2 = 0, count = 0;
+    for (let i = 0; i + l < diff.length; i++) {
+      const a = diff[i], b = diff[i + l];
+      num += a * b;
+      e1 += a * a;
+      e2 += b * b;
+      count++;
+    }
+    const den = Math.sqrt(e1 * e2);
+    return count > 1 && den > 0 ? num / den : 0;
+  };
+
+  const contrastFor = (num) => {
+    const sums = new Float64Array(num);
+    const counts = new Uint32Array(num);
+    for (let i = 0; i < diff.length; i++) {
+      const pos = ((Math.floor(i / beatLag) % num) + num) % num;
+      sums[pos] += diff[i];
+      counts[pos]++;
+    }
+    let mean = 0, nonEmpty = 0;
+    for (let i = 0; i < num; i++) {
+      if (counts[i]) { sums[i] /= counts[i]; mean += sums[i]; nonEmpty++; }
+    }
+    if (!nonEmpty) return 0;
+    mean /= nonEmpty;
+    if (mean <= 0) return 0;
+    let variance = 0;
+    for (let i = 0; i < num; i++) {
+      if (!counts[i]) continue;
+      const d = sums[i] - mean;
+      variance += d * d;
+    }
+    return Math.sqrt(variance / nonEmpty) / mean;
+  };
+
+  const candidates = [
+    { num: 2, den: 4, prior: 0.01 },
+    { num: 3, den: 4, prior: 0.02 },
+    { num: 4, den: 4, prior: 0.03 },
+    { num: 6, den: 8, prior: 0 }
+  ];
+
+  const scored = candidates.map(c => {
+    const corr = c.num === 6
+      // 6/8 可能是「以八分音符为拍」或「以四分音符为拍」两种听觉参照，取更强的那个
+      ? Math.max(corrAt(beatLag * 6), corrAt(beatLag * 3))
+      : corrAt(beatLag * c.num);
+    const contrast = contrastFor(c.num);
+    return {
+      ...c,
+      corr,
+      contrast,
+      score: corr * 0.72 + Math.min(1, contrast * 2.2) * 0.28 + c.prior
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const best = scored[0];
+  const second = scored[1];
+  const margin = Math.max(0, best.score - second.score);
+  const confidence = Math.max(0, Math.min(1, best.score * 1.15 + margin * 2.2));
+  if (best.score < 0.16 || best.contrast < 0.08 || confidence < 0.35) return null;
+
+  return { num: best.num, den: best.den, confidence: Math.round(confidence * 100) / 100 };
 }
 
 function detectKey(samples, rate) {

@@ -5,6 +5,7 @@ import { audioEngine } from '../services/audio.js';
 import { analyzeAudioBuffer, decodeAudioBuffer } from '../services/audio-analysis.js';
 import { wakeLock } from '../services/wakelock.js';
 import { themeColor, onThemeChange } from '../services/theme.js';
+import { dbService } from '../services/db.js';
 
 const metronomeCSS = `
   :host {
@@ -32,21 +33,32 @@ const metronomeCSS = `
     overflow: hidden;
   }
 
-  .top-bar { display: flex; justify-content: flex-end; height: 30px; margin-bottom: 4px; }
-  .btn-settings {
-    background: transparent; border: 1px solid var(--line); color: var(--muted);
-    border-radius: 8px; padding: 4px 10px; font-size: 14px; cursor: pointer;
-  }
-  .btn-settings:hover { color: var(--cyan); border-color: var(--cyan); }
-
-  .info-bar { flex:0 0 auto;margin-top:8px; display:flex;gap:1px; background:var(--line);border:1px solid var(--line);border-radius:16px; overflow:hidden; }
+  .info-bar { flex:0 0 auto;margin-top:0; display:flex;gap:1px; background:var(--line);border:1px solid var(--line);border-radius:16px; overflow:hidden; }
   .info-cell { flex:1 1 0;min-width:0;padding:9px 6px; background:var(--surface-deep);text-align:center; }
   .info-k { font-size:10px;color:var(--muted);letter-spacing:1px; margin-bottom:3px; }
   .info-v { font-size:18px;font-weight:700;color: var(--heading); font-variant-numeric:tabular-nums; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; line-height:1.1; }
   .info-v small{font-size:10px;font-weight:500;opacity:.55;margin-left:2px}
   .info-v.v-sm{font-size:13.5px;padding-top:2px}
 
-  .dots { flex:0 0 auto;display:flex;flex-wrap:wrap;gap:var(--dot-gap,7px); justify-content:center;align-items:center; min-height:26px;margin:14px 0 6px; }
+  .beat-block { flex:0 0 auto; width:fit-content; max-width:100%; margin:14px auto 6px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .dots { flex:0 0 auto;display:flex;flex-wrap:wrap;gap:var(--dot-gap,7px); justify-content:center;align-items:center; min-height:26px;margin:0; }
+  .beat-strip {
+    position:relative; width:100%; height:var(--strip-height,24px); border-radius:999px; overflow:hidden;
+    background:rgba(var(--primary-rgb),.10); visibility:hidden;
+  }
+  .beat-strip.show { visibility:visible; }
+  .strip-track { position:absolute; left:0; right:0; height:100%; display:none; }
+  .strip-track.show { display:block; }
+  .beat-strip.dual .strip-track { height:calc(50% - 1px); }
+  .strip-track.timer { top:0; }
+  .strip-track.ramp { bottom:0; }
+  .strip-track.timer .strip-fill { background:linear-gradient(90deg,rgba(var(--primary-rgb),.35),var(--primary)); }
+  .strip-track.ramp .strip-fill { background:linear-gradient(90deg,rgba(var(--accent-rgb),.35),var(--accent)); }
+  .strip-fill { position:absolute; left:0; top:0; bottom:0; width:0%; border-radius:999px; transition:width .12s linear; }
+  .strip-flash { position:absolute; inset:0; border-radius:999px; background:var(--accent); opacity:0; pointer-events:none; }
+  .strip-flash.accent { background:var(--heading); }
+  .strip-flash.flash { animation:beatStripFlash .16s ease-out; }
+  @keyframes beatStripFlash { 0% { opacity:.82; } 100% { opacity:0; } }
   .dot { width:var(--dot-size,22px);height:var(--dot-size,22px); border-radius:8px;background:var(--surface-sunken);border:1px solid var(--line); transition:background .06s, box-shadow .06s, border-color .06s, transform .1s; }
   .dot.m-accent{background:var(--dot-accent);border-color:var(--line-warm)}
   .dot.m-beat{background:var(--dot-beat);border-color:var(--scroll)}
@@ -70,10 +82,13 @@ const metronomeCSS = `
   .play-in-knob { margin-top:10px; padding:0 28px; min-width:140px; height:46px; border-radius:16px; border:1px solid rgba(var(--secondary-rgb),.10); cursor:pointer; font-size:14px; font-weight:800; letter-spacing:5px; color:var(--on-primary); background:linear-gradient(180deg,var(--accent),var(--primary)); box-shadow:0 6px 18px rgba(var(--primary-rgb),.26); pointer-events:auto; }
   .play-in-knob.running { color:var(--on-danger); background:var(--danger); box-shadow:0 6px 18px rgba(var(--danger-rgb),.26); }
 
-  .bottom-area { flex:0 0 auto; display:flex; flex-direction:column; gap:5px; padding-top:4px; }
-  .bottom-row { position:relative; height:44px; flex:0 0 auto; }
-  .tap-btn { position:absolute; right:0; top:50%; transform:translateY(-50%); width:72px; height:44px; border-radius:14px; border:1px solid var(--line-warm); background:linear-gradient(180deg,var(--tap-a),var(--tap-b));color: var(--accent-text); display:flex;flex-direction:column; align-items:center;justify-content:center; cursor:pointer; }
-  .tap-btn:active, .tap-btn.pulse { transform:translateY(-50%) scale(.95); background:rgba(var(--primary-rgb),.28); }
+  .bottom-area { flex:0 0 auto; display:flex; flex-direction:column; gap:0; padding-top:0; margin-top:10px; margin-bottom:64px; }
+  .bottom-row { display:flex; align-items:center; justify-content:space-between; gap:8px; height:44px; padding:0 8px; flex:0 0 auto; }
+  .tap-btn, .bottom-settings { width:72px; height:44px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; }
+  .tap-btn { border:1px solid var(--line-warm); background:linear-gradient(180deg,var(--tap-a),var(--tap-b)); color: var(--accent-text); }
+  .tap-btn:active, .tap-btn.pulse { transform:scale(.95); background:rgba(var(--primary-rgb),.28); }
+  .bottom-settings { border:1px solid var(--line-warm); background:var(--surface-raised); color:var(--accent-text); font-size:14px; font-weight:800; letter-spacing:1.5px; gap:1px; }
+  .bottom-settings:active { transform:scale(.95); background:rgba(var(--primary-rgb),.10); }
 
   .settings-mask {
     position: absolute; inset: 0; background: rgba(var(--shadow-rgb),.6); backdrop-filter: blur(4px);
@@ -82,12 +97,17 @@ const metronomeCSS = `
   .settings-mask.show { display: flex; }
   .settings-panel {
     background: var(--bg1); border: 1px solid var(--line); border-radius: 16px;
-    width: 90%; max-width: 400px; max-height: calc(100% - 24px); padding: 20px;
-    display: flex; flex-direction: column; gap: 16px;
-    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    width: 90%; max-width: 400px; max-height: calc(100% - 24px); padding: 0;
+    display: flex; flex-direction: column; overflow: hidden;
     box-shadow: 0 10px 30px rgba(var(--shadow-rgb),.5);
   }
-  .settings-panel h3 { margin: 0; font-size: 16px; color: var(--heading); text-align: center; letter-spacing: .5px; }
+  .settings-head { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px 12px; border-bottom:1px solid var(--line); background:var(--bg1); }
+  .settings-title-wrap { min-width:0; }
+  .settings-panel h3 { margin: 0; font-size: 16px; color: var(--heading); text-align: left; letter-spacing: .5px; }
+  .settings-sub { margin-top:3px; font-size:10px; color:var(--muted); }
+  .settings-close { flex:0 0 auto; padding:8px 16px; border-radius:10px; border:1px solid var(--primary); background:rgba(var(--primary-rgb),.18); color:var(--heading); font-size:13px; font-weight:700; cursor:pointer; }
+  .settings-close:active { transform:scale(.96); }
+  .settings-content { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:16px; display:flex; flex-direction:column; gap:16px; }
   .settings-group { display: flex; flex-direction: column; gap: 8px; }
   .settings-label { font-size: 12px; color: var(--muted); }
   
@@ -160,6 +180,7 @@ const metronomeCSS = `
   }
   .follow-grid input:focus, .follow-grid select:focus { border-color: var(--primary); }
   .follow-hint { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .meter-guess { color: var(--heading); }
   .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
   .switch {
     position: relative; flex: 0 0 auto; width: 42px; height: 24px; border-radius: 999px;
@@ -232,10 +253,6 @@ const metronomeCSS = `
 // ==========================================
 const metronomeHTML = `
 <div class="main-inner">
-  <div class="top-bar">
-    <button class="btn-settings" id="btnSettings">⚙ 设置</button>
-  </div>
-
   <div class="info-bar">
     <div class="info-cell">
       <div class="info-k">拍速</div>
@@ -251,9 +268,14 @@ const metronomeHTML = `
     </div>
   </div>
 
-  <div class="dots" id="dots"></div>
-
-  <div class="practice-hud" id="practiceHud"></div>
+  <div class="beat-block">
+    <div class="dots" id="dots"></div>
+    <div class="beat-strip" id="beatStrip">
+      <div class="strip-track timer" id="stripTimerTrack"><div class="strip-fill" id="stripTimerFill"></div></div>
+      <div class="strip-track ramp" id="stripRampTrack"><div class="strip-fill" id="stripRampFill"></div></div>
+      <div class="strip-flash" id="stripFlash"></div>
+    </div>
+  </div>
 
   <div class="knob-wrap" id="knobWrap">
     <canvas id="knobCanvas"></canvas>
@@ -268,8 +290,11 @@ const metronomeHTML = `
     </div>
   </div>
 
+  <div class="practice-hud" id="practiceHud"></div>
+
   <div class="bottom-area">
     <div class="bottom-row">
+      <button class="bottom-settings" id="btnSettings">⚙ 设置</button>
       <button class="tap-btn" id="tapBtn">
         <span style="font-size:14px;font-weight:800;letter-spacing:1.5px;">TAP</span>
         <span id="tapHint" style="font-size:8.5px;opacity:.65;">测速</span>
@@ -280,7 +305,14 @@ const metronomeHTML = `
 
 <div class="settings-mask" id="settingsMask">
   <div class="settings-panel">
-    <h3>节拍器设置</h3>
+    <div class="settings-head">
+      <div class="settings-title-wrap">
+        <h3>节拍器设置</h3>
+        <div class="settings-sub">修改即时生效</div>
+      </div>
+      <button class="settings-close" id="btnCloseSettings">完成</button>
+    </div>
+    <div class="settings-content">
     <div class="settings-group">
       <div class="settings-label">拍号</div>
       <div class="ts-grid" id="tsGrid"></div>
@@ -338,6 +370,8 @@ const metronomeHTML = `
         <label class="check-row"><input type="checkbox" id="audioTempoMode"> 音频测速</label>
       </div>
       <div class="audio-mode-hint" id="audioModeHint">未启用音频 · 开始仅播放节拍器</div>
+      <div class="settings-label">拍号推测</div>
+      <div class="follow-info meter-guess" id="meterGuess">拍号推测：未分析</div>
       <div class="follow-row">
         <button class="follow-btn" id="followAudioPick">选择音频</button>
         <button class="follow-btn ghost" id="followAudioClear">清除</button>
@@ -363,11 +397,17 @@ const metronomeHTML = `
     </div>
     <div class="settings-group">
       <div class="switch-row">
+        <span>节拍闪光条（拍点同步）</span>
+        <div class="switch on" id="flashSwitch" role="switch" aria-checked="true" tabindex="0"></div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="switch-row">
         <span>震动反馈（重音 40ms / 次重音 30ms / 普通 18ms）</span>
         <div class="switch" id="vibrationSwitch" role="switch" aria-checked="false" tabindex="0"></div>
       </div>
     </div>
-    <button class="close-btn" id="btnCloseSettings">完成</button>
+    </div>
   </div>
 </div>
 `;
@@ -391,10 +431,12 @@ class GuitarMetronome extends HTMLElement {
     this.isRunning = false;
     this.metronomeHandle = null;
     this.queue = [];
+    this.slotQueue = [];
     this.dotEls = [];
 
     // C4 练习工具状态
     this.swing = 0;
+    this.flashEnabled = true;
     this.ramp = { enabled: false, start: 120, target: 160, step: 5, every: 2 };
     this.timer = { enabled: false, minutes: 15 };
     this.rampBars = 0;
@@ -402,6 +444,8 @@ class GuitarMetronome extends HTMLElement {
     this.rampHoldBars = 0;
     this.countdownEndAt = 0;
     this.countdownTimer = null;
+    this.stripFlashTimer = null;
+    this.session = null;
 
     // B 批：节奏型 / 音频跟练 / 震动
     this.patterns = [];
@@ -419,8 +463,11 @@ class GuitarMetronome extends HTMLElement {
       handle: null,
       generation: 0,
       analysisToken: 0,
-      loading: false
+      loading: false,
+      meterGuess: null
     };
+    this.meterSuggestion = null;
+    this.tsInputDirty = false;
 
     this.currentBeatDur = 60 / this.bpm;
     this.currentSlotDurs = [this.currentBeatDur];
@@ -468,6 +515,10 @@ class GuitarMetronome extends HTMLElement {
     const infoTs     = $('infoTs');
     const infoSub    = $('infoSub');
     const dotsWrap   = $('dots');
+    const beatStrip  = $('beatStrip');
+    const stripTimerTrack = $('stripTimerTrack'), stripRampTrack = $('stripRampTrack');
+    const stripTimerFill = $('stripTimerFill'), stripRampFill = $('stripRampFill');
+    const stripFlash = $('stripFlash');
     const playBtn    = $('playBtn');
     const tapBtn     = $('tapBtn');
     const tapHint    = $('tapHint');
@@ -497,6 +548,8 @@ class GuitarMetronome extends HTMLElement {
     const followAudioLoop = $('followAudioLoop');
     const audioFollowMode = $('audioFollowMode'), audioTempoMode = $('audioTempoMode');
     const audioModeHint = $('audioModeHint');
+    const meterGuess = $('meterGuess');
+    const flashSwitch = $('flashSwitch');
     const vibrationSwitch = $('vibrationSwitch');
 
     const showToast = (msg) => {
@@ -569,6 +622,7 @@ class GuitarMetronome extends HTMLElement {
         subId: this.currentSubId, timbre: this.currentTimbre,
         accents: this.accents.slice(), swing: this.swing,
         ramp: { ...this.ramp }, timer: { ...this.timer },
+        flash: this.flashEnabled,
         patterns: this.patterns.map(p => ({
           ...p,
           accents: Array.isArray(p.accents) ? p.accents.slice() : null
@@ -616,6 +670,7 @@ class GuitarMetronome extends HTMLElement {
           }
           if (d.ramp && typeof d.ramp === 'object') this.ramp = { ...this.ramp, ...d.ramp };
           if (d.timer && typeof d.timer === 'object') this.timer = { ...this.timer, ...d.timer };
+          if (typeof d.flash === 'boolean') this.flashEnabled = d.flash;
 
           if (Array.isArray(d.patterns) && d.patterns.length) {
             this.patterns = d.patterns
@@ -674,6 +729,48 @@ class GuitarMetronome extends HTMLElement {
       playBtn.textContent = '开 始';
       playBtn.classList.remove('running');
       this.dotEls.forEach(d => d.classList.remove('on'));
+      stripFlash.classList.remove('flash');
+    };
+
+    const updateStripVisibility = () => {
+      const show = this.flashEnabled || this.timer.enabled || this.ramp.enabled;
+      const dual = this.timer.enabled && this.ramp.enabled;
+      beatStrip.classList.toggle('show', show);
+      beatStrip.classList.toggle('dual', dual);
+      stripTimerTrack.classList.toggle('show', this.timer.enabled);
+      stripRampTrack.classList.toggle('show', this.ramp.enabled);
+    };
+
+    const updateStripProgress = () => {
+      if (!beatStrip.classList.contains('show')) return;
+      let timerPct = 0;
+      if (this.timer.enabled && this.countdownEndAt) {
+        const total = Math.max(60000, this.timer.minutes * 60000);
+        const elapsed = total - Math.max(0, this.countdownEndAt - Date.now());
+        timerPct = Math.max(0, Math.min(1, elapsed / total));
+      }
+      let rampPct = 0;
+      if (this.ramp.enabled) {
+        const from = Number(this.ramp.start) || this.bpm;
+        const to = Number(this.ramp.target) || this.bpm;
+        const span = to - from;
+        rampPct = span ? (this.bpm - from) / span : (this.bpm >= to ? 1 : 0);
+        rampPct = Math.max(0, Math.min(1, rampPct));
+      }
+      stripTimerFill.style.width = `${(timerPct * 100).toFixed(1)}%`;
+      stripRampFill.style.width = `${(rampPct * 100).toFixed(1)}%`;
+    };
+
+    const flashStrip = (ev) => {
+      if (!this.flashEnabled || !beatStrip.classList.contains('show')) return;
+      stripFlash.className = 'strip-flash' + (ev && ev.style === 'accent' ? ' accent' : '');
+      void stripFlash.offsetWidth;
+      stripFlash.classList.add('flash');
+      if (this.stripFlashTimer) clearTimeout(this.stripFlashTimer);
+      this.stripFlashTimer = setTimeout(() => {
+        stripFlash.classList.remove('flash');
+        this.stripFlashTimer = null;
+      }, 170);
     };
 
     this.drawLoop = () => {
@@ -684,6 +781,11 @@ class GuitarMetronome extends HTMLElement {
           this.dotEls[i].classList.toggle('on', i === ev.beat);
         }
       }
+      while (this.slotQueue.length && this.slotQueue[0].time <= now + 0.005) {
+        const ev = this.slotQueue.shift();
+        flashStrip(ev);
+      }
+      updateStripProgress();
       this.rafId = requestAnimationFrame(this.drawLoop);
     };
 
@@ -754,6 +856,7 @@ class GuitarMetronome extends HTMLElement {
       if (this.timeSigNum > 12) size = 11;
       if (this.timeSigNum > 16) size = 9;
       dotsWrap.style.setProperty('--dot-size', size + 'px');
+      beatStrip.style.setProperty('--strip-height', (size + 2) + 'px');
       dotsWrap.style.setProperty('--dot-gap', this.timeSigNum > 12 ? '4px' : (this.timeSigNum > 8 ? '5px' : '7px'));
 
       for (let i = 0; i < this.timeSigNum; i++) {
@@ -772,6 +875,8 @@ class GuitarMetronome extends HTMLElement {
     };
 
     const updateHud = () => {
+      updateStripVisibility();
+      updateStripProgress();
       // 音频跟练：第一行文件名，第二行速度 / 调性 + 其他练习信息
       if (this.audioMode === 'follow') {
         const fa = this.followAudio;
@@ -834,6 +939,41 @@ class GuitarMetronome extends HTMLElement {
       this.countdownEndAt = 0;
     };
 
+    const finishSession = async (reason) => {
+      const session = this.session;
+      if (!session || session.recorded || !this.isRunning) return;
+      session.recorded = true;
+
+      const durationSec = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+      const mode = reason === 'ramp' ? 'ramp' : 'timer';
+      const name = mode === 'ramp' ? '节拍器 · 变速练习' : '节拍器 · 计时练习';
+      const bpmStart = Math.round(session.startBpm);
+      const bpmEnd = Math.round(this.bpm);
+      const minutes = Math.max(1, Math.round(durationSec / 60));
+      const plannedMinutes = mode === 'timer' ? Math.max(1, Math.round(this.timer.minutes)) : null;
+
+      this.stop();
+
+      try {
+        await dbService.addLog({
+          name,
+          source: 'metronome',
+          mode,
+          auto: true,
+          minutes,
+          durationSec,
+          bpm: Math.max(bpmStart, bpmEnd),
+          bpmStart,
+          bpmEnd,
+          plannedMinutes
+        });
+        window.dispatchEvent(new CustomEvent('log-updated'));
+        showToast(`${mode === 'ramp' ? '变速完成' : '计时完成'}，已记录 ${fmtClock(durationSec * 1000)}`);
+      } catch (err) {
+        showToast('练习结束，记录保存失败');
+      }
+    };
+
     const startCountdown = () => {
       stopCountdown();
       if (!this.timer.enabled) { updateHud(); return; }
@@ -843,8 +983,7 @@ class GuitarMetronome extends HTMLElement {
         if (Date.now() >= this.countdownEndAt) {
           stopCountdown();
           updateHud();
-          this.stop();
-          showToast('倒计时结束，节拍器已停');
+          finishSession('timer');
           return;
         }
         updateHud();
@@ -870,8 +1009,7 @@ class GuitarMetronome extends HTMLElement {
         if (this.rampHoldBars >= every) {
           setTimeout(() => {
             if (!this.isRunning) return;
-            this.stop();
-            showToast(`已在目标 ${target} BPM 保持 ${every} 小节，练习结束`);
+            finishSession('ramp');
           }, 0);
         }
         return;
@@ -935,6 +1073,35 @@ class GuitarMetronome extends HTMLElement {
       if (this.audioMode !== 'follow' && this.audioMode !== 'tempo') return;
       const bpm = this.followAudio.analysis && this.followAudio.analysis.bpm;
       if (bpm) this.setBpm(bpm, true);
+    };
+
+    const updateMeterUI = () => {
+      const analysis = this.followAudio.analysis;
+      const m = this.meterSuggestion || (analysis && analysis.meter);
+      if (!analysis && !m) {
+        meterGuess.textContent = '拍号推测：未分析';
+        return;
+      }
+      if (!m || !m.num || !m.den || (m.confidence || 0) < 0.55) {
+        meterGuess.textContent = '拍号推测：不确定';
+        return;
+      }
+      meterGuess.textContent = `拍号推测：${m.num}/${m.den}（置信度 ${Math.round(m.confidence * 100)}%）`;
+    };
+
+    const applyMeterSuggestion = (result) => {
+      const m = result && result.meter;
+      if (!m || !m.num || !m.den || (m.confidence || 0) < 0.55) {
+        this.meterSuggestion = null;
+        updateMeterUI();
+        return;
+      }
+      this.meterSuggestion = { num: m.num, den: m.den, confidence: m.confidence };
+      if (!this.tsInputDirty) {
+        tsNumInput.value = m.num;
+        tsDenInput.value = m.den;
+      }
+      updateMeterUI();
     };
 
     const updateAudioModeUI = () => {
@@ -1029,6 +1196,7 @@ class GuitarMetronome extends HTMLElement {
       followAudioPrebeatMode.value = fa.prebeatEveryLoop ? 'every' : 'first';
       followAudioPrebeatModeRow.style.display = (this.audioMode === 'follow' && fa.loop && fa.prebeatBars > 0) ? '' : 'none';
       updateAudioModeUI();
+      updateMeterUI();
       updateHud();
     };
 
@@ -1093,6 +1261,7 @@ class GuitarMetronome extends HTMLElement {
         if (fa.buffer !== buffer || fa.analysisToken !== token) return;
 
         fa.analysis = result;
+        applyMeterSuggestion(result);
         updateFollowAudioUI();
         saveSettings();
 
@@ -1139,6 +1308,10 @@ class GuitarMetronome extends HTMLElement {
         fa.duration = buffer.duration;
         fa.analysis = null;
         fa.loading = false;
+        this.meterSuggestion = null;
+        this.tsInputDirty = false;
+        tsNumInput.value = this.timeSigNum;
+        tsDenInput.value = this.timeSigDen;
         updateFollowAudioUI();
         saveSettings();
         showToast('音频已载入，正在分析 BPM / 调性…');
@@ -1158,6 +1331,10 @@ class GuitarMetronome extends HTMLElement {
       this.followAudio.duration = 0;
       this.followAudio.analysis = null;
       this.followAudio.loading = false;
+      this.meterSuggestion = null;
+      this.tsInputDirty = false;
+      tsNumInput.value = this.timeSigNum;
+      tsDenInput.value = this.timeSigDen;
       updateFollowAudioUI();
       saveSettings();
       showToast('已清除跟练音频');
@@ -1199,6 +1376,28 @@ class GuitarMetronome extends HTMLElement {
     };
 
     // ==================== B 批：震动 ====================
+    const updateFlashUI = () => {
+      flashSwitch.classList.toggle('on', this.flashEnabled);
+      flashSwitch.setAttribute('aria-checked', this.flashEnabled ? 'true' : 'false');
+    };
+
+    const toggleFlash = () => {
+      this.flashEnabled = !this.flashEnabled;
+      updateFlashUI();
+      saveSettings();
+      updateHud();
+      if (this.flashEnabled) {
+        flashStrip({ style: 'accent' });
+        showToast('节拍闪光条已开启');
+      } else {
+        showToast('节拍闪光条已关闭');
+      }
+    };
+    flashSwitch.onclick = toggleFlash;
+    flashSwitch.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFlash(); }
+    };
+
     const updateVibrationUI = () => {
       vibrationSwitch.classList.toggle('on', this.vibrationEnabled);
       vibrationSwitch.setAttribute('aria-checked', this.vibrationEnabled ? 'true' : 'false');
@@ -1234,6 +1433,7 @@ class GuitarMetronome extends HTMLElement {
 
     updateFollowAudioUI();
     updateVibrationUI();
+    updateFlashUI();
 
 
     this.setBpm = (v, isSync) => {
@@ -1261,6 +1461,7 @@ class GuitarMetronome extends HTMLElement {
     this.start = () => {
       this.isRunning = true;
       this.queue = [];
+      this.slotQueue = [];
       // 变速练习从设定的起始 BPM 开跑（不要把上一轮爬到的 BPM 当成起点）
       if (this.ramp.enabled) {
         this.setBpm(this.ramp.start, true);
@@ -1268,6 +1469,7 @@ class GuitarMetronome extends HTMLElement {
         this.rampHolding = false;
         this.rampHoldBars = 0;
       }
+      this.session = { startedAt: Date.now(), startBpm: this.bpm, recorded: false };
       this.metronomeHandle = audioEngine.startMetronome({
         bpm: this.bpm,
         // 细分是「每拍切成几个 slot」，拍号是「每小节几拍」，二者在引擎里按 slot 推进
@@ -1280,15 +1482,22 @@ class GuitarMetronome extends HTMLElement {
           this.vibrateFor(ev.beat);
           if (ev.beat === 0) rampAdvance();
         },
+        onSlot: (ev) => {
+          // 色块最多做到八分音符：四分/八分逐 slot 闪，其他细分回退为每拍一次
+          const flashSlots = this.currentSubId === 'e' ? 2 : 1;
+          if (ev.slot < flashSlots) this.slotQueue.push(ev);
+        },
         // 只有被迷你节拍器抢占时才会走到这里；用户自己点停会先把 isRunning 置 false
         onStop: () => {
           this.stopFollowAudio();
           if (!this.isRunning) return;
           this.isRunning = false;
+          this.session = null;
           wakeLock.release('metronome');
           stopCountdown();
           cancelAnimationFrame(this.rafId);
           this.queue = [];
+          this.slotQueue = [];
           resetPlayUI();
           updateHud();
         }
@@ -1307,6 +1516,7 @@ class GuitarMetronome extends HTMLElement {
 
     this.stop = () => {
       this.isRunning = false;
+      this.session = null;
       this.stopFollowAudio();
       wakeLock.release('metronome');
       if (this.metronomeHandle) {
@@ -1317,11 +1527,14 @@ class GuitarMetronome extends HTMLElement {
       stopCountdown();
       cancelAnimationFrame(this.rafId);
       this.queue = [];
+      this.slotQueue = [];
       resetPlayUI();
       updateHud();
     };
 
     const applyTimeSignature = (num, den) => {
+      this.meterSuggestion = null;
+      this.tsInputDirty = false;
       const nextNum = Math.min(32, Math.max(1, Math.round(Number(num) || this.timeSigNum)));
       const nextDen = Math.min(64, Math.max(1, Math.round(Number(den) || this.timeSigDen)));
       if (nextNum === this.timeSigNum && nextDen === this.timeSigDen) {
@@ -1349,6 +1562,8 @@ class GuitarMetronome extends HTMLElement {
 
     const applyPattern = (pat) => {
       if (!pat) return;
+      this.meterSuggestion = null;
+      this.tsInputDirty = false;
       const nextNum = Math.min(32, Math.max(1, Math.round(Number(pat.tsNum) || 4)));
       const nextDen = Math.min(64, Math.max(1, Math.round(Number(pat.tsDen) || 4)));
       const sub = SUBDIVISIONS.find(s => s.id === pat.subId) || SUBDIVISIONS[0];
@@ -1497,8 +1712,13 @@ class GuitarMetronome extends HTMLElement {
       }
 
       // 把 C4 控件回填成当前状态（打开设置面板时总是显示真实值）
-      tsNumInput.value = this.timeSigNum;
-      tsDenInput.value = this.timeSigDen;
+      if (this.meterSuggestion && !this.tsInputDirty) {
+        tsNumInput.value = this.meterSuggestion.num;
+        tsDenInput.value = this.meterSuggestion.den;
+      } else {
+        tsNumInput.value = this.timeSigNum;
+        tsDenInput.value = this.timeSigDen;
+      }
       swingRange.value = this.swing;
       swingVal.textContent = this.swing + '%';
       rampOn.checked = this.ramp.enabled;
@@ -1512,6 +1732,7 @@ class GuitarMetronome extends HTMLElement {
       renderPatterns();
       updateFollowAudioUI();
       updateVibrationUI();
+      updateFlashUI();
     };
 
     const applyCustomTimeSignature = () => {
@@ -1519,9 +1740,11 @@ class GuitarMetronome extends HTMLElement {
       // 回填被 clamp 后的真实值
       tsNumInput.value = this.timeSigNum;
       tsDenInput.value = this.timeSigDen;
+      updateMeterUI();
     };
     tsApply.onclick = applyCustomTimeSignature;
     [tsNumInput, tsDenInput].forEach(el => {
+      el.addEventListener('input', () => { this.tsInputDirty = true; });
       el.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); applyCustomTimeSignature(); }
       });
@@ -1556,6 +1779,7 @@ class GuitarMetronome extends HTMLElement {
         this.rampHolding = false;
         this.rampHoldBars = 0;
         this.setBpm(this.ramp.start, true);
+        if (this.session) this.session.startBpm = this.bpm;
       }
       updateHud();
     };

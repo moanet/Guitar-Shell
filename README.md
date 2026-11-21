@@ -16,7 +16,7 @@
   <a href="https://moanet.github.io/GuitarShell/">
     <img src="https://img.shields.io/badge/Open-Web%20App-C7863F" alt="打开网页版">
   </a>
-  <img src="https://img.shields.io/badge/version-0.1.1-8A8075" alt="版本 0.1.1">
+  <img src="https://img.shields.io/badge/version-0.1.2-8A8075" alt="版本 0.1.2">
   <img src="https://img.shields.io/badge/data-local--first-6B8E23" alt="本地优先">
 </p>
 
@@ -29,9 +29,9 @@ Guitar Shell 是一个本地优先的吉他练琴工作站。它把乐谱、节�
 | 模块 | 已具备 |
 | --- | --- |
 | 乐谱 | PDF / 图片导入、书架与标签、拼音搜索、手势缩放、页级书签、阅读进度恢复、迷你节拍器、全屏阅读 |
-| 节拍器 | 高精度调度、旋钮 / 长按步进 / TAP、9 组拍号 + 自定义拍号、11 种细分（含休止位）、6 种音色、逐拍重音、Swing 1% 步进、变速练习、倒计时、节奏型、音频跟练 / 音频测速、震动反馈、双行练习 HUD |
+| 节拍器 | 高精度调度、旋钮 / 长按步进 / TAP、9 组拍号 + 自定义拍号、11 种细分（含休止位）、6 种音色、逐拍重音、Swing 1% 步进、变速练习、倒计时、节奏型、音频跟练 / 音频测速、震动反馈、拍点色块 / 计时变速进度、拍号推测、双行练习 HUD |
 | 调音器 | 麦克风采集、YIN 基频检测、自动 / 手动选弦、A4 校准、音名与音分显示、标准音试听、音分曲线 |
-| 练习记录 | 时长 / BPM / 页码打卡、累计统计、SVG 趋势、TOP5、页面实时刷新 |
+| 练习记录 | 时长 / BPM / 页码打卡、计时 / 变速自然结束自动记录、累计统计、SVG 趋势、TOP5、页面实时刷新 |
 | 数据与同步 | IndexedDB 本地存储、完整备份与恢复、坚果云 WebDAV 手动同步、密码本机加密 |
 | 外观 | 深色 / 浅色双主题、全局设置抽屉、Android 系统栏同步、启动动画（总时长约 1 秒） |
 
@@ -54,9 +54,9 @@ Guitar Shell 是一个本地优先的吉他练琴工作站。它把乐谱、节�
 
 ## 下载与安装
 
-- **Android 正式版**：前往 [GitHub Releases](https://github.com/moanet/GuitarShell/releases/latest) 下载 `GuitarShell-0.1.1-release.apk`。
+- **Android 当前正式版**：前往 [GitHub Releases](https://github.com/moanet/GuitarShell/releases/latest) 下载 `GuitarShell-0.1.1-release.apk`。
 - **当前 Release**：[v0.1.1](https://github.com/moanet/GuitarShell/releases/tag/v0.1.1)，2026-11-21 正式发布，已完成实机验证。
-- **APK 校验**：`SHA-256 C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`。
+- **0.1.2 构建产物**：`GuitarShell-0.1.2-release.apk` 已构建并校验，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；GitHub Release 待发布。
 - **网页版**：打开 [https://moanet.github.io/GuitarShell/](https://moanet.github.io/GuitarShell/)。
 
 > `0.1.0` 起使用新的应用 ID `com.guitarshell`，可以与 `0.0.8.10` 并存，不覆盖旧版数据。

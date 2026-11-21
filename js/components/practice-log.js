@@ -25,6 +25,7 @@ const logCSS = `
   .log-card { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
   .log-info { flex: 1; min-width: 0; }
   .log-title { font-size: 15px; font-weight: bold; color: var(--heading); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .auto-badge { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:6px; background:rgba(var(--accent-rgb),.16); color:var(--accent-text); font-size:9px; font-weight:700; vertical-align:2px; }
   .log-detail { font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
   .log-detail span { color: var(--accent-text); font-weight: bold; }
   .btn-del { background: rgba(var(--danger-rgb), 0.12); color: var(--danger); border: none; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; margin-left: 12px; }
@@ -134,7 +135,33 @@ class GuitarPracticeLog extends HTMLElement {
     // ==================== 练习趋势（手写 SVG，不引库） ====================
     const DAY = 86400000;
     const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
-    const sumMinutes = (logs) => logs.reduce((acc, l) => acc + (parseInt(l.minutes, 10) || 0), 0);
+    const logMinutes = (log) => {
+      const sec = Number(log && log.durationSec);
+      if (Number.isFinite(sec) && sec > 0) return sec / 60;
+      return parseInt(log && log.minutes, 10) || 0;
+    };
+    const formatMinutes = (value) => {
+      const n = Number(value) || 0;
+      const rounded = Math.round(n * 10) / 10;
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    };
+    const fmtDuration = (log) => {
+      const sec = Number(log && log.durationSec);
+      if (Number.isFinite(sec) && sec > 0) {
+        const total = Math.max(1, Math.round(sec));
+        return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+      }
+      return `${parseInt(log && log.minutes, 10) || 0} 分钟`;
+    };
+    const bpmRange = (log) => {
+      const start = Number(log && log.bpmStart);
+      const end = Number(log && log.bpmEnd);
+      if (Number.isFinite(start) && Number.isFinite(end)) {
+        return start === end ? `${end} BPM` : `${start}→${end} BPM`;
+      }
+      return log && log.bpm ? `${log.bpm} BPM` : '';
+    };
+    const sumMinutes = (logs) => logs.reduce((acc, l) => acc + logMinutes(l), 0);
 
     const svgBars = (items) => {
       const W = 300, TOP = 16, BASE = 104, H = 128;
@@ -147,10 +174,10 @@ class GuitarPracticeLog extends HTMLElement {
         const x = i * slot + (slot - bw) / 2;
         const h = (it.value / maxVal) * (BASE - TOP);
         const barClass = it.current ? 'bar current' : 'bar';
-        body += `<g><title>${it.full}：${it.value} 分钟</title>`
+        body += `<g><title>${it.full}：${formatMinutes(it.value)} 分钟</title>`
              + `<rect class="${barClass}" x="${x.toFixed(1)}" y="${(BASE - Math.max(h, 2)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" rx="3"/></g>`;
         if (showValue && it.value > 0) {
-          body += `<text class="axis-label" x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9">${it.value}</text>`;
+          body += `<text class="axis-label" x="${(x + bw / 2).toFixed(1)}" y="${(BASE - h - 3).toFixed(1)}" text-anchor="middle" font-size="9">${formatMinutes(it.value)}</text>`;
         }
         body += `<text class="axis-label" x="${(i * slot + slot / 2).toFixed(1)}" y="120" text-anchor="middle" font-size="${showValue ? 9 : 8}">${it.label}</text>`;
       });
@@ -189,8 +216,8 @@ class GuitarPracticeLog extends HTMLElement {
         }
         const total = sumMinutes(logs.filter(l => l.createdAt >= today0 - 6 * DAY));
         const count = logs.filter(l => l.createdAt >= today0 - 6 * DAY).length;
-        trendSummary.textContent = `近 7 天共 ${total} 分钟 · ${count} 次练习`;
-        trendPeek.textContent = `近 7 天 · ${total} 分钟`;
+        trendSummary.textContent = `近 7 天共 ${formatMinutes(total)} 分钟 · ${count} 次练习`;
+        trendPeek.textContent = `近 7 天 · ${formatMinutes(total)} 分钟`;
       } else {
         const now = new Date();
         for (let i = 11; i >= 0; i--) {
@@ -203,8 +230,8 @@ class GuitarPracticeLog extends HTMLElement {
         const total = sumMinutes(logs.filter(l => l.createdAt >= new Date(now.getFullYear(), now.getMonth() - 11, 1).getTime()));
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
         const monthMin = sumMinutes(logs.filter(l => l.createdAt >= monthStart));
-        trendSummary.textContent = `近 12 个月共 ${total} 分钟 · 本月 ${monthMin} 分钟`;
-        trendPeek.textContent = `近 12 月 · ${total} 分钟`;
+        trendSummary.textContent = `近 12 个月共 ${formatMinutes(total)} 分钟 · 本月 ${formatMinutes(monthMin)} 分钟`;
+        trendPeek.textContent = `近 12 月 · ${formatMinutes(total)} 分钟`;
       }
 
       chartWrap.innerHTML = logs.length
@@ -215,7 +242,7 @@ class GuitarPracticeLog extends HTMLElement {
       const agg = new Map();
       logs.forEach(l => {
         const key = String(l.name || '未命名');
-        agg.set(key, (agg.get(key) || 0) + (parseInt(l.minutes, 10) || 0));
+        agg.set(key, (agg.get(key) || 0) + logMinutes(l));
       });
       const top = Array.from(agg.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
       const maxMin = top.length ? top[0][1] : 0;
@@ -225,7 +252,7 @@ class GuitarPracticeLog extends HTMLElement {
             <div class="top-row">
               <div class="top-name" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
               <div class="top-track"><div class="top-fill" style="width:${maxMin ? Math.round(min / maxMin * 100) : 0}%"></div></div>
-              <div class="top-min">${min} 分</div>
+              <div class="top-min">${formatMinutes(min)} 分</div>
             </div>`).join('')
         : '';
     };
@@ -252,15 +279,16 @@ class GuitarPracticeLog extends HTMLElement {
         return;
       }
       logs.forEach(log => {
-        totalTime += parseInt(log.minutes, 10) || 0;
+        totalTime += logMinutes(log);
         const card = document.createElement('div');
         card.className = 'log-card';
         const d = new Date(log.createdAt);
         const timeStr = `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const bpmText = bpmRange(log);
         card.innerHTML = `
           <div class="log-info">
-            <div class="log-title">${escapeHtml(log.name)}</div>
-            <div class="log-detail"><span>⏱ ${log.minutes} 分钟</span>${log.bpm ? `<span>🚀 ${log.bpm} BPM</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:var(--muted)">${timeStr}</span></div>
+            <div class="log-title">${escapeHtml(log.name)}${log.auto ? '<span class="auto-badge">自动</span>' : ''}</div>
+            <div class="log-detail"><span>⏱ ${fmtDuration(log)}</span>${bpmText ? `<span>🚀 ${bpmText}</span>` : ''}${log.page ? `<span>📖 第 ${log.page} 页</span>` : ''}<span style="color:var(--muted)">${timeStr}</span></div>
           </div>
           <button class="btn-del" data-id="${log.id}">删除</button>
         `;
@@ -270,7 +298,7 @@ class GuitarPracticeLog extends HTMLElement {
         };
         logList.appendChild(card);
       });
-      statTime.textContent = totalTime;
+      statTime.textContent = formatMinutes(totalTime);
       this.renderTrend(logs);
     };
 
