@@ -2,7 +2,7 @@
 
 > 这里记录开发任务、阶段进度、冒烟清单、技术债与避坑指南。面向用户的项目介绍、功能说明、截图与下载入口在 [README.md](README.md)。
 >
-> 当前基线：`0.1.0` 正式版已发布。0.0.8.10 为 UI 终版并完成真机验收；0.1.0 已创建 `v0.1.0` tag、发布正式 GitHub Release，并上传 release 签名 APK。0.1.0 真机安装与备份恢复验收已完成（2026-11-21，无问题）。`0.1.1` 节拍器练习增强与启动动画提速已完成代码与浏览器验收，版本号已同步，release APK 已构建；GitHub Release 待发布。
+> 当前基线：`0.1.1` 正式版已发布（2026-11-21）。0.0.8.10 为 UI 终版并完成真机验收；0.1.0 已创建 `v0.1.0` tag 并发布正式 GitHub Release；0.1.1 已完成节拍器练习增强与启动动画提速，release APK 已实机验证并发布到 GitHub Release `v0.1.1`。
 
 ## 1. 当前阶段
 
@@ -34,16 +34,16 @@
 - 备份不包含：WebDAV 密码保险库、主题选择。换机或重装后需要重新设置。
 - 备份恢复顺序：先完整校验 dataURL，再清库写入；不要中途清空旧数据。
 
-### 1.3 0.1.1 节拍器练习增强（已构建，待发布）
+### 1.3 0.1.1 节拍器练习增强（已发布）
 
 已完成并验收：
 
 - **A 批交互与基础能力**：BPM 长按连续步进、自定义拍号、11 种细分（含三连 / 十六分休止位）、Swing 1% 步进、6 种音色、TAP 细节、32 拍自适应显示。
 - **B 批音频与节奏型**：音频跟练、本地 BPM / 调性分析、6 个内置节奏型、自定义节奏型保存、震动反馈。
 - **本轮音频模式**：设置面板新增「音频跟练 / 音频测速」二选一开关；跟练播放音频并自动关闭变速 / Swing，测速只调整 BPM、不播放音频；跟练信息在练习 HUD 双行显示，文件名过长单行省略。
-- **启动动画**：原生启动层总时长从约 `1.46s` 压缩到 `1.00s`（显示 `800ms` + 淡出 `200ms`）；淡入 `160ms` 与 `splash.html` 动画视觉不变，尚未做真机时长复核。
+- **启动动画**：原生启动层总时长从约 `1.46s` 压缩到 `1.00s`（显示 `800ms` + 淡出 `200ms`）；淡入 `160ms` 与 `splash.html` 动画视觉不变；已随 `0.1.1` release APK 完成实机验证，未单独记录首帧到消失的秒表实测值。
 - **版本与构建**：`0.1.1` 已同步到 npm、网页 / SW 与 Android；release APK 构建通过，`versionCode 101` / `versionName 0.1.1`，v1 / v2 签名校验通过。
-- **文档**：README、TASK、CHANGELOG 已更新到 `0.1.1` 口径；GitHub Release 待发布。
+- **文档与发布**：README、TASK、CHANGELOG 已更新到 `0.1.1` 口径；`v0.1.1` tag 与 GitHub Release 已正式发布，资产 `GuitarShell-0.1.1-release.apk` 已上传并通过下载哈希校验。
 
 ## 2. 演进路线
 
@@ -101,7 +101,7 @@ flowchart LR
 | 0.0.8.9 | 启动动画压缩到 1.46 秒 / 蜗牛每次随机起点 | 已真机验收推送 |
 | 0.0.8.10 | 双主题 UI 终版：暖纸日光 / 复古木质 | 已真机验收推送；GitHub Release 已转正式 |
 | 0.1.0 | 正式包名 / release 签名 / 数据迁移 | 已正式发布，GitHub Release `v0.1.0` |
-| 0.1.1 | 节拍器 A/B 批 + 音频跟练 / 测速 + 启动动画 1s | 已构建 release APK，待发布 |
+| 0.1.1 | 节拍器 A/B 批 + 音频跟练 / 测速 + 启动动画 1s | 已实机验证并正式发布，GitHub Release `v0.1.1` |
 
 ## 5. 当前进度
 
@@ -119,7 +119,7 @@ flowchart LR
 - 0.1.0 正式版：包名 `com.guitarshell`、`versionCode 100` / `versionName 0.1.0`；release keystore 本地生成并接入 Gradle 条件签名；源码提交 `ade4430`，`v0.1.0` tag 与 GitHub Release 已正式发布，APK 下载校验通过。
 - Release：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.0`；APK SHA-256：`6FD48F67DEEDE073C12A5BDBB1F04C22D7F603301E797273BC865381C817A1A9`。
 - 0.1.0 发布后补验已完成（2026-11-21，用户确认无问题）；随后进入 `0.1.1` 节拍器练习增强。
-- `0.1.1` 准备完成：节拍器 A 批交互、B 批音频 / 节奏型 / 震动、音频跟练与测速二选一、跟练 HUD 双行信息均已完成并通过浏览器验收；启动动画总时长压缩到 `1.00s`；版本号已同步，release APK 已构建，GitHub Release 待发布。
+- `0.1.1` 已正式发布：节拍器 A 批交互、B 批音频 / 节奏型 / 震动、音频跟练与测速二选一、跟练 HUD 双行信息均已完成并通过浏览器验收；启动动画总时长压缩到 `1.00s`；release APK 已完成实机验证并上传 GitHub Release。发布地址：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`；APK SHA-256：`C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`。
 
 ## 6. 任务队列
 
@@ -141,7 +141,7 @@ flowchart LR
 | 10 | 修复调音器标准音快速切换爆音 | 已纳入 0.1.1 | 无 | 见 §12；`audio.js` 35ms 淡出，`tuner.js` 不再硬切 |
 | 11 | 节拍器 A 批：长按 / 自定义拍号 / 细分 / Swing / 音色 / TAP / 32 拍 | 已纳入 0.1.1 | 无 | 见 §13.1；只改 `metronome.js`、`audio.js` |
 | 12 | 节拍器 B 批 + 音频跟练 / 测速 | 已纳入 0.1.1 | 11 | 见 §13.2～§13.4；含节奏型、震动、本地分析、模式门控与双行 HUD |
-| 13 | 启动动画总时长压缩到 1s | APK 已构建，待真机复核 | 无 | 见 §14；`MainActivity` 800ms 显示 + 200ms 淡出 |
+| 13 | 启动动画总时长压缩到 1s | 已发布，随 0.1.1 实机验证 | 无 | 见 §14；`MainActivity` 800ms 显示 + 200ms 淡出 |
 
 ## 7. 冒烟清单
 
@@ -160,7 +160,7 @@ flowchart LR
 - [x] 音频跟练 / 测速两个勾同一行，二选一或全不选；跟练专属控件只在跟练态可用。
 - [x] 跟练开始播放音频并在 HUD 显示文件名 + 速度 / 调性；跟练自动关闭变速与 Swing。
 - [x] 测速只调整 BPM，开始不播放音频；全不选时已有音频也不播放。
-- [ ] 启动动画从首帧到完全消失约 `1.00s`（显示 `800ms` + 淡出 `200ms`）；release APK 已构建，尚未真机实测。
+- [ ] 启动动画从首帧到完全消失约 `1.00s`（显示 `800ms` + 淡出 `200ms`）；已随 `0.1.1` release APK 实机验证，`1.00s` 为代码口径，未单独记录秒表实测值。
 
 ## 8. 运行、构建与发布
 
@@ -230,7 +230,7 @@ npm run apk:release
 - `js/services/db.js`：新增 `getScoreCount()`，用 `IDBObjectStore.count()` 只取条目数，不读取乐谱 Blob。
 - `js/components/sheet-reader.js`：区分零乐谱与搜索无结果；零乐谱空状态显示标题、说明、`导入第一份乐谱` 主按钮、`先用节拍器` 次按钮。
 - `css/layout.css`：新增 380px 以下 Tab 紧凑规则，保证 360px 下四枚标签不换行、不横向溢出。
-- `CHANGELOG.md`：已在顶部新增「0.1.1 — 节拍器练习增强与启动动画提速（已构建，待发布）」，记录信息架构调整、README 云同步文档、调音器切换音修复、节拍器 A/B 批与启动动画提速。
+- `CHANGELOG.md`：已在顶部新增「0.1.1 — 节拍器练习增强与启动动画提速（已发布）」，记录信息架构调整、README 云同步文档、调音器切换音修复、节拍器 A/B 批与启动动画提速。
 
 ### 10.3 验收标准
 
@@ -313,9 +313,9 @@ npm run apk:release
   - 结束后 `isPlayingRef=false`、`refToneHandle=null`，无控制台异常。
 - 当时版本仍 `0.1.0`；未升版本、未构建 APK。
 
-## 13. 0.1.1 节拍器练习增强（已验收，准备发布）
+## 13. 0.1.1 节拍器练习增强（已验收，已发布）
 
-状态：2026-11-21 浏览器验收通过，用户确认「验收都通过了」。`0.1.1` 版本已同步，release APK 已构建；GitHub Release 待发布。
+状态：2026-11-21 浏览器验收通过，用户确认「验收都通过了」；release APK 已完成实机验证并随 GitHub Release `v0.1.1` 正式发布。
 
 ### 13.1 A 批：交互与基础能力
 
@@ -358,15 +358,15 @@ npm run apk:release
 
 ### 13.5 文件与版本状态
 
-- 代码文件：`js/components/metronome.js`、`js/services/audio.js`、`js/services/audio-analysis.js`（新增，尚未纳入 Git）。
+- 代码文件：`js/components/metronome.js`、`js/services/audio.js`、`js/services/audio-analysis.js`（新增，已纳入 Git 与 Service Worker 缓存）。
 - 文档：README、TASK、CHANGELOG 已更新到 `0.1.1` 口径。
 - 版本已同步：`package.json` / `package-lock.json`、`js/services/version.js`、`sw.js`、Android `versionCode 101` / `versionName 0.1.1`；README 版本徽标与下载文件名已为 `0.1.1`。
 - release APK 已构建：`4,127,969` 字节，SHA-256 `C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`；v1 / v2 签名校验通过。
-- GitHub Release 尚未发布。
+- GitHub Release `v0.1.1` 已正式发布：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`；资产 `GuitarShell-0.1.1-release.apk` 已上传，通过 GitHub API 重新下载后大小 `4,127,969` 字节、SHA-256 与本地一致；用户已确认实机验证通过。
 
-## 14. 启动动画总时长压缩到 1s（已构建，待真机复核）
+## 14. 启动动画总时长压缩到 1s（已发布，随 0.1.1 实机验证）
 
-状态：2026-11-21 已把原生启动层总时长压缩到 `1.00s`；只改时间参数，启动页视觉、蜗牛随机起点、拖尾、三点闪烁与系统栏配色均不变。`0.1.1` release APK 已构建，尚未做真机时长复核。
+状态：2026-11-21 已把原生启动层总时长压缩到 `1.00s`；只改时间参数，启动页视觉、蜗牛随机起点、拖尾、三点闪烁与系统栏配色均不变。`0.1.1` release APK 已随版本完成实机验证，启动层总时长按代码口径为 `1.00s`，未单独记录首帧到消失的秒表实测值。
 
 ### 14.1 改动
 
@@ -380,5 +380,5 @@ npm run apk:release
 ### 14.2 验证状态
 
 - 代码口径：`800 + 200 = 1000ms`；从启动层添加到移除的目标总时长为 1 秒。
-- `0.1.1` release APK 已构建（`versionCode 101` / `versionName 0.1.1`）；尚未真机安装，因此没有首帧 / 完全消失的实测耗时，下次真机复核。
-- GitHub Release 待发布。
+- `0.1.1` release APK 已构建（`versionCode 101` / `versionName 0.1.1`）；已在真机整体验证中通过，未单独记录首帧 / 完全消失的秒表实测值。
+- GitHub Release `v0.1.1` 已正式发布：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`。

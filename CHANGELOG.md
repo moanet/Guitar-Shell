@@ -3,9 +3,9 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.1.1 — 节拍器练习增强与启动动画提速（已构建，待发布，2026-11-21）
+## 0.1.1 — 节拍器练习增强与启动动画提速（已发布，2026-11-21）
 
-> 版本已同步为 `0.1.1`；release APK 已构建（`com.guitarshell` / `versionCode 101` / `versionName 0.1.1`），GitHub Release 待发布。
+> 版本已同步为 `0.1.1`；release APK 已完成实机验证并正式发布（`com.guitarshell` / `versionCode 101` / `versionName 0.1.1`，GitHub Release `v0.1.1`）。
 
 **节拍器 A 批：交互与基础能力**
 
@@ -48,9 +48,15 @@
 - 音频模式二选一 / 全不选、控件置灰、刷新恢复均通过；测速开始音频句柄为空；跟练开始音频句柄存在；跟练运行中换音频可重新分析并播放。
 - 跟练 HUD 实测第一行文件名、第二行 `音频跟练 · 120 BPM · 调性 A#m`；文件名 `nowrap / ellipsis`。
 - `node --check` 通过 `metronome.js` / `audio.js` / `audio-analysis.js`；浏览器 console 异常 0。
-- 启动动画代码口径为 `800 + 200 = 1000ms`；`0.1.1` release APK 已构建，尚未做真机首帧 / 完全消失耗时复核。
+- 启动动画代码口径为 `800 + 200 = 1000ms`；`0.1.1` release APK 已随版本完成实机验证，未单独记录首帧 / 完全消失的秒表实测值。
 - 版本已同步：`package.json` / `package-lock.json`、`js/services/version.js`、`sw.js` 与 Android `versionCode 101` / `versionName 0.1.1`。
-- release APK `4,127,969` 字节；SHA-256 `C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`；包名 `com.guitarshell`；v1 / v2 签名校验通过。GitHub Release 待发布。
+- release APK `4,127,969` 字节；SHA-256 `C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`；包名 `com.guitarshell`；v1 / v2 签名校验通过。
+
+**发布**
+
+- `v0.1.1` annotated tag 指向代码提交 `066e8b4`，已推送 `origin`。
+- GitHub Release `v0.1.1` 已正式发布：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`。
+- 资产 `GuitarShell-0.1.1-release.apk` 已上传（`4,127,969` 字节）；通过 GitHub API 重新下载后 SHA-256 与本地一致；用户确认实机验证通过。
 
 ## 0.0.8.10 — 暖纸日光 · 日间模式（已真机验收，UI 终版）
 
