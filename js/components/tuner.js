@@ -263,7 +263,8 @@ class GuitarTuner extends HTMLElement {
     this.refEpoch = (this.refEpoch || 0) + 1;
     if (this.refTimer) { clearTimeout(this.refTimer); this.refTimer = null; }
     if (this.refToneHandle) {
-      this.refToneHandle.stop();
+      // 不硬切：交给音频引擎做 35ms 淡出，避免 A 未放完切 B 时出现截断爆音
+      this.refToneHandle.stop(0.035);
       this.refToneHandle = null;
     }
     this.isPlayingRef = false;

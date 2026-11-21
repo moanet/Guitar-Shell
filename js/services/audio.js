@@ -91,8 +91,27 @@ class AudioEngine {
       this.woodblock(when, { freq, level, bus });
       return;
     }
+    if (type === 'electronic') {
+      this.electronic(when, { freq, level, bus });
+      return;
+    }
     const ctx = this.ctx;
     if (!ctx) return;
+    if (type === 'beep') {
+      // 短促音：比普通“哒”更短、更干，适合快速练习时减少拖尾
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, when);
+      gain.gain.setValueAtTime(0.0001, when);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), when + 0.001);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.032);
+      osc.connect(gain);
+      gain.connect(bus || this.master || ctx.destination);
+      osc.start(when);
+      osc.stop(when + 0.045);
+      return;
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
@@ -105,6 +124,51 @@ class AudioEngine {
     osc.start(when);
     osc.stop(when + dur + 0.02);
   }
+
+  // 电子音色：锯齿波 + 一小撮高通噪声，像老式电子节拍器的“嘀”
+  electronic(when, { freq = 1046, level = 0.55, bus = null } = {}) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t0 = when || ctx.currentTime;
+    const peak = Math.max(0.0002, level != null ? level : 0.55);
+
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, t0);
+    out.gain.exponentialRampToValueAtTime(peak, t0 + 0.0015);
+    out.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
+    out.connect(bus || this.master || ctx.destination);
+
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, t0);
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(Math.min(5200, Math.max(900, freq * 1.8)), t0);
+    filter.Q.setValueAtTime(1.2, t0);
+    osc.connect(filter);
+    filter.connect(out);
+    osc.start(t0);
+    osc.stop(t0 + 0.065);
+
+    const noise = this.getWoodNoise(ctx);
+    if (noise) {
+      const src = ctx.createBufferSource();
+      const nFilter = ctx.createBiquadFilter();
+      const nGain = ctx.createGain();
+      nFilter.type = 'highpass';
+      nFilter.frequency.setValueAtTime(3600, t0);
+      nGain.gain.setValueAtTime(0.0001, t0);
+      nGain.gain.exponentialRampToValueAtTime(peak * 0.16, t0 + 0.001);
+      nGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.018);
+      src.buffer = noise;
+      src.connect(nFilter);
+      nFilter.connect(nGain);
+      nGain.connect(out);
+      src.start(t0);
+      src.stop(t0 + 0.024);
+    }
+  }
+
 
   // 木鱼音色：低频木腔共鸣 + 高频敲击瞬态，短促、干脆，不是正弦/方波那种电子“哒”
   woodblock(when, { freq = 1046, level = 0.55, bus = null } = {}) {
@@ -232,7 +296,13 @@ class AudioEngine {
     out.gain.exponentialRampToValueAtTime(Math.max(0.0002, level), t0 + 0.05);
     out.gain.setValueAtTime(Math.max(0.0002, level), t0 + Math.max(0.1, dur - 0.25));
     out.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    out.connect(this.master || ctx.destination);
+
+    // 独立淡出级：中途 stop() 时只把这一级拉到 0，不动已经排好的包络。
+    // 直接 osc.stop() 会在波形任意相位硬截断，听起来就是“pia”的爆音。
+    const fade = ctx.createGain();
+    fade.gain.value = 1;
+    out.connect(fade);
+    fade.connect(this.master || ctx.destination);
 
     const harmonics = freq < 140
       ? [[1, 1], [2, 0.65], [3, 0.4], [4, 0.22]]
@@ -253,9 +323,32 @@ class AudioEngine {
       oscillators.push(osc);
     });
 
+    let stopped = false;
     return {
-      stop() {
-        oscillators.forEach(osc => { try { osc.stop(); } catch (err) {} });
+      // fadeSeconds 默认 35ms：足够消掉爆音，又不会让人听出明显的拖尾
+      stop(fadeSeconds = 0.035) {
+        if (stopped) return;
+        stopped = true;
+
+        const now = ctx.currentTime;
+        const fadeStart = Math.max(now, t0);
+        const fadeDur = Math.max(0.012, Math.min(0.06, fadeSeconds || 0.035));
+        try {
+          fade.gain.cancelScheduledValues(fadeStart);
+          fade.gain.setValueAtTime(1, fadeStart);
+          fade.gain.exponentialRampToValueAtTime(0.0001, fadeStart + fadeDur);
+        } catch (err) {}
+
+        const stopAt = fadeStart + fadeDur + 0.008;
+        oscillators.forEach(osc => {
+          try { osc.stop(stopAt); } catch (err) {}
+        });
+
+        // 等尾音彻底归零再断开节点，避免快速连续试听时积累已静音的音频图
+        const cleanupMs = Math.max(0, (stopAt - now + 0.1) * 1000);
+        setTimeout(() => {
+          try { out.disconnect(); fade.disconnect(); } catch (err) {}
+        }, cleanupMs);
       }
     };
   }
@@ -270,6 +363,7 @@ class AudioEngine {
     // 互斥：先停掉上一路（它自己的 onStop 会把按钮复位）
     if (this.active) this.active.stop('preempted');
 
+    const startTime = this.ctx.currentTime + 0.08;
     const state = {
       bpm: Math.min(250, Math.max(30, Math.round(bpm) || 120)),
       slots: (slots && slots.length ? slots : [1]).slice(),
@@ -278,7 +372,8 @@ class AudioEngine {
       level,
       swing: Math.min(100, Math.max(0, Number(swing) || 0)),
       absoluteSlot: 0,
-      nextTime: this.ctx.currentTime + 0.08,
+      startTime,
+      nextTime: startTime,
       timer: null,
       running: true
     };
@@ -354,8 +449,9 @@ class AudioEngine {
       },
       // 运行中改音色 / 重音 / Swing：对下一次调度就生效（已排进队列的 100ms 不受影响）
       setTimbre(value) {
-        if (value === 'triangle') state.timbre = 'woodblock';
-        else if (value === 'sine' || value === 'square' || value === 'woodblock') state.timbre = value;
+        if (['sine', 'square', 'triangle', 'woodblock', 'electronic', 'beep'].includes(value)) {
+          state.timbre = value;
+        }
       },
       setAccents(list) {
         if (Array.isArray(list) && list.length) state.accents = list.slice();
@@ -366,6 +462,7 @@ class AudioEngine {
       },
       get bpm() { return state.bpm; },
       get swing() { return state.swing; },
+      get startTime() { return state.startTime; },
       get accents() { return state.accents.slice(); }
     };
 
@@ -373,6 +470,72 @@ class AudioEngine {
     tick();
     state.timer = setInterval(tick, TICK_MS);
     return handle;
+  }
+
+  /**
+   * 播放一段已解码的本地音频（用于节拍器「音频跟练」）
+   * 返回的 handle 可在停止节拍器、切 Tab、被 mini 节拍器抢占时统一停掉。
+   */
+  playBuffer(buffer, { when = null, offset = 0, loop = false, volume = 0.7, onEnded = null } = {}) {
+    const ctx = this.ensure();
+    if (!buffer || !buffer.duration) return null;
+
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    source.loop = !!loop;
+
+    const vol = Math.max(0, Math.min(1, Number(volume) || 0));
+    gain.gain.value = vol;
+    source.connect(gain);
+    gain.connect(this.master || ctx.destination);
+
+    const now = ctx.currentTime;
+    const startAt = Math.max(now, Number(when) || (now + 0.02));
+    const safeOffset = Math.max(0, Math.min(buffer.duration - 0.001, Number(offset) || 0));
+
+    let ended = false;
+    let stopped = false;
+
+    const cleanup = () => {
+      try { source.disconnect(); } catch (err) {}
+      try { gain.disconnect(); } catch (err) {}
+    };
+
+    try {
+      source.start(startAt, safeOffset);
+    } catch (err) {
+      cleanup();
+      return null;
+    }
+
+    source.onended = () => {
+      if (stopped) return;
+      ended = true;
+      cleanup();
+      if (onEnded) {
+        try { onEnded(); } catch (err) {}
+      }
+    };
+
+    return {
+      stop(fadeSeconds = 0.05) {
+        if (stopped || ended) return;
+        stopped = true;
+        const t = ctx.currentTime;
+        const fadeDur = Math.max(0.01, Math.min(0.12, Number(fadeSeconds) || 0.05));
+        try {
+          gain.gain.cancelScheduledValues(t);
+          gain.gain.setValueAtTime(Math.max(0.0002, gain.gain.value), t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + fadeDur);
+        } catch (err) {}
+        try { source.stop(t + fadeDur + 0.008); } catch (err) {}
+        setTimeout(cleanup, Math.max(0, (fadeDur + 0.12) * 1000));
+      },
+      setLoop(value) { source.loop = !!value; },
+      get source() { return source; },
+      get ended() { return ended; }
+    };
   }
 
   // 麦克风分析：复用同一个上下文，别再为调音器新建 / close

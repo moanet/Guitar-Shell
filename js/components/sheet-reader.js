@@ -84,6 +84,33 @@ const readerCSS = `
   .content-container img, .content-container canvas { display: block; width: 100%; height: auto; max-width: none; user-select: none; -webkit-user-drag: none; }
 
   .empty-tip { text-align: center; color: var(--muted); margin-top: 50px; grid-column: 1 / -1; }
+  .empty-state {
+    grid-column: 1 / -1; min-height: 380px; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 48px 20px 36px; gap: 12px;
+  }
+  .empty-mark {
+    width: 64px; height: 64px; border-radius: 18px;
+    display: grid; place-items: center; font-size: 30px;
+    color: var(--accent-text); background: rgba(var(--primary-rgb), 0.12);
+    border: 1px solid var(--line-warm);
+  }
+  .empty-title { margin: 0; color: var(--heading); font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+  .empty-desc { margin: 0; max-width: 300px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .empty-actions { width: min(260px, 100%); margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+  .empty-action {
+    width: 100%; box-sizing: border-box; padding: 11px 16px; border-radius: 10px;
+    font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .empty-action.primary {
+    color: var(--on-primary); border: 1px solid rgba(var(--secondary-rgb),.10);
+    background: linear-gradient(180deg, var(--accent), var(--primary));
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb),.18);
+  }
+  .empty-action.secondary {
+    color: var(--accent-text); border: 1px solid var(--line-warm); background: transparent;
+  }
+  .empty-action.secondary:hover { background: rgba(var(--primary-rgb), 0.10); }
   .zoom-controls { position: absolute; bottom: calc(30px + env(safe-area-inset-bottom, 0px)); right: calc(20px + env(safe-area-inset-right, 0px)); display: none; flex-direction: column; gap: 8px; z-index: 20; transition: opacity 0.25s ease; }
   .zoom-controls.faded { opacity: 0.15; }
   .zoom-btn { width: 44px; height: 44px; border-radius: 50%; background: rgba(var(--bg1-rgb), 0.92); border: 1px solid var(--line-warm); color: var(--accent-text); font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -536,6 +563,26 @@ class SheetReader extends HTMLElement {
       });
 
       shelfView.innerHTML = '';
+      if (this.allScores.length === 0) {
+        shelfView.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-mark" aria-hidden="true">♪</div>
+            <h3 class="empty-title">还没有乐谱</h3>
+            <p class="empty-desc">导入 PDF、图片或拍照，建立你的练琴书架。也可以先用节拍器热身。</p>
+            <div class="empty-actions">
+              <button class="empty-action primary" id="emptyImport" type="button">导入第一份乐谱</button>
+              <button class="empty-action secondary" id="emptyMetronome" type="button">先用节拍器</button>
+            </div>
+          </div>`;
+        const emptyImport = shelfView.querySelector('#emptyImport');
+        const emptyMetronome = shelfView.querySelector('#emptyMetronome');
+        if (emptyImport) emptyImport.onclick = () => btnImportMain.click();
+        if (emptyMetronome) emptyMetronome.onclick = () => {
+          window.dispatchEvent(new CustomEvent('app-request-tab', { detail: { target: 'view-metronome' } }));
+        };
+        return;
+      }
+
       if (this.filteredScores.length === 0) {
         shelfView.innerHTML = `<div class="empty-tip">没有找到符合条件的乐谱</div>`;
         return;

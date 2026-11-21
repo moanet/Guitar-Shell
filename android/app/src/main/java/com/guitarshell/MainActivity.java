@@ -15,8 +15,9 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
-    private static final long SPLASH_HOLD_MS = 1200;
-    private static final long SPLASH_FADE_MS = 260;
+    // 启动层总时长 1.0s：显示 800ms + 淡出 200ms；160ms 淡入包含在显示窗口内
+    private static final long SPLASH_HOLD_MS = 800;
+    private static final long SPLASH_FADE_MS = 200;
 
     private WebView splashOverlay;
     private final Runnable splashFadeRunnable = new Runnable() {

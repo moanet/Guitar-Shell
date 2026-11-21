@@ -52,6 +52,18 @@ export const dbService = {
     });
   },
 
+  // 🌟 只取条目数，不把乐谱 Blob 读进内存；用于冷启动默认页判定
+  async getScoreCount() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.count();
+      request.onsuccess = () => resolve(request.result || 0);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
   // 🌟 新增：按 id 读取单条乐谱（避免 getAllScores 把所有 Blob 都读进内存）
   async getScore(id) {
     if (id === null || id === undefined) return null;

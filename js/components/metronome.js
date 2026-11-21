@@ -2,6 +2,7 @@
 // 1. 样式区域
 // ==========================================
 import { audioEngine } from '../services/audio.js';
+import { analyzeAudioBuffer, decodeAudioBuffer } from '../services/audio-analysis.js';
 import { wakeLock } from '../services/wakelock.js';
 import { themeColor, onThemeChange } from '../services/theme.js';
 
@@ -45,7 +46,7 @@ const metronomeCSS = `
   .info-v small{font-size:10px;font-weight:500;opacity:.55;margin-left:2px}
   .info-v.v-sm{font-size:13.5px;padding-top:2px}
 
-  .dots { flex:0 0 auto;display:flex;flex-wrap:wrap;gap:7px; justify-content:center;align-items:center; min-height:26px;margin:14px 0 6px; }
+  .dots { flex:0 0 auto;display:flex;flex-wrap:wrap;gap:var(--dot-gap,7px); justify-content:center;align-items:center; min-height:26px;margin:14px 0 6px; }
   .dot { width:var(--dot-size,22px);height:var(--dot-size,22px); border-radius:8px;background:var(--surface-sunken);border:1px solid var(--line); transition:background .06s, box-shadow .06s, border-color .06s, transform .1s; }
   .dot.m-accent{background:var(--dot-accent);border-color:var(--line-warm)}
   .dot.m-beat{background:var(--dot-beat);border-color:var(--scroll)}
@@ -60,7 +61,7 @@ const metronomeCSS = `
   .knob-center { position:absolute;inset:0; display:flex;flex-direction:column; align-items:center;justify-content:center; pointer-events:none; gap:2px; }
   .knob-row { display:flex;align-items:center;gap:4px; pointer-events:auto; }
   
-  .knob-step { width:28px;height:28px;border-radius:50%; border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--muted); font-size:16px;cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; }
+  .knob-step { width:28px;height:28px;border-radius:50%; border:1px solid var(--line-strong);background:var(--surface-raised);color:var(--muted); font-size:16px;cursor:pointer; display:flex;align-items:center;justify-content:center; padding:0; touch-action:none; user-select:none; -webkit-touch-callout:none; }
   .knob-step:active{transform:scale(.9);background:rgba(var(--primary-rgb),.18)}
   
   .knob-num { width:64px;border:none;outline:none;background:transparent; text-align:center; font-size:34px;font-weight:700;color: var(--heading); font-variant-numeric:tabular-nums;padding:0; caret-color:var(--primary); pointer-events:auto; touch-action: manipulation; }
@@ -72,7 +73,7 @@ const metronomeCSS = `
   .bottom-area { flex:0 0 auto; display:flex; flex-direction:column; gap:5px; padding-top:4px; }
   .bottom-row { position:relative; height:44px; flex:0 0 auto; }
   .tap-btn { position:absolute; right:0; top:50%; transform:translateY(-50%); width:72px; height:44px; border-radius:14px; border:1px solid var(--line-warm); background:linear-gradient(180deg,var(--tap-a),var(--tap-b));color: var(--accent-text); display:flex;flex-direction:column; align-items:center;justify-content:center; cursor:pointer; }
-  .tap-btn:active { transform:translateY(-50%) scale(.95); background:rgba(var(--primary-rgb),.28); }
+  .tap-btn:active, .tap-btn.pulse { transform:translateY(-50%) scale(.95); background:rgba(var(--primary-rgb),.28); }
 
   .settings-mask {
     position: absolute; inset: 0; background: rgba(var(--shadow-rgb),.6); backdrop-filter: blur(4px);
@@ -81,7 +82,9 @@ const metronomeCSS = `
   .settings-mask.show { display: flex; }
   .settings-panel {
     background: var(--bg1); border: 1px solid var(--line); border-radius: 16px;
-    width: 90%; max-width: 400px; padding: 20px; display: flex; flex-direction: column; gap: 16px;
+    width: 90%; max-width: 400px; max-height: calc(100% - 24px); padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
     box-shadow: 0 10px 30px rgba(var(--shadow-rgb),.5);
   }
   .settings-panel h3 { margin: 0; font-size: 16px; color: var(--heading); text-align: center; letter-spacing: .5px; }
@@ -92,13 +95,83 @@ const metronomeCSS = `
   .ts-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 13px; }
   .ts-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
 
-  .sub-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .sub-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 12px; }
+  .ts-custom { display: flex; align-items: center; gap: 6px; }
+  .ts-custom input {
+    width: 0; flex: 1 1 0; min-width: 0; padding: 7px 6px; border-radius: 8px;
+    border: 1px solid var(--line-strong); background: var(--surface-raised);
+    color: var(--heading); font-size: 13px; text-align: center; outline: none;
+  }
+  .ts-custom input:focus { border-color: var(--primary); }
+  .ts-custom .ts-sep { flex: 0 0 auto; color: var(--muted); font-size: 13px; }
+  .ts-custom .ts-apply {
+    flex: 0 0 auto; padding: 8px 12px; border-radius: 9px; border: 1px solid var(--primary);
+    background: rgba(var(--primary-rgb),.18); color: var(--heading); font-size: 12px; cursor: pointer;
+  }
+
+  .sub-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sub-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 11px; }
   .sub-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
 
   .timbre-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .timbre-btn { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--muted); cursor: pointer; font-size: 12px; }
   .timbre-btn.on { border-color: var(--primary); color: var(--heading); background: rgba(var(--primary-rgb),.18); }
+
+  /* B 批：节奏型 / 音频跟练 / 震动 */
+  .pattern-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 142px; overflow-y: auto; overscroll-behavior: contain; }
+  .pattern-chip {
+    display: flex; align-items: center; gap: 6px; max-width: 100%;
+    padding: 7px 8px; border-radius: 9px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--heading); font-size: 12px;
+  }
+  .pattern-chip .p-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; cursor: pointer; }
+  .pattern-chip .p-name { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pattern-chip .p-meta { font-size: 9px; color: var(--muted); }
+  .pattern-chip .p-del {
+    flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; border: none;
+    background: transparent; color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .pattern-chip .p-del:hover { color: var(--danger, #e5484d); background: rgba(var(--shadow-rgb),.12); }
+  .pattern-save-row { display: flex; gap: 6px; }
+  .pattern-name {
+    flex: 1 1 0; min-width: 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--heading); font-size: 12px; outline: none;
+  }
+  .pattern-name:focus { border-color: var(--primary); }
+  .pattern-save {
+    flex: 0 0 auto; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--primary);
+    background: rgba(var(--primary-rgb),.18); color: var(--heading); font-size: 11px; cursor: pointer;
+  }
+  .follow-row { display: flex; gap: 6px; }
+  .follow-btn {
+    flex: 1 1 0; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--heading); font-size: 12px; cursor: pointer;
+  }
+  .follow-btn.ghost { border-color: var(--line-strong); color: var(--muted); }
+  .follow-info {
+    min-height: 30px; padding: 6px 8px; border-radius: 8px; background: var(--surface-deep);
+    border: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .follow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .follow-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; color: var(--muted); }
+  .follow-grid input, .follow-grid select {
+    width: 100%; padding: 6px; border-radius: 8px; border: 1px solid var(--line-strong);
+    background: var(--surface-raised); color: var(--heading); font-size: 12px; outline: none;
+  }
+  .follow-grid input:focus, .follow-grid select:focus { border-color: var(--primary); }
+  .follow-hint { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+  .switch {
+    position: relative; flex: 0 0 auto; width: 42px; height: 24px; border-radius: 999px;
+    border: 1px solid var(--line-strong); background: var(--surface-raised); cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .switch::after {
+    content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--muted); transition: left .15s, background .15s;
+  }
+  .switch.on { border-color: var(--primary); background: rgba(var(--primary-rgb),.24); }
+  .switch.on::after { left: 21px; background: var(--primary); }
 
   /* C4 练习工具 */
   .practice-hud {
@@ -112,6 +185,19 @@ const metronomeCSS = `
     transition: opacity .15s;
   }
   .practice-hud.show { opacity: 1; visibility: visible; }
+  .practice-hud.two-line {
+    flex-direction: column; align-items: stretch; justify-content: center;
+    gap: 1px; text-align: left; padding: 3px 8px;
+  }
+  .hud-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hud-line.file { font-size: 10px; }
+  .hud-line.meta { font-size: 9px; opacity: .9; }
+  .audio-mode-row { display: flex; align-items: center; gap: 16px; flex-wrap: nowrap; }
+  .audio-mode-row .check-row { font-size: 12px; }
+  .audio-mode-hint { font-size: 10px; line-height: 1.4; color: var(--muted); }
+  .settings-panel input:disabled, .settings-panel select:disabled {
+    opacity: .45; cursor: not-allowed;
+  }
   .accent-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
   .accent-btn {
     padding: 7px 2px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface-raised);
@@ -186,7 +272,7 @@ const metronomeHTML = `
     <div class="bottom-row">
       <button class="tap-btn" id="tapBtn">
         <span style="font-size:14px;font-weight:800;letter-spacing:1.5px;">TAP</span>
-        <span style="font-size:8.5px;opacity:.65;">测速</span>
+        <span id="tapHint" style="font-size:8.5px;opacity:.65;">测速</span>
       </button>
     </div>
   </div>
@@ -198,6 +284,12 @@ const metronomeHTML = `
     <div class="settings-group">
       <div class="settings-label">拍号</div>
       <div class="ts-grid" id="tsGrid"></div>
+      <div class="ts-custom">
+        <input id="tsNumInput" type="number" inputmode="numeric" min="1" max="32" step="1" value="4" aria-label="拍号分子">
+        <span class="ts-sep">/</span>
+        <input id="tsDenInput" type="number" inputmode="numeric" min="1" max="64" step="1" value="4" aria-label="拍号分母">
+        <button class="ts-apply" id="tsApply">应用</button>
+      </div>
     </div>
     <div class="settings-group">
       <div class="settings-label">拍内细分</div>
@@ -213,7 +305,7 @@ const metronomeHTML = `
     </div>
     <div class="settings-group">
       <div class="settings-label">Swing 摇摆 <span id="swingVal">0%</span></div>
-      <input type="range" id="swingRange" class="range" min="0" max="100" step="5" value="0">
+      <input type="range" id="swingRange" class="range" min="0" max="100" step="1" value="0">
     </div>
     <div class="settings-group">
       <label class="check-row"><input type="checkbox" id="rampOn"> 变速练习（到目标后保持 N 小节再停）</label>
@@ -228,6 +320,51 @@ const metronomeHTML = `
       <label class="check-row"><input type="checkbox" id="timerOn"> 倒计时自动停</label>
       <div class="num-grid">
         <label>分钟<input type="number" id="timerMin" min="1" max="180" step="1"></label>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">节奏型</div>
+      <div class="pattern-list" id="patternList"></div>
+      <div class="pattern-save-row">
+        <input class="pattern-name" id="patternName" type="text" maxlength="16" placeholder="节奏型名称">
+        <button class="pattern-save" id="patternSave">保存当前</button>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">音频</div>
+      <input id="followAudioFile" type="file" accept="audio/*" hidden>
+      <div class="audio-mode-row">
+        <label class="check-row"><input type="checkbox" id="audioFollowMode"> 音频跟练</label>
+        <label class="check-row"><input type="checkbox" id="audioTempoMode"> 音频测速</label>
+      </div>
+      <div class="audio-mode-hint" id="audioModeHint">未启用音频 · 开始仅播放节拍器</div>
+      <div class="follow-row">
+        <button class="follow-btn" id="followAudioPick">选择音频</button>
+        <button class="follow-btn ghost" id="followAudioClear">清除</button>
+      </div>
+      <div class="follow-info" id="followAudioInfo">未选择音频</div>
+      <div class="follow-grid">
+        <label>首拍偏移（ms）<input id="followAudioOffset" type="number" inputmode="numeric" min="-3000" max="3000" step="10" value="0"></label>
+        <label>预节拍（小节）<select id="followAudioPrebeat">
+          <option value="0">无</option>
+          <option value="1">1 小节</option>
+          <option value="2">2 小节</option>
+          <option value="4">4 小节</option>
+        </select></label>
+      </div>
+      <label class="check-row"><input type="checkbox" id="followAudioLoop"> 单曲循环</label>
+      <div class="follow-grid" id="followAudioPrebeatModeRow" style="grid-template-columns:1fr">
+        <label>预节拍模式<select id="followAudioPrebeatMode">
+          <option value="first">仅第一遍</option>
+          <option value="every">每次循环</option>
+        </select></label>
+      </div>
+      <div class="follow-hint">跟练：开始播放音频；测速：只分析并调整 BPM，开始不播放音频。分析结果仅供参考，可用 TAP 或手动修正。</div>
+    </div>
+    <div class="settings-group">
+      <div class="switch-row">
+        <span>震动反馈（重音 40ms / 次重音 30ms / 普通 18ms）</span>
+        <div class="switch" id="vibrationSwitch" role="switch" aria-checked="false" tabindex="0"></div>
       </div>
     </div>
     <button class="close-btn" id="btnCloseSettings">完成</button>
@@ -265,7 +402,26 @@ class GuitarMetronome extends HTMLElement {
     this.rampHoldBars = 0;
     this.countdownEndAt = 0;
     this.countdownTimer = null;
-    
+
+    // B 批：节奏型 / 音频跟练 / 震动
+    this.patterns = [];
+    this.vibrationEnabled = false;
+    this.audioMode = 'off';
+    this.followAudio = {
+      buffer: null,
+      name: '',
+      duration: 0,
+      offsetMs: 0,
+      loop: false,
+      prebeatBars: 0,
+      prebeatEveryLoop: false,
+      analysis: null,
+      handle: null,
+      generation: 0,
+      analysisToken: 0,
+      loading: false
+    };
+
     this.currentBeatDur = 60 / this.bpm;
     this.currentSlotDurs = [this.currentBeatDur];
 
@@ -314,11 +470,13 @@ class GuitarMetronome extends HTMLElement {
     const dotsWrap   = $('dots');
     const playBtn    = $('playBtn');
     const tapBtn     = $('tapBtn');
+    const tapHint    = $('tapHint');
     
     const settingsMask = $('settingsMask');
     const btnSettings = $('btnSettings');
     const btnCloseSettings = $('btnCloseSettings');
     const tsGrid = $('tsGrid');
+    const tsNumInput = $('tsNumInput'), tsDenInput = $('tsDenInput'), tsApply = $('tsApply');
     const subGrid = $('subGrid');
     const timbreGrid = $('timbreGrid');
     const accentGrid = $('accentGrid');
@@ -328,6 +486,18 @@ class GuitarMetronome extends HTMLElement {
     const rampOn = $('rampOn'), rampStart = $('rampStart'), rampTarget = $('rampTarget');
     const rampStep = $('rampStep'), rampEvery = $('rampEvery');
     const timerOn = $('timerOn'), timerMin = $('timerMin');
+    const patternList = $('patternList'), patternName = $('patternName'), patternSave = $('patternSave');
+    const followAudioFile = $('followAudioFile');
+    const followAudioPick = $('followAudioPick'), followAudioClear = $('followAudioClear');
+    const followAudioInfo = $('followAudioInfo');
+    const followAudioOffset = $('followAudioOffset');
+    const followAudioPrebeat = $('followAudioPrebeat');
+    const followAudioPrebeatMode = $('followAudioPrebeatMode');
+    const followAudioPrebeatModeRow = $('followAudioPrebeatModeRow');
+    const followAudioLoop = $('followAudioLoop');
+    const audioFollowMode = $('audioFollowMode'), audioTempoMode = $('audioTempoMode');
+    const audioModeHint = $('audioModeHint');
+    const vibrationSwitch = $('vibrationSwitch');
 
     const showToast = (msg) => {
       const el = document.createElement('div');
@@ -347,24 +517,70 @@ class GuitarMetronome extends HTMLElement {
 
     const TIME_SIGS = [
       { num:2, den:4 }, { num:3, den:4 }, { num:4, den:4 }, { num:5, den:4 },
-      { num:6, den:8 }, { num:7, den:8 }, { num:8, den:8 }, { num:12, den:8 }
+      { num:6, den:8 }, { num:7, den:8 }, { num:8, den:8 }, { num:9, den:8 }, { num:12, den:8 }
     ];
     const SUBDIVISIONS = [
       { id:'q', short:'四分', slots:[1] },
       { id:'e', short:'八分', slots:[1,1] },
       { id:'t', short:'三连', slots:[1,1,1] },
-      { id:'s', short:'十六', slots:[1,1,1,1] }
+      { id:'t1', short:'三·休1', slots:[0,1,1] },
+      { id:'t2', short:'三·休2', slots:[1,0,1] },
+      { id:'t3', short:'三·休3', slots:[1,1,0] },
+      { id:'s', short:'十六', slots:[1,1,1,1] },
+      { id:'s1', short:'十·休1', slots:[0,1,1,1] },
+      { id:'s2', short:'十·休2', slots:[1,0,1,1] },
+      { id:'s3', short:'十·休3', slots:[1,1,0,1] },
+      { id:'s4', short:'十·休4', slots:[1,1,1,0] }
     ];
     const TIMBRES = [
-      { id:'sine', label:'正弦' }, { id:'square', label:'方波' }, { id:'woodblock', label:'木鱼' }
+      { id:'sine', label:'正弦' }, { id:'square', label:'方波' }, { id:'triangle', label:'三角' },
+      { id:'woodblock', label:'木鱼' }, { id:'electronic', label:'电子' }, { id:'beep', label:'短促' }
     ];
+    const DEFAULT_PATTERNS = [
+      { name:'4/4 流行', tsNum:4, tsDen:4, accents:['accent','beat','beat','beat'], subId:'e' },
+      { name:'4/4 摇滚', tsNum:4, tsDen:4, accents:['accent','sub','beat','sub'], subId:'e' },
+      { name:'3/4 圆舞曲', tsNum:3, tsDen:4, accents:['accent','beat','beat'], subId:'q' },
+      { name:'6/8 摇篮', tsNum:6, tsDen:8, accents:['accent','beat','beat','sub','beat','beat'], subId:'q' },
+      { name:'7/8 复合', tsNum:7, tsDen:8, accents:['accent','beat','sub','beat','sub','beat','beat'], subId:'q' },
+      { name:'Swing 4/4', tsNum:4, tsDen:4, accents:['accent','beat','beat','beat'], subId:'t' }
+    ];
+
+    const normalizeAccents = (list, len) => {
+      const valid = ['accent', 'sub', 'beat', 'mute'];
+      const out = Array.from({ length: len }, (_, i) => (
+        Array.isArray(list) && valid.includes(list[i]) ? list[i] : 'beat'
+      ));
+      if (!out.includes('accent')) out[0] = 'accent';
+      return out;
+    };
+
+    const makeDefaultPatterns = () => DEFAULT_PATTERNS.map((p, i) => ({
+      id: 'pat_' + i,
+      name: p.name,
+      tsNum: p.tsNum,
+      tsDen: p.tsDen,
+      accents: p.accents.slice(),
+      subId: p.subId
+    }));
 
     const saveSettings = () => {
       const data = {
         bpm: this.bpm, tsNum: this.timeSigNum, tsDen: this.timeSigDen,
         subId: this.currentSubId, timbre: this.currentTimbre,
         accents: this.accents.slice(), swing: this.swing,
-        ramp: { ...this.ramp }, timer: { ...this.timer }
+        ramp: { ...this.ramp }, timer: { ...this.timer },
+        patterns: this.patterns.map(p => ({
+          ...p,
+          accents: Array.isArray(p.accents) ? p.accents.slice() : null
+        })),
+        vibration: this.vibrationEnabled,
+        audioMode: this.audioMode,
+        followAudio: {
+          loop: this.followAudio.loop,
+          prebeatBars: this.followAudio.prebeatBars,
+          prebeatEveryLoop: this.followAudio.prebeatEveryLoop,
+          offsetMs: this.followAudio.offsetMs
+        }
       };
       localStorage.setItem('guitar_metronome_settings', JSON.stringify(data));
     };
@@ -385,24 +601,64 @@ class GuitarMetronome extends HTMLElement {
         const raw = localStorage.getItem('guitar_metronome_settings');
         if (raw) {
           const d = JSON.parse(raw);
-          if (d.bpm) this.bpm = d.bpm;
-          if (d.tsNum) this.timeSigNum = d.tsNum;
-          if (d.tsDen) this.timeSigDen = d.tsDen;
-          if (d.subId) this.currentSubId = d.subId;
-          if (d.timbre) {
-            this.currentTimbre = d.timbre === 'triangle'
-              ? 'woodblock'
-              : (['sine', 'square', 'woodblock'].includes(d.timbre) ? d.timbre : 'sine');
-          }
-          if (Number.isFinite(d.swing)) this.swing = Math.min(100, Math.max(0, d.swing));
-          if (Array.isArray(d.accents) && d.accents.length === this.timeSigNum) {
-            this.accents = d.accents.map(a => ['accent', 'sub', 'beat', 'mute'].includes(a) ? a : 'beat');
+          if (Number.isFinite(d.bpm)) this.bpm = Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(d.bpm)));
+          if (Number.isFinite(d.tsNum)) this.timeSigNum = Math.min(32, Math.max(1, Math.round(d.tsNum)));
+          if (Number.isFinite(d.tsDen)) this.timeSigDen = Math.min(64, Math.max(1, Math.round(d.tsDen)));
+          if (d.subId && SUBDIVISIONS.some(s => s.id === d.subId)) this.currentSubId = d.subId;
+          if (d.timbre && TIMBRES.some(t => t.id === d.timbre)) this.currentTimbre = d.timbre;
+          if (Number.isFinite(d.swing)) this.swing = Math.min(100, Math.max(0, Math.round(d.swing)));
+          if (Array.isArray(d.accents)) {
+            const valid = ['accent', 'sub', 'beat', 'mute'];
+            this.accents = Array.from({ length: this.timeSigNum }, (_, i) => {
+              return valid.includes(d.accents[i]) ? d.accents[i] : 'beat';
+            });
             if (!this.accents.includes('accent')) this.accents[0] = 'accent';
           }
           if (d.ramp && typeof d.ramp === 'object') this.ramp = { ...this.ramp, ...d.ramp };
           if (d.timer && typeof d.timer === 'object') this.timer = { ...this.timer, ...d.timer };
+
+          if (Array.isArray(d.patterns) && d.patterns.length) {
+            this.patterns = d.patterns
+              .filter(p => p && typeof p.name === 'string' && p.name.trim())
+              .map((p, i) => {
+                const num = Math.min(32, Math.max(1, Math.round(Number(p.tsNum) || 4)));
+                const den = Math.min(64, Math.max(1, Math.round(Number(p.tsDen) || 4)));
+                return {
+                  id: typeof p.id === 'string' && p.id ? p.id : 'pat_' + i,
+                  name: p.name.trim().slice(0, 16),
+                  tsNum: num,
+                  tsDen: den,
+                  accents: normalizeAccents(p.accents, num),
+                  subId: SUBDIVISIONS.some(s => s.id === p.subId) ? p.subId : 'q'
+                };
+              });
+          }
+          if (!this.patterns.length) this.patterns = makeDefaultPatterns();
+
+          if (typeof d.vibration === 'boolean') this.vibrationEnabled = d.vibration;
+          if (d.audioMode === 'follow' || d.audioMode === 'tempo') this.audioMode = d.audioMode;
+
+          if (d.followAudio && typeof d.followAudio === 'object') {
+            const fa = d.followAudio;
+            if (typeof fa.loop === 'boolean') this.followAudio.loop = fa.loop;
+            if (Number.isFinite(fa.prebeatBars)) {
+              const bars = Math.min(4, Math.max(0, Math.round(fa.prebeatBars)));
+              this.followAudio.prebeatBars = [0, 1, 2, 4].includes(bars) ? bars : 0;
+            }
+            if (typeof fa.prebeatEveryLoop === 'boolean') {
+              this.followAudio.prebeatEveryLoop = fa.prebeatEveryLoop;
+            }
+            if (Number.isFinite(fa.offsetMs)) {
+              this.followAudio.offsetMs = Math.min(3000, Math.max(-3000, Math.round(fa.offsetMs / 10) * 10));
+            }
+          }
         }
       } catch (e) {}
+      if (!this.patterns.length) this.patterns = makeDefaultPatterns();
+      // 无论有没有旧存档，都保证重音数组长度和拍号一致
+      this.accents = this.accents.slice(0, this.timeSigNum);
+      while (this.accents.length < this.timeSigNum) this.accents.push('beat');
+      if (!this.accents.includes('accent')) this.accents[0] = 'accent';
     };
     loadSettings();
 
@@ -490,6 +746,16 @@ class GuitarMetronome extends HTMLElement {
       dotsWrap.innerHTML = '';
       this.dotEls = [];
       const classOf = { accent: 'm-accent', sub: 'm-sub', beat: 'm-beat', mute: 'm-mute' };
+
+      let size = 22;
+      if (this.timeSigNum > 4) size = 20;
+      if (this.timeSigNum > 6) size = 17;
+      if (this.timeSigNum > 9) size = 14;
+      if (this.timeSigNum > 12) size = 11;
+      if (this.timeSigNum > 16) size = 9;
+      dotsWrap.style.setProperty('--dot-size', size + 'px');
+      dotsWrap.style.setProperty('--dot-gap', this.timeSigNum > 12 ? '4px' : (this.timeSigNum > 8 ? '5px' : '7px'));
+
       for (let i = 0; i < this.timeSigNum; i++) {
         const d = document.createElement('div');
         const type = this.accents[i] || (i === 0 ? 'accent' : 'beat');
@@ -506,6 +772,42 @@ class GuitarMetronome extends HTMLElement {
     };
 
     const updateHud = () => {
+      // 音频跟练：第一行文件名，第二行速度 / 调性 + 其他练习信息
+      if (this.audioMode === 'follow') {
+        const fa = this.followAudio;
+        practiceHud.innerHTML = '';
+        practiceHud.classList.add('two-line');
+
+        const fileLine = document.createElement('span');
+        fileLine.className = 'hud-line file';
+        fileLine.textContent = fa.buffer ? (fa.name || '本地音频') : '音频跟练 · 未选择音频';
+
+        const metaLine = document.createElement('span');
+        metaLine.className = 'hud-line meta';
+        let meta = '';
+        if (!fa.buffer) {
+          meta = '开始不会播放';
+        } else {
+          meta = '音频跟练';
+          if (!fa.analysis) {
+            meta += ' · 分析中…';
+          } else {
+            meta += fa.analysis.bpm ? ` · ${fa.analysis.bpm} BPM` : ' · 速度未识别';
+            meta += fa.analysis.key ? ` · 调性 ${fa.analysis.key}` : ' · 调性未识别';
+          }
+        }
+        if (this.timer.enabled) {
+          meta += this.countdownEndAt ? ` · ⏳${fmtClock(this.countdownEndAt - Date.now())}` : ` · ⏳${this.timer.minutes}分`;
+        }
+        metaLine.textContent = meta;
+
+        practiceHud.appendChild(fileLine);
+        practiceHud.appendChild(metaLine);
+        practiceHud.classList.add('show');
+        return;
+      }
+
+      practiceHud.classList.remove('two-line');
       const parts = [];
       if (this.swing > 0) parts.push(`Swing ${this.swing}%`);
       if (this.ramp.enabled) {
@@ -522,6 +824,7 @@ class GuitarMetronome extends HTMLElement {
         practiceHud.textContent = parts.join('  ·  ');
         practiceHud.classList.add('show');
       } else {
+        practiceHud.textContent = '';
         practiceHud.classList.remove('show');
       }
     };
@@ -592,9 +895,10 @@ class GuitarMetronome extends HTMLElement {
       bpmInput.value = this.bpm;
       infoBpm.textContent = this.bpm;
       infoTs.textContent = this.timeSigNum + '/' + this.timeSigDen;
-      const sub = SUBDIVISIONS.find(s => s.id === this.currentSubId);
-      infoSub.textContent = sub ? sub.short : '四分';
-      this.currentSlots = sub ? sub.slots.slice() : [1];
+      const sub = SUBDIVISIONS.find(s => s.id === this.currentSubId) || SUBDIVISIONS[0];
+      this.currentSubId = sub.id;
+      infoSub.textContent = sub.short;
+      this.currentSlots = sub.slots.slice();
       
       updateDurations();
       drawKnob();
@@ -604,6 +908,333 @@ class GuitarMetronome extends HTMLElement {
       swingVal.textContent = this.swing + '%';
       saveSettings();
     };
+
+    // ==================== B 批：音频跟练 ====================
+    const fmtAudioDuration = (sec) => {
+      const total = Math.max(0, Math.round(sec));
+      return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    };
+
+    const disableRampForAudio = () => {
+      this.ramp.enabled = false;
+      this.rampBars = 0;
+      this.rampHolding = false;
+      this.rampHoldBars = 0;
+      rampOn.checked = false;
+    };
+
+    const disableSwingForAudio = () => {
+      this.swing = 0;
+      swingRange.value = 0;
+      swingVal.textContent = '0%';
+      if (this.metronomeHandle) this.metronomeHandle.setSwing(0);
+      broadcastSettings();
+    };
+
+    const applyAudioAnalysisBpm = () => {
+      if (this.audioMode !== 'follow' && this.audioMode !== 'tempo') return;
+      const bpm = this.followAudio.analysis && this.followAudio.analysis.bpm;
+      if (bpm) this.setBpm(bpm, true);
+    };
+
+    const updateAudioModeUI = () => {
+      const isFollow = this.audioMode === 'follow';
+      const isTempo = this.audioMode === 'tempo';
+      const hasBuffer = !!this.followAudio.buffer;
+
+      audioFollowMode.checked = isFollow;
+      audioTempoMode.checked = isTempo;
+
+      // 跟练专属控件：只有跟练模式可用
+      [followAudioOffset, followAudioPrebeat, followAudioLoop, followAudioPrebeatMode]
+        .forEach(el => { el.disabled = !isFollow; });
+
+      // 跟练关闭变速 + Swing；测速关闭变速（否则开始会从起始 BPM 重爬）
+      [rampOn, rampStart, rampTarget, rampStep, rampEvery]
+        .forEach(el => { el.disabled = isFollow || isTempo; });
+      swingRange.disabled = isFollow;
+
+      if (isFollow) {
+        audioModeHint.textContent = hasBuffer
+          ? '音频跟练已开启 · 开始播放音频 · 变速/Swing 已关闭'
+          : '音频跟练已开启 · 请选择音频 · 开始不会播放';
+      } else if (isTempo) {
+        audioModeHint.textContent = hasBuffer
+          ? '音频测速已开启 · 只调整 BPM · 开始不播放音频'
+          : '音频测速已开启 · 请选择音频 · 开始不播放音频';
+      } else {
+        audioModeHint.textContent = '未启用音频 · 开始仅播放节拍器';
+      }
+    };
+
+    const setAudioMode = (mode) => {
+      if (mode !== 'follow' && mode !== 'tempo') mode = 'off';
+      if (mode === this.audioMode) {
+        updateFollowAudioUI();
+        return;
+      }
+
+      const previous = this.audioMode;
+      if (mode === 'follow') {
+        disableRampForAudio();
+        disableSwingForAudio();
+      } else if (mode === 'tempo') {
+        disableRampForAudio();
+      }
+
+      this.audioMode = mode;
+
+      // 退出跟练时立即停音频；进入跟练不半途插入，等下一次“开始”再对齐
+      if (previous === 'follow' && mode !== 'follow') this.stopFollowAudio();
+
+      updateFollowAudioUI();
+      updateHud();
+      saveSettings();
+      applyAudioAnalysisBpm();
+
+      if (mode === 'follow') {
+        if (!this.followAudio.buffer) {
+          showToast('音频跟练已开启；请选择音频，开始不会播放');
+        } else if (this.isRunning) {
+          showToast('音频跟练已开启；重新开始后播放音频');
+        } else {
+          showToast('音频跟练已开启；变速练习和 Swing 已关闭');
+        }
+      } else if (mode === 'tempo') {
+        showToast('音频测速已开启；开始不播放音频');
+      } else {
+        showToast('音频已关闭；开始仅播放节拍器');
+      }
+    };
+
+    const updateFollowAudioUI = () => {
+      const fa = this.followAudio;
+      if (fa.loading) {
+        followAudioInfo.textContent = '正在读取并解码音频…';
+      } else if (!fa.buffer) {
+        followAudioInfo.textContent = '未选择音频';
+      } else {
+        const bits = [fa.name || '本地音频', fmtAudioDuration(fa.duration)];
+        if (fa.analysis) {
+          bits.push(fa.analysis.bpm ? `${fa.analysis.bpm} BPM` : 'BPM 未识别');
+          if (fa.analysis.key) bits.push(`调性 ${fa.analysis.key}`);
+        } else {
+          bits.push('分析中…');
+        }
+        followAudioInfo.textContent = bits.join(' · ');
+      }
+      followAudioLoop.checked = fa.loop;
+      followAudioOffset.value = fa.offsetMs;
+      followAudioPrebeat.value = String(fa.prebeatBars);
+      followAudioPrebeatMode.value = fa.prebeatEveryLoop ? 'every' : 'first';
+      followAudioPrebeatModeRow.style.display = (this.audioMode === 'follow' && fa.loop && fa.prebeatBars > 0) ? '' : 'none';
+      updateAudioModeUI();
+      updateHud();
+    };
+
+    this.stopFollowAudio = () => {
+      const fa = this.followAudio;
+      fa.generation += 1;
+      if (fa.handle) {
+        const handle = fa.handle;
+        fa.handle = null;
+        try { handle.stop(); } catch (err) {}
+      }
+    };
+
+    this.startFollowAudio = (when) => {
+      const fa = this.followAudio;
+      if (this.audioMode !== 'follow' || !fa.buffer || !this.isRunning) return;
+
+      this.stopFollowAudio();
+      const generation = fa.generation;
+      const manualLoop = fa.loop && fa.prebeatEveryLoop && fa.prebeatBars > 0;
+      const playOnce = (at, first) => {
+        if (!this.isRunning || fa.generation !== generation) return;
+
+        const prebeatSec = (first || fa.prebeatEveryLoop)
+          ? fa.prebeatBars * this.timeSigNum * (60 / this.bpm)
+          : 0;
+        const audioAt = Math.max(audioEngine.currentTime + 0.02, at + prebeatSec);
+        const offsetSec = fa.offsetMs / 1000;
+        if (offsetSec >= fa.buffer.duration) return;
+
+        // 正偏移：延后开始，留出静音；负偏移：跳过音频开头
+        const startAt = offsetSec > 0 ? audioAt + offsetSec : audioAt;
+        const startOffset = offsetSec < 0 ? -offsetSec : 0;
+
+        fa.handle = audioEngine.playBuffer(fa.buffer, {
+          when: startAt,
+          offset: startOffset,
+          loop: fa.loop && !manualLoop,
+          volume: 0.7,
+          onEnded: () => {
+            if (!manualLoop || !this.isRunning || fa.generation !== generation) return;
+            fa.handle = null;
+            playOnce(audioEngine.currentTime + 0.08, false);
+          }
+        });
+      };
+
+      playOnce(when || (audioEngine.currentTime + 0.08), true);
+    };
+
+    this.runFollowAudioAnalysis = (buffer) => {
+      const token = ++this.followAudio.analysisToken;
+      // 先让 UI 显示「分析中」，避免解码后卡一帧
+      updateFollowAudioUI();
+
+      setTimeout(() => {
+        const fa = this.followAudio;
+        if (fa.buffer !== buffer || fa.analysisToken !== token) return;
+
+        let result = { bpm: null, key: null };
+        try { result = analyzeAudioBuffer(buffer); } catch (err) {}
+        if (fa.buffer !== buffer || fa.analysisToken !== token) return;
+
+        fa.analysis = result;
+        updateFollowAudioUI();
+        saveSettings();
+
+        const wasRunning = this.isRunning;
+        if (this.audioMode === 'follow' && wasRunning) {
+          // 保持跟练原来的行为：运行中载入新音频后，重新对齐并开始播放
+          this.stop();
+          applyAudioAnalysisBpm();
+          this.start();
+        } else if (this.audioMode === 'follow' || this.audioMode === 'tempo') {
+          applyAudioAnalysisBpm();
+        }
+        updateHud();
+
+        if (result.bpm) {
+          if (this.audioMode === 'off') {
+            showToast(`分析：${result.bpm} BPM${result.key ? ' · ' + result.key : ''}（未启用，未改 BPM）`);
+          } else {
+            let msg = `分析：${result.bpm} BPM${result.key ? ' · ' + result.key : ''}`;
+            if (this.audioMode === 'follow' && !wasRunning) msg += '；开始后播放音频';
+            showToast(msg);
+          }
+        } else {
+          showToast('未能识别 BPM，可用 TAP 或手动设置');
+        }
+      }, 80);
+    };
+
+    this.loadFollowAudioFile = async (file) => {
+      if (!file) return;
+      const fa = this.followAudio;
+      fa.loading = true;
+      updateFollowAudioUI();
+
+      try {
+        const ctx = await audioEngine.resume();
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = await decodeAudioBuffer(ctx, arrayBuffer);
+        if (!buffer || !buffer.duration) throw new Error('音频为空');
+
+        this.stopFollowAudio();
+        fa.buffer = buffer;
+        fa.name = file.name || '本地音频';
+        fa.duration = buffer.duration;
+        fa.analysis = null;
+        fa.loading = false;
+        updateFollowAudioUI();
+        saveSettings();
+        showToast('音频已载入，正在分析 BPM / 调性…');
+        this.runFollowAudioAnalysis(buffer);
+      } catch (err) {
+        fa.loading = false;
+        updateFollowAudioUI();
+        showToast('音频载入失败：' + (err && err.message ? err.message : '格式不支持'));
+      }
+    };
+
+    const clearFollowAudio = () => {
+      this.stopFollowAudio();
+      this.followAudio.analysisToken += 1;
+      this.followAudio.buffer = null;
+      this.followAudio.name = '';
+      this.followAudio.duration = 0;
+      this.followAudio.analysis = null;
+      this.followAudio.loading = false;
+      updateFollowAudioUI();
+      saveSettings();
+      showToast('已清除跟练音频');
+    };
+
+    followAudioPick.onclick = () => followAudioFile.click();
+    audioFollowMode.onchange = () => setAudioMode(audioFollowMode.checked ? 'follow' : 'off');
+    audioTempoMode.onchange = () => setAudioMode(audioTempoMode.checked ? 'tempo' : 'off');
+    followAudioFile.onchange = () => {
+      const file = followAudioFile.files && followAudioFile.files[0];
+      followAudioFile.value = '';
+      if (file) this.loadFollowAudioFile(file);
+    };
+    followAudioClear.onclick = clearFollowAudio;
+
+    followAudioOffset.oninput = () => {
+      const v = Math.min(3000, Math.max(-3000, Math.round((parseInt(followAudioOffset.value, 10) || 0) / 10) * 10));
+      this.followAudio.offsetMs = v;
+      saveSettings();
+    };
+    followAudioOffset.onchange = () => { followAudioOffset.value = this.followAudio.offsetMs; };
+
+    followAudioLoop.onchange = () => {
+      this.followAudio.loop = !!followAudioLoop.checked;
+      updateFollowAudioUI();
+      saveSettings();
+      if (this.isRunning && this.followAudio.buffer) showToast('循环设置将在下次开始生效');
+    };
+    followAudioPrebeat.onchange = () => {
+      this.followAudio.prebeatBars = Math.min(4, Math.max(0, parseInt(followAudioPrebeat.value, 10) || 0));
+      updateFollowAudioUI();
+      saveSettings();
+      if (this.isRunning && this.followAudio.buffer) showToast('预节拍将在下次开始生效');
+    };
+    followAudioPrebeatMode.onchange = () => {
+      this.followAudio.prebeatEveryLoop = followAudioPrebeatMode.value === 'every';
+      saveSettings();
+      if (this.isRunning && this.followAudio.buffer) showToast('预节拍模式将在下次开始生效');
+    };
+
+    // ==================== B 批：震动 ====================
+    const updateVibrationUI = () => {
+      vibrationSwitch.classList.toggle('on', this.vibrationEnabled);
+      vibrationSwitch.setAttribute('aria-checked', this.vibrationEnabled ? 'true' : 'false');
+    };
+
+    this.vibrateFor = (beatIdx) => {
+      if (!this.vibrationEnabled || typeof navigator.vibrate !== 'function') return;
+      const mode = this.accents[beatIdx] || 'beat';
+      if (mode === 'mute') return;
+      const ms = mode === 'accent' ? 40 : (mode === 'sub' ? 30 : 18);
+      try { navigator.vibrate(ms); } catch (err) {}
+    };
+
+    const toggleVibration = () => {
+      this.vibrationEnabled = !this.vibrationEnabled;
+      updateVibrationUI();
+      saveSettings();
+      if (!this.vibrationEnabled) {
+        showToast('震动已关闭');
+        return;
+      }
+      if (typeof navigator.vibrate === 'function') {
+        try { navigator.vibrate(30); } catch (err) {}
+        showToast('震动已开启');
+      } else {
+        showToast('当前设备不支持震动');
+      }
+    };
+    vibrationSwitch.onclick = toggleVibration;
+    vibrationSwitch.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleVibration(); }
+    };
+
+    updateFollowAudioUI();
+    updateVibrationUI();
+
 
     this.setBpm = (v, isSync) => {
       v = Math.round(v);
@@ -646,10 +1277,12 @@ class GuitarMetronome extends HTMLElement {
         swing: this.swing,
         onBeat: (ev) => {
           this.queue.push(ev);
+          this.vibrateFor(ev.beat);
           if (ev.beat === 0) rampAdvance();
         },
         // 只有被迷你节拍器抢占时才会走到这里；用户自己点停会先把 isRunning 置 false
         onStop: () => {
+          this.stopFollowAudio();
           if (!this.isRunning) return;
           this.isRunning = false;
           wakeLock.release('metronome');
@@ -665,10 +1298,16 @@ class GuitarMetronome extends HTMLElement {
       wakeLock.acquire('metronome');
       playBtn.textContent = '停 止';
       playBtn.classList.add('running');
+
+      // 音频跟练：仅 follow 模式与节拍器首拍同一个 startTime 起跑；测速/未启用不播
+      if (this.audioMode === 'follow' && this.metronomeHandle) {
+        this.startFollowAudio(this.metronomeHandle.startTime);
+      }
     };
 
     this.stop = () => {
       this.isRunning = false;
+      this.stopFollowAudio();
       wakeLock.release('metronome');
       if (this.metronomeHandle) {
         const handle = this.metronomeHandle;
@@ -682,20 +1321,129 @@ class GuitarMetronome extends HTMLElement {
       updateHud();
     };
 
+    const applyTimeSignature = (num, den) => {
+      const nextNum = Math.min(32, Math.max(1, Math.round(Number(num) || this.timeSigNum)));
+      const nextDen = Math.min(64, Math.max(1, Math.round(Number(den) || this.timeSigDen)));
+      if (nextNum === this.timeSigNum && nextDen === this.timeSigDen) {
+        renderSettings();
+        return;
+      }
+
+      const numChanged = nextNum !== this.timeSigNum;
+      this.timeSigNum = nextNum;
+      this.timeSigDen = nextDen;
+      if (numChanged) {
+        this.accents = new Array(nextNum).fill('beat');
+        this.accents[0] = 'accent';
+      } else {
+        this.accents = this.accents.slice(0, nextNum);
+        while (this.accents.length < nextNum) this.accents.push('beat');
+        if (!this.accents.includes('accent')) this.accents[0] = 'accent';
+      }
+
+      updateUI();
+      renderSettings();
+      broadcastSettings();
+      if (this.isRunning) { this.stop(); this.start(); }
+    };
+
+    const applyPattern = (pat) => {
+      if (!pat) return;
+      const nextNum = Math.min(32, Math.max(1, Math.round(Number(pat.tsNum) || 4)));
+      const nextDen = Math.min(64, Math.max(1, Math.round(Number(pat.tsDen) || 4)));
+      const sub = SUBDIVISIONS.find(s => s.id === pat.subId) || SUBDIVISIONS[0];
+
+      this.timeSigNum = nextNum;
+      this.timeSigDen = nextDen;
+      this.accents = normalizeAccents(pat.accents, nextNum);
+      this.currentSubId = sub.id;
+
+      updateUI();
+      renderSettings();
+      broadcastSettings();
+      if (this.isRunning) { this.stop(); this.start(); }
+      showToast(`已应用「${pat.name}」`);
+    };
+
+    const renderPatterns = () => {
+      patternList.innerHTML = '';
+      this.patterns.forEach((pat) => {
+        const chip = document.createElement('div');
+        chip.className = 'pattern-chip';
+
+        const main = document.createElement('div');
+        main.className = 'p-main';
+        const name = document.createElement('span');
+        name.className = 'p-name';
+        name.textContent = pat.name;
+        const sub = SUBDIVISIONS.find(s => s.id === pat.subId) || SUBDIVISIONS[0];
+        const meta = document.createElement('span');
+        meta.className = 'p-meta';
+        meta.textContent = `${pat.tsNum}/${pat.tsDen} · ${sub.short}`;
+        main.appendChild(name);
+        main.appendChild(meta);
+        main.onclick = () => applyPattern(pat);
+
+        const del = document.createElement('button');
+        del.className = 'p-del';
+        del.type = 'button';
+        del.title = '删除节奏型';
+        del.textContent = '×';
+        del.onclick = (e) => {
+          e.stopPropagation();
+          if (!window.confirm(`删除节奏型「${pat.name}」？`)) return;
+          this.patterns = this.patterns.filter(p => p.id !== pat.id);
+          saveSettings();
+          renderPatterns();
+          showToast('已删除节奏型');
+        };
+
+        chip.appendChild(main);
+        chip.appendChild(del);
+        patternList.appendChild(chip);
+      });
+    };
+
+    const saveCurrentPattern = () => {
+      const name = patternName.value.trim().slice(0, 16);
+      if (!name) {
+        patternName.focus();
+        showToast('先填写节奏型名称');
+        return;
+      }
+      const data = {
+        tsNum: this.timeSigNum,
+        tsDen: this.timeSigDen,
+        accents: this.accents.slice(),
+        subId: this.currentSubId
+      };
+      const existing = this.patterns.find(p => p.name === name);
+      if (existing) {
+        Object.assign(existing, data);
+      } else {
+        this.patterns.push({
+          id: 'pat_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          name,
+          ...data
+        });
+      }
+      patternName.value = '';
+      saveSettings();
+      renderPatterns();
+      showToast(existing ? '已更新节奏型' : '已保存节奏型');
+    };
+    patternSave.onclick = saveCurrentPattern;
+    patternName.onkeydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveCurrentPattern(); }
+    };
+
     const renderSettings = () => {
       tsGrid.innerHTML = '';
       TIME_SIGS.forEach(ts => {
         const b = document.createElement('button');
         b.className = 'ts-btn' + (ts.num === this.timeSigNum && ts.den === this.timeSigDen ? ' on' : '');
         b.textContent = `${ts.num}/${ts.den}`;
-        b.onclick = () => {
-          this.timeSigNum = ts.num; this.timeSigDen = ts.den;
-          this.accents = new Array(ts.num).fill('beat');
-          this.accents[0] = 'accent';
-          updateUI(); renderSettings();
-          broadcastSettings();
-          if (this.isRunning) { this.stop(); this.start(); }
-        };
+        b.onclick = () => applyTimeSignature(ts.num, ts.den);
         tsGrid.appendChild(b);
       });
 
@@ -749,6 +1497,8 @@ class GuitarMetronome extends HTMLElement {
       }
 
       // 把 C4 控件回填成当前状态（打开设置面板时总是显示真实值）
+      tsNumInput.value = this.timeSigNum;
+      tsDenInput.value = this.timeSigDen;
       swingRange.value = this.swing;
       swingVal.textContent = this.swing + '%';
       rampOn.checked = this.ramp.enabled;
@@ -758,7 +1508,24 @@ class GuitarMetronome extends HTMLElement {
       rampEvery.value = this.ramp.every;
       timerOn.checked = this.timer.enabled;
       timerMin.value = this.timer.minutes;
+
+      renderPatterns();
+      updateFollowAudioUI();
+      updateVibrationUI();
     };
+
+    const applyCustomTimeSignature = () => {
+      applyTimeSignature(tsNumInput.value, tsDenInput.value);
+      // 回填被 clamp 后的真实值
+      tsNumInput.value = this.timeSigNum;
+      tsDenInput.value = this.timeSigDen;
+    };
+    tsApply.onclick = applyCustomTimeSignature;
+    [tsNumInput, tsDenInput].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); applyCustomTimeSignature(); }
+      });
+    });
 
     // Swing：拖动即生效（二连音后半拍位置 0.5 → 0.75）
     swingRange.oninput = () => {
@@ -822,8 +1589,57 @@ class GuitarMetronome extends HTMLElement {
     });
     bpmInput.addEventListener('blur', () => bpmInput.value = this.bpm);
 
-    knobMinus.onclick = () => this.setBpm(this.bpm - 1, false);
-    knobPlus.onclick = () => this.setBpm(this.bpm + 1, false);
+    // BPM +/−：点一下走 1 格；按住 350ms 后连续步进，松手立即停
+    const bindHoldStep = (btn, delta) => {
+      let holdTimer = null, repeatTimer = null;
+      let didRepeat = false, active = false, pointerId = null;
+
+      const clearTimers = () => {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+        if (repeatTimer) { clearInterval(repeatTimer); repeatTimer = null; }
+      };
+      const step = () => this.setBpm(this.bpm + delta, false);
+      const finish = (applyStep) => {
+        if (!active) return;
+        active = false;
+        clearTimers();
+        if (applyStep && !didRepeat) step();
+        if (pointerId != null) {
+          try { btn.releasePointerCapture(pointerId); } catch (err) {}
+          pointerId = null;
+        }
+      };
+
+      btn.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (active) return;
+        e.preventDefault();
+        active = true;
+        didRepeat = false;
+        pointerId = e.pointerId;
+        try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+        holdTimer = setTimeout(() => {
+          if (!active) return;
+          didRepeat = true;
+          step();
+          repeatTimer = setInterval(step, 70);
+        }, 350);
+      });
+
+      btn.addEventListener('pointerup', () => finish(true));
+      btn.addEventListener('pointercancel', () => finish(false));
+      btn.addEventListener('lostpointercapture', () => finish(false));
+
+      // 键盘 Enter / Space 触发 click(detail=0) 时保留单击能力；
+      // 指针点击已经由 pointerup 处理，避免一次点击加两格
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (e.detail === 0) step();
+      });
+    };
+
+    bindHoldStep(knobMinus, -1);
+    bindHoldStep(knobPlus, 1);
 
     let isDragging = false;
     const pointerToBpm = (e) => {
@@ -875,16 +1691,30 @@ class GuitarMetronome extends HTMLElement {
     knobWrap.addEventListener('pointercancel', onPointerUp);
 
     let tapTimes = [];
+    let tapResetTimer = null;
     tapBtn.onclick = () => {
       const now = performance.now();
       if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2000) tapTimes = [];
       tapTimes.push(now);
-      if (tapTimes.length > 5) tapTimes.shift();
+      if (tapTimes.length > 8) tapTimes.shift();
+
+      tapBtn.classList.add('pulse');
+      setTimeout(() => tapBtn.classList.remove('pulse'), 100);
+
       if (tapTimes.length >= 2) {
         let sum = 0;
         for (let i = 1; i < tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]);
         this.setBpm(Math.round(60000 / (sum / (tapTimes.length - 1))), false);
+        tapHint.textContent = `${tapTimes.length} 次`;
+      } else {
+        tapHint.textContent = '继续…';
       }
+
+      clearTimeout(tapResetTimer);
+      tapResetTimer = setTimeout(() => {
+        tapTimes = [];
+        tapHint.textContent = '测速';
+      }, 2500);
     };
 
     setTimeout(() => { resizeKnob(); updateUI(); }, 50);

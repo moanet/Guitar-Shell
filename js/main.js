@@ -1,23 +1,46 @@
 import { APP_VERSION } from './services/version.js';
 import { showToast } from './services/toast.js';
 import { initTheme } from './services/theme.js';
+import { dbService } from './services/db.js';
 
 // 主题只认 html[data-theme]；冷启动时再同步一次浏览器与原生系统栏
 initTheme();
 
-const tabBtns = document.querySelectorAll('.tab-btn');
-const sections = document.querySelectorAll('.view-section');
+const tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
+const sections = Array.from(document.querySelectorAll('.view-section'));
+
+let currentTab = document.querySelector('.tab-btn.active')?.getAttribute('data-target') || 'view-reader';
+let tabSelectedByUser = false;
+
+function setActiveTab(targetId, { announce = true, userInitiated = false } = {}) {
+  const btn = tabBtns.find(item => item.getAttribute('data-target') === targetId);
+  const section = document.getElementById(targetId);
+  if (!btn || !section) return false;
+
+  if (userInitiated) tabSelectedByUser = true;
+
+  tabBtns.forEach(item => item.classList.remove('active'));
+  sections.forEach(item => item.classList.remove('active'));
+  btn.classList.add('active');
+  section.classList.add('active');
+  currentTab = targetId;
+
+  if (announce) {
+    window.dispatchEvent(new CustomEvent('app-tab-changed', { detail: { target: targetId } }));
+  }
+  return true;
+}
 
 tabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    tabBtns.forEach(b => b.classList.remove('active'));
-    sections.forEach(s => s.classList.remove('active'));
-    btn.classList.add('active');
-    const targetId = btn.getAttribute('data-target');
-    document.getElementById(targetId).classList.add('active');
-    // 🌟 广播切换事件：组件据此停掉不该继续发声的东西（如读谱页的 mini 节拍器）
-    window.dispatchEvent(new CustomEvent('app-tab-changed', { detail: { target: targetId } }));
+    setActiveTab(btn.getAttribute('data-target'), { userInitiated: true });
   });
+});
+
+// 组件里不直接操作 Tab DOM，统一通过事件请求切换
+window.addEventListener('app-request-tab', (event) => {
+  const target = event.detail?.target;
+  if (target) setActiveTab(target, { userInitiated: true });
 });
 
 // 自动获取基础路径：本地 / ，GitHub Pages /GuitarShell/
@@ -40,7 +63,38 @@ async function loadComponents() {
   // 🌟 全局设置抽屉
   try { await import(`${base}js/components/settings.js`); } catch (e) { console.error('全局设置加载失败', e); }
 }
-loadComponents();
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+async function resolveInitialTab() {
+  try {
+    const count = await withTimeout(dbService.getScoreCount(), 1200);
+    return count > 0 ? 'view-reader' : 'view-metronome';
+  } catch (err) {
+    console.warn('读取乐谱数量失败，默认进入节拍器', err);
+    return 'view-metronome';
+  }
+}
+
+async function boot() {
+  const initialTarget = await resolveInitialTab();
+  if (!tabSelectedByUser) setActiveTab(initialTarget, { announce: false });
+
+  // 等组件挂载后再广播首个激活页，避免监听器还没注册
+  await loadComponents();
+  window.dispatchEvent(new CustomEvent('app-tab-changed', { detail: { target: currentTab } }));
+}
+
+boot();
+
 
 // ==================== ⚙ 全局设置入口 ====================
 const settingsBtn = document.getElementById('btnGlobalSettings');

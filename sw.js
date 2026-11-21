@@ -1,5 +1,5 @@
 // 改版本时两处同步：这里 + js/services/version.js（SW 是 classic script，无法 import）
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 const CACHE_NAME = 'guitar-shell-v' + APP_VERSION;
 
 const ASSETS_TO_CACHE = [
@@ -12,6 +12,7 @@ const ASSETS_TO_CACHE = [
   './js/services/version.js',
   './js/services/vault.js',
   './js/services/audio.js',
+  './js/services/audio-analysis.js',
   './js/services/pitch.js',
   './js/services/toast.js',
   './js/services/theme.js',
