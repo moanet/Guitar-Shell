@@ -3,7 +3,7 @@
 > 项目总账：记录长期路线、版本时间线、任务队列、冒烟清单、构建发布、技术债与避坑指南。
 > 当前迭代：见 [CURRENT_TASK.md](CURRENT_TASK.md)。
 > 已发布版本的完整改动与验收证据：见 [CHANGELOG.md](CHANGELOG.md)。
-> 当前基线：线上 Release 仍为 `0.1.1`；开发版本 `0.1.2` 已构建 release APK，待发布。
+> 当前基线：线上 Release 已更新为 `0.1.2`；下一版待规划。
 
 ## 1. 当前阶段
 
@@ -58,6 +58,10 @@
 ### 1.3 0.1.1 节拍器练习增强（已发布，历史）
 
 0.1.1 已于 2026-11-21 正式发布，包含节拍器 A/B 批交互与音频能力、音频跟练 / 测速、启动动画 1s。完整改动、验收数据、APK 校验与 Release 信息见 [CHANGELOG.md](CHANGELOG.md) 的 0.1.1 段。
+
+### 1.4 0.1.2 节拍器界面收尾（已发布，2026-11-21）
+
+0.1.2 已完成节拍器布局收尾、拍点色块与计时 / 变速进度、自然结束自动记录、音频拍号推测与设置按钮样式统一；用户真机确认布局与位置合理。release APK 已上传 GitHub Release `v0.1.2`，远端下载 SHA-256 与本地一致。完整改动与验收证据见 [CHANGELOG.md](CHANGELOG.md) 的 0.1.2 段。
 
 ## 2. 演进路线
 
@@ -124,7 +128,7 @@ flowchart LR
 | 0.0.8.10          | 双主题 UI 终版：暖纸日光 / 复古木质            | 已真机验收推送；GitHub Release 已转正式               |
 | 0.1.0             | 正式包名 /release 签名 / 数据迁移          | 已正式发布，GitHub Release `v0.1.0`             |
 | 0.1.1             | 节拍器 A/B 批 + 音频跟练 / 测速 + 启动动画 1s  | 已实机验证并正式发布，GitHub Release `v0.1.1`        |
-| 0.1.2             | 节拍器界面收尾 / 色块与自动记录 / 拍号推测 / 设置按钮统一 | 已构建 APK，待发布                               |
+| 0.1.2             | 节拍器界面收尾 / 色块与自动记录 / 拍号推测 / 设置按钮统一 | 已正式发布，GitHub Release `v0.1.2`              |
 | 下一版（版本号待定）        | 待规划                              | 见 [CURRENT\_TASK.md](CURRENT_TASK.md)      |
 
 ## 5. 当前进度
@@ -161,7 +165,7 @@ flowchart LR
 
 * `0.1.1` 已正式发布：节拍器 A 批交互、B 批音频 / 节奏型 / 震动、音频跟练与测速二选一、跟练 HUD 双行信息均已完成并通过浏览器验收；启动动画总时长压缩到 `1.00s`；release APK 已完成实机验证并上传 GitHub Release。发布地址：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`；APK SHA-256：`C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`。
 
-* `0.1.2` 已构建并推送 `main`（提交 `8b3887c`）：节拍器界面收尾、拍点色块、计时 / 变速自动记录、拍号推测与设置按钮样式统一；用户已确认真机布局和位置合理。release APK `4,131,436` 字节，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；`versionCode 102` / `versionName 0.1.2`，v1 / v2 签名通过。当前范围与验收见 [CURRENT\_TASK.md](CURRENT_TASK.md)。
+* `0.1.2` 已正式发布：节拍器界面收尾、拍点色块、计时 / 变速自动记录、拍号推测与设置按钮样式统一；用户已确认真机布局和位置合理。release APK `4,131,436` 字节，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；`versionCode 102` / `versionName 0.1.2`，v1 / v2 签名通过。发布地址：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.2`；资产已上传，远端 SHA-256 复核一致。当前迭代收尾见 [CURRENT\_TASK.md](CURRENT_TASK.md)。
 
 ## 6. 任务队列
 
@@ -186,7 +190,7 @@ flowchart LR
 | 11 | 节拍器 A 批：长按 / 自定义拍号 / 细分 / Swing / 音色 / TAP / 32 拍 | 已纳入 0.1.1        | 无          | 见 CHANGELOG 0.1.1；只改 `metronome.js`、`audio.js`       |
 | 12 | 节拍器 B 批 + 音频跟练 / 测速                               | 已纳入 0.1.1        | 11         | 见 CHANGELOG 0.1.1；含节奏型、震动、本地分析、模式门控与双行 HUD           |
 | 13 | 启动动画总时长压缩到 1s                                     | 已发布，随 0.1.1 实机验证 | 无          | 见 CHANGELOG 0.1.1；`MainActivity` 800ms 显示 + 200ms 淡出 |
-| 14 | 0.1.2：节拍器界面收尾 / 色块 / 拍号推测 / 自动记录                 | 已构建，待发布      | 13         | 真机布局已确认；详见 [CURRENT\_TASK.md](CURRENT_TASK.md)     |
+| 14 | 0.1.2：节拍器界面收尾 / 色块 / 拍号推测 / 自动记录                 | 已正式发布          | 13         | GitHub Release `v0.1.2`；详见 [CURRENT\_TASK.md](CURRENT_TASK.md) |
 
 ## 7. 冒烟清单
 

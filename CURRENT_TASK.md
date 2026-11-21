@@ -1,10 +1,10 @@
-# CURRENT TASK — 下一版
+# CURRENT TASK — 0.1.2 发布收尾
 
-> 状态：0.1.2 构建完成，已推送 main，待发布
+> 状态：0.1.2 已正式发布；下一版待规划
 > 更新时间：2026-11-21
 > 关联：[TASK.md](TASK.md)（项目总账） / [CHANGELOG.md](CHANGELOG.md)（发布历史）
 >
-> 本文件只记录当前版本的“做什么、怎么做、怎么验收”。发布后把结果压缩进 `CHANGELOG.md`，再重写本文件进入下一版。
+> 本文件只记录当前版本的“做什么、怎么做、怎么验收”。0.1.2 已发布，本轮结果已压缩进 `CHANGELOG.md`；下一版启动时重写本文件。
 
 ## 1. 目标
 
@@ -83,7 +83,7 @@
 
 ## 5. 实施批次
 
-> 进度：批次 1–4 已实机通过；闪动条高度与底部间距微调已完成浏览器验证，待真机确认。下方验收项保留给最终回归。
+> 进度：批次 1–4 已实机通过；闪动条高度、底部间距与设置按钮样式已完成浏览器与真机确认。下方验收项保留为发布回归记录。
 
 ### 批次 1：布局与设置面板
 
@@ -176,11 +176,13 @@
 - [x] 4/4、7/8、32 拍下闪动条高度分别与拍点一致。
 - [x] 设置按钮样式微调不要求再次实机验证。
 
-### 0.1.2 构建
+### 0.1.2 构建与发布
 
 - [x] 版本同步为 `0.1.2`：`package.json` / `package-lock.json`、`version.js`、`sw.js`、Android `versionCode 102` / `versionName 0.1.2`。
 - [x] `npm run apk:release` 构建成功；`aapt` 确认包名 `com.guitarshell`、`versionCode 102` / `versionName 0.1.2`。
 - [x] APK `4,131,436` 字节；SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；v1 / v2 签名通过。
+- [x] annotated tag `v0.1.2` 已创建并推送，指向 `8b3887c`。
+- [x] GitHub Release `v0.1.2` 已正式发布，资产 `GuitarShell-0.1.2-release.apk` 已上传；远端下载 SHA-256 复核一致。
 
 ## 7. 风险与未决
 
@@ -201,4 +203,12 @@
 - [x] 新增静态文件已加入 `sw.js` 缓存清单。
 - [x] release APK 构建、签名、SHA-256 已完成。
 - [x] 代码提交、推送 `main`（提交 `8b3887c`）。
-- [ ] GitHub Release 上传与 `v0.1.2` tag（本轮未授权，待确认）。
+- [x] GitHub Release 上传与 `v0.1.2` tag 已完成。
+
+## 9. 正式发布记录
+
+- Release：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.2`（Release ID `453618649`，公开、非草稿、非预发布）。
+- Tag：annotated `v0.1.2`，指向 `8b3887c`；tag 对象 `ad489599e11edf63ffc06733f73b3f272d9bee27`。
+- APK：`GuitarShell-0.1.2-release.apk`，`4,131,436` 字节，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；远端下载复核一致。
+- `releases/latest` 已指向 `v0.1.2`。
+- 下一版：待规划；启动时重写本文件。

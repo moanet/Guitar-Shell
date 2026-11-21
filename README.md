@@ -54,9 +54,10 @@ Guitar Shell 是一个本地优先的吉他练琴工作站。它把乐谱、节�
 
 ## 下载与安装
 
-- **Android 当前正式版**：前往 [GitHub Releases](https://github.com/moanet/GuitarShell/releases/latest) 下载 `GuitarShell-0.1.1-release.apk`。
-- **当前 Release**：[v0.1.1](https://github.com/moanet/GuitarShell/releases/tag/v0.1.1)，2026-11-21 正式发布，已完成实机验证。
-- **0.1.2 构建产物**：`GuitarShell-0.1.2-release.apk` 已构建并校验，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；GitHub Release 待发布。
+- **Android 当前正式版**：前往 [GitHub Releases](https://github.com/moanet/GuitarShell/releases/latest) 下载 `GuitarShell-0.1.2-release.apk`。
+- **当前 Release**：[v0.1.2](https://github.com/moanet/GuitarShell/releases/tag/v0.1.2)，2026-11-21 正式发布；APK 已上传并通过远端 SHA-256 复核。
+- **0.1.2 APK 校验**：SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`。
+- **上一版**：[v0.1.1](https://github.com/moanet/GuitarShell/releases/tag/v0.1.1)，2026-11-21 发布，节拍器 A/B 批与音频跟练 / 测速。
 - **网页版**：打开 [https://moanet.github.io/GuitarShell/](https://moanet.github.io/GuitarShell/)。
 
 > `0.1.0` 起使用新的应用 ID `com.guitarshell`，可以与 `0.0.8.10` 并存，不覆盖旧版数据。
@@ -153,6 +154,7 @@ Guitar Shell
 ├─ docs/screenshots/           README 界面截图
 ├─ icon-gShell-*.png           应用图标
 ├─ CHANGELOG.md                逐版本迭代记录
+├─ CURRENT_TASK.md             当前迭代简报
 └─ TASK.md                     开发任务、进度与避坑指南
 ```
 
@@ -196,4 +198,5 @@ npm run apk:release
 ## 文档
 
 - [TASK.md](TASK.md)：开发任务、当前进度、冒烟清单、技术债与避坑指南。
+- [CURRENT_TASK.md](CURRENT_TASK.md)：当前迭代的目标、范围、验收与发布检查。
 - [CHANGELOG.md](CHANGELOG.md)：逐版本交付内容、测试与历史决策。

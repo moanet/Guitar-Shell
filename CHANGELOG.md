@@ -3,9 +3,9 @@
 > Guitar Shell 的**完整迭代记录**：逐版本交付、测试结果、关键决策与风险。
 > README 只保留精简时间线和当前进度；需要追溯细节时看这里。
 
-## 0.1.2 — 节拍器界面收尾与设置按钮统一（构建完成，待发布，2026-11-21）
+## 0.1.2 — 节拍器界面收尾与设置按钮统一（已发布，2026-11-21）
 
-> 版本已同步为 `0.1.2`；release APK 已构建并校验，GitHub Release 待发布。
+> 版本已同步为 `0.1.2`；release APK 已构建、校验并上传 GitHub Release。
 
 **节拍器界面**
 
@@ -56,8 +56,11 @@
 
 **发布**
 
-- 本地构建产物：`dist/GuitarShell-0.1.2-release.apk`。
-- 代码与文档提交 `8b3887c` 并推送 `main`；`v0.1.2` tag 与 GitHub Release 未创建。
+- 代码提交 `8b3887c` 已推送 `main`；发布记录另提交 `b4c8cf2`。
+- annotated tag `v0.1.2` 指向 `8b3887c`，tag 对象 `ad489599e11edf63ffc06733f73b3f272d9bee27`，已推送。
+- GitHub Release `v0.1.2` 已正式发布（公开、非草稿、非预发布）：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.2`。
+- 资产 `GuitarShell-0.1.2-release.apk` 已上传，大小 `4,131,436` 字节；远端下载复核 SHA-256 与本地一致。
+- `releases/latest` 已指向 `v0.1.2`。
 
 ## 0.1.1 — 节拍器练习增强与启动动画提速（已发布，2026-11-21）
 
