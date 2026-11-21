@@ -161,7 +161,7 @@ flowchart LR
 
 * `0.1.1` 已正式发布：节拍器 A 批交互、B 批音频 / 节奏型 / 震动、音频跟练与测速二选一、跟练 HUD 双行信息均已完成并通过浏览器验收；启动动画总时长压缩到 `1.00s`；release APK 已完成实机验证并上传 GitHub Release。发布地址：`https://github.com/moanet/GuitarShell/releases/tag/v0.1.1`；APK SHA-256：`C73E31F114F9F19FE6DF19DD70E1E9EA58AE1224AAEBF1304609FF85E2BE66BB`。
 
-* `0.1.2` 已构建：节拍器界面收尾、拍点色块、计时 / 变速自动记录、拍号推测与设置按钮样式统一；用户已确认真机布局和位置合理。release APK `4,131,436` 字节，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；`versionCode 102` / `versionName 0.1.2`，v1 / v2 签名通过。当前范围与验收见 [CURRENT\_TASK.md](CURRENT_TASK.md)。
+* `0.1.2` 已构建并推送 `main`（提交 `8b3887c`）：节拍器界面收尾、拍点色块、计时 / 变速自动记录、拍号推测与设置按钮样式统一；用户已确认真机布局和位置合理。release APK `4,131,436` 字节，SHA-256 `B0AE1A31A719CFB378DA52EF7BEFEA92454F4358675B0181998A9D98E51B4F90`；`versionCode 102` / `versionName 0.1.2`，v1 / v2 签名通过。当前范围与验收见 [CURRENT\_TASK.md](CURRENT_TASK.md)。
 
 ## 6. 任务队列
 

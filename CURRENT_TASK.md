@@ -1,6 +1,6 @@
 # CURRENT TASK — 下一版
 
-> 状态：0.1.2 构建完成，待提交 / 发布
+> 状态：0.1.2 构建完成，已推送 main，待发布
 > 更新时间：2026-11-21
 > 关联：[TASK.md](TASK.md)（项目总账） / [CHANGELOG.md](CHANGELOG.md)（发布历史）
 >
@@ -200,5 +200,5 @@
 - [x] `package.json` / `package-lock.json`、`version.js`、`sw.js`、Android `versionCode/versionName` 同步。
 - [x] 新增静态文件已加入 `sw.js` 缓存清单。
 - [x] release APK 构建、签名、SHA-256 已完成。
-- [ ] 代码提交、推送 `main`。
+- [x] 代码提交、推送 `main`（提交 `8b3887c`）。
 - [ ] GitHub Release 上传与 `v0.1.2` tag（本轮未授权，待确认）。

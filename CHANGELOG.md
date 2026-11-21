@@ -57,7 +57,7 @@
 **发布**
 
 - 本地构建产物：`dist/GuitarShell-0.1.2-release.apk`。
-- 代码与文档提交、推送 `main`；`v0.1.2` tag 与 GitHub Release 未创建。
+- 代码与文档提交 `8b3887c` 并推送 `main`；`v0.1.2` tag 与 GitHub Release 未创建。
 
 ## 0.1.1 — 节拍器练习增强与启动动画提速（已发布，2026-11-21）
 
